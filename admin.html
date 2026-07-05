@@ -5,6 +5,21 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <link rel="icon" type="image/png" href="assets/mufasa-favicon.png" />
 <title>Mufasa SMS — Admin Panel</title>
+<style id="route-auth-hide">html{visibility:hidden}</style>
+<script>
+(function(){
+  var expected='admin';
+  try{
+    var token=localStorage.getItem('ms_token');
+    var role=localStorage.getItem('ms_role');
+    if(!token || role!==expected){ location.replace('/login'); return; }
+    fetch('/api/me',{headers:{Authorization:'Bearer '+token}})
+      .then(function(r){ if(!r.ok) throw new Error('auth'); return r.json(); })
+      .then(function(u){ if(!u || u.role!==expected) throw new Error('role'); if(!localStorage.getItem('ms_last_page_'+expected)||localStorage.getItem('ms_last_page_'+expected)==='dashboard'){document.documentElement.style.visibility='visible';} })
+      .catch(function(){ localStorage.clear(); location.replace('/login'); });
+  }catch(e){ localStorage.clear(); location.replace('/login'); }
+})();
+</script>
 <style>
   :root{
     --bg:#0b1120; --bg2:#111a2e; --panel:#131c31; --panel2:#1a2540; --row:#0f1729;
@@ -394,6 +409,7 @@
         <div class="sub-item" data-page="integrations"><span class="dot"></span> Integration Layer</div>
         <div class="sub-item" data-page="notificationRules"><span class="dot"></span> Notification Rules</div>
         <div class="sub-item" data-page="systemLogs"><span class="dot"></span> System Logs</div>
+        <div class="sub-item" data-page="backupManagement"><span class="dot"></span> Backups</div>
       </div>
     </nav>
   </aside>
@@ -828,6 +844,27 @@ ngrok http 4000</pre>
         </div>
       </section>
 
+
+      <section class="page" id="page-backupManagement">
+        <div class="page-head"><div><h2>Database Backups</h2><div class="breadcrumb"><b>System Master</b> › Backup & Restore</div></div>
+          <div class="head-actions"><button class="btn btn-blue" onclick="loadBackups()">Refresh</button><button class="btn btn-green" onclick="createBackupNow()">Create Backup Now</button><button class="btn btn-purple" onclick="downloadLatestBackup()">Download Latest</button></div>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-card dash-metric d-blue"><div class="stat-info"><p>Total Backups</p><h3 id="bkTotal">0</h3><span>Available snapshots</span></div><div class="dash-go">DB</div></div>
+          <div class="stat-card dash-metric d-green"><div class="stat-info"><p>Latest Backup</p><h3 id="bkLatest">—</h3><span>Most recent snapshot</span></div><div class="dash-go">✓</div></div>
+          <div class="stat-card dash-metric d-orange"><div class="stat-info"><p>Backup Folder</p><h3 id="bkFolder">—</h3><span>Persistent storage path</span></div><div class="dash-go">↺</div></div>
+          <div class="stat-card dash-metric d-pink"><div class="stat-info"><p>Database File</p><h3 id="bkDbFile">—</h3><span>Active database path</span></div><div class="dash-go">●</div></div>
+        </div>
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-head"><div><h3>Railway Volume Settings</h3><div class="sub">Use <b>DB_FILE=/data/data.sqlite</b> and <b>BACKUP_DIR=/data/backups</b> on Railway. Create a Railway Volume mounted at <b>/data</b>.</div></div></div>
+          <div class="hint">Automatic backups run every <b>BACKUP_INTERVAL_HOURS</b> hours and old backups are removed after <b>BACKUP_RETENTION_DAYS</b> days.</div>
+        </div>
+        <div class="table-wrap"><div class="tscroll"><table>
+          <thead><tr><th>File</th><th>Created</th><th>Modified</th><th>Size</th><th>Actions</th></tr></thead>
+          <tbody id="backupBody"></tbody>
+        </table></div><div class="table-foot"><div class="info" id="backupInfo"></div></div></div>
+      </section>
+
       <!-- ========== SYSTEM MASTER: NEWS ========== -->
       <section class="page" id="page-news">
         <div class="page-head"><div><h2>News for Users</h2><div class="breadcrumb"><b>System Master</b> › News</div></div>
@@ -984,9 +1021,7 @@ function toggleSub(subId,parentId){ document.getElementById(subId).classList.tog
 function openSidebar(){ document.getElementById('sidebar').classList.add('show'); document.getElementById('overlay').classList.add('show'); }
 function closeSidebar(){ document.getElementById('sidebar').classList.remove('show'); document.getElementById('overlay').classList.remove('show'); }
 function toggleFull(){ if(!document.fullscreenElement){document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen();}else{document.exitFullscreen&&document.exitFullscreen();} }
-function logout(){ if(confirm('Do you want to logout?')){ try{localStorage.clear();}catch(e){} window.location.href='login.html'; } }
-function closeModal(id){ document.getElementById(id).classList.remove('show'); }
-
+function logout(){ if(confirm('Do you want to logout?')){ if(window.API&&API.logout){API.logout();}else{try{localStorage.clear();}catch(e){} window.location.href='/login';} } }
 function tick(){const d=new Date();const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];const p=n=>String(n).padStart(2,'0');
   document.getElementById('clock').textContent=days[d.getDay()]+', '+d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());}
 setInterval(tick,1000);tick();
@@ -1920,6 +1955,57 @@ async function clearGeneratedTestSms(){
   }catch(e){alert('❌ '+e.message)}
 }
 
+
+/* =============== DATABASE BACKUPS =============== */
+let backupRows=[];
+function formatBytes(bytes){bytes=Number(bytes||0);if(bytes<1024)return bytes+' B';if(bytes<1024*1024)return (bytes/1024).toFixed(1)+' KB';return (bytes/1024/1024).toFixed(2)+' MB';}
+async function loadBackups(){
+  try{
+    const data=await API.get('/backups');
+    backupRows=data.backups||[];
+    const latest=backupRows[0];
+    const bt=document.getElementById('bkTotal'); if(bt)bt.textContent=backupRows.length;
+    const bl=document.getElementById('bkLatest'); if(bl)bl.textContent=latest?(latest.modified_at||latest.created_at||'').slice(0,16):'—';
+    const bf=document.getElementById('bkFolder'); if(bf)bf.textContent=(data.backup_dir||'—').split('/').slice(-2).join('/');
+    const bd=document.getElementById('bkDbFile'); if(bd)bd.textContent=(data.db_file||'—').split('/').slice(-2).join('/');
+    const body=document.getElementById('backupBody'); if(!body)return;
+    body.innerHTML=backupRows.map(b=>`<tr><td class="mono">${b.file}</td><td>${(b.created_at||'').slice(0,19)}</td><td>${(b.modified_at||'').slice(0,19)}</td><td>${formatBytes(b.size)}</td><td style="white-space:nowrap"><button class="btn btn-blue btn-sm" onclick="downloadBackup('${b.file}')">Download</button> <button class="btn btn-amber btn-sm" onclick="restoreBackupFile('${b.file}')">Restore</button> <button class="btn btn-red btn-sm" onclick="deleteBackupFile('${b.file}')">Delete</button></td></tr>`).join('')||`<tr><td colspan="5" class="muted" style="text-align:center;padding:20px">No backups found</td></tr>`;
+    document.getElementById('backupInfo').textContent=`${backupRows.length} backup file(s)`;
+  }catch(e){alert('❌ '+e.message)}
+}
+async function createBackupNow(){
+  try{const r=await API.post('/backups/create',{});alert('✅ Backup created: '+(r.backup&&r.backup.file?r.backup.file:''));loadBackups();}catch(e){alert('❌ '+e.message)}
+}
+async function downloadBackup(file){
+  try{
+    const token=localStorage.getItem('ms_token');
+    const res=await fetch('/api/backups/'+encodeURIComponent(file)+'/download',{headers:{Authorization:'Bearer '+token}});
+    if(!res.ok) throw new Error((await res.json().catch(()=>({error:'Download failed'}))).error||'Download failed');
+    const blob=await res.blob();
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=file;a.click();URL.revokeObjectURL(a.href);
+  }catch(e){alert('❌ '+e.message)}
+}
+async function downloadLatestBackup(){
+  try{
+    const token=localStorage.getItem('ms_token');
+    const res=await fetch('/api/backups/latest/download',{headers:{Authorization:'Bearer '+token}});
+    if(!res.ok) throw new Error((await res.json().catch(()=>({error:'Download failed'}))).error||'Download failed');
+    const blob=await res.blob();
+    const name=(res.headers.get('content-disposition')||'').match(/filename="?([^";]+)"?/)?.[1]||'mufasa-sms-latest-backup.sqlite';
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();URL.revokeObjectURL(a.href);
+  }catch(e){alert('❌ '+e.message)}
+}
+async function restoreBackupFile(file){
+  const msg='RESTORE';
+  const typed=prompt(`Restoring a backup will replace the current database. A safety backup will be created first.\n\nType ${msg} to continue:`);
+  if(typed!==msg) return;
+  try{const r=await API.post('/backups/'+encodeURIComponent(file)+'/restore',{});alert(`✅ Database restored from ${r.restored_from}\nSafety backup: ${r.safety_backup}`);setTimeout(()=>location.reload(),800);}catch(e){alert('❌ '+e.message)}
+}
+async function deleteBackupFile(file){
+  if(!confirm('Delete backup file?\n'+file)) return;
+  try{await API.del('/backups/'+encodeURIComponent(file));loadBackups();}catch(e){alert('❌ '+e.message)}
+}
+
 /* =============== INIT =============== */
 loadDashboard();
 buildUserPage('manager');buildUserPage('agent');buildUserPage('client');  // loadUsers() API se
@@ -1929,7 +2015,7 @@ renderAlloc();                     // range allocation live counts
 buildSmsReport();buildSmsDetail();
 buildEntityStats('client');buildEntityStats('agent');buildEntityStats('manager');
 buildDrillStats('range');buildDrillStats('number');
-loadPayments();loadAdminPayout();loadPaymentConfig();loadCarrierSettings();loadIntegrations();loadNotificationRules();loadSystemLogs();loadTestGeneratorSettings();renderTest();
+loadPayments();loadAdminPayout();loadPaymentConfig();loadCarrierSettings();loadIntegrations();loadNotificationRules();loadSystemLogs();loadTestGeneratorSettings();loadBackups();renderTest();
 /* System Master selects + render (API) */
 fillSelect('climCli',cliPool,false);
 loadNews();
@@ -1940,6 +2026,6 @@ loadNews();
   loadCliLimits();
 })();
 </script>
-<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a167d60369ba394b',t:'MTc4MzI2OTg4Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 </html>

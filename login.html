@@ -72,9 +72,38 @@
     .field{margin-bottom:22px!important}.field label{font-size:15px!important;color:#0F172A!important}.input-wrap input{height:58px!important;border-radius:18px!important;font-size:16px!important}.captcha-row{display:block!important}.captcha-box{width:100%!important;height:58px!important;margin-bottom:14px!important;border-radius:18px!important}.row-between{margin-top:8px!important;margin-bottom:24px!important}.btn{height:58px!important;border-radius:18px!important;font-size:16px!important;background:linear-gradient(135deg,#2563EB,#06B6D4)!important}.footer{font-size:13px!important;margin-top:28px!important;color:#94A3B8!important}
   }
 
+
+
+  /* ===== Mobile login: no logo, form first ===== */
+  @media(max-width:900px){
+    .brand-panel{display:none!important}
+    .login-card:before{display:none!important;content:none!important}
+    body{padding:12px!important;align-items:flex-start!important;overflow:auto!important}
+    .shell{width:100%!important;border-radius:22px!important;margin:0 auto!important}
+    .login-panel{padding:24px 22px 22px!important;border-radius:22px!important;min-height:auto!important}
+    .login-head{margin-bottom:18px!important}.login-head h2{font-size:34px!important}.login-head p{font-size:14px!important;line-height:1.5!important}
+    .field{margin-bottom:14px!important}.input-wrap input{height:50px!important}.captcha-box{height:50px!important}.btn{height:52px!important}.footer{margin-top:18px!important}
+  }
+
+
+
+  /* ===== Login dark mode support ===== */
+  body.ms-dark-mode{background:#0B0B0B!important;color:#E5E7EB!important}
+  body.ms-dark-mode .shell{background:#111827!important;border-color:#334155!important;box-shadow:0 28px 80px rgba(0,0,0,.5)!important}
+  body.ms-dark-mode .login-panel{background:#111827!important;color:#E5E7EB!important}
+  body.ms-dark-mode .login-head h2,body.ms-dark-mode .field label{color:#F8FAFC!important}
+  body.ms-dark-mode .login-head p,body.ms-dark-mode .footer,.row-between .checkbox{color:#CBD5E1!important}
+  body.ms-dark-mode input{background:#0B1220!important;color:#F8FAFC!important;border-color:#475569!important}
+  body.ms-dark-mode input::placeholder{color:#94A3B8!important}
+  body.ms-dark-mode .toggle-pass{background:#1E293B!important;color:#FDE68A!important}
+  body.ms-dark-mode .captcha-box{background:#0B1220!important;border-color:#475569!important;color:#FDE68A!important}
+  body.ms-dark-mode .msg.success{background:#052e1a!important;border-color:#166534!important;color:#BBF7D0!important}
+  body.ms-dark-mode .msg.error{background:#450a0a!important;border-color:#991b1b!important;color:#FECACA!important}
+
 </style>
 </head>
 <body>
+<script id="login-dark-mode-init">try{if(localStorage.getItem('ms_dark_mode')==='1')document.body.classList.add('ms-dark-mode');}catch(e){}</script>
   <main class="shell">
     <section class="brand-panel logo-only-panel" aria-label="Mufasa SMS branding">
       <img class="login-hero-logo" src="assets/mufasa-logo.png" alt="Mufasa SMS" />
@@ -97,7 +126,7 @@
   document.getElementById('refreshCaptcha').addEventListener('click', newCaptcha);newCaptcha();
   const passInput=document.getElementById('password'),togglePass=document.getElementById('togglePass');togglePass.addEventListener('click',()=>{if(passInput.type==='password'){passInput.type='text';togglePass.textContent='Hide';}else{passInput.type='password';togglePass.textContent='Show';}});
   function showMsg(text,type){const m=document.getElementById('msg');m.textContent=text;m.className='msg show '+type;}
-  document.getElementById('loginForm').addEventListener('submit',function(e){e.preventDefault();const u=document.getElementById('username').value.trim().toLowerCase(),p=document.getElementById('password').value,c=parseInt(document.getElementById('captcha').value,10);if(c!==captchaAnswer){showMsg('❌ Incorrect captcha answer. Please try again.','error');newCaptcha();return;}showMsg('⏳ Verifying...','success');fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})}).then(async r=>{const data=await r.json();if(!r.ok)throw new Error(data.error||'Login failed');return data;}).then(data=>{try{localStorage.setItem('ms_token',data.token);localStorage.setItem('ms_role',data.user.role);localStorage.setItem('ms_user',data.user.username);localStorage.setItem('ms_name',data.user.name||data.user.username);}catch(e){}showMsg('✅ Welcome '+(data.user.name||data.user.username)+'! Redirecting...','success');setTimeout(()=>{window.location.href=data.user.role.toLowerCase()+'.html';},550);}).catch(err=>{showMsg('❌ '+err.message,'error');newCaptcha();});});
+  document.getElementById('loginForm').addEventListener('submit',function(e){e.preventDefault();const u=document.getElementById('username').value.trim().toLowerCase(),p=document.getElementById('password').value,c=parseInt(document.getElementById('captcha').value,10);if(c!==captchaAnswer){showMsg('❌ Incorrect captcha answer. Please try again.','error');newCaptcha();return;}showMsg('⏳ Verifying...','success');fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})}).then(async r=>{const data=await r.json();if(!r.ok)throw new Error(data.error||'Login failed');return data;}).then(data=>{try{localStorage.setItem('ms_token',data.token);localStorage.setItem('ms_role',data.user.role);localStorage.setItem('ms_user',data.user.username);localStorage.setItem('ms_name',data.user.name||data.user.username);}catch(e){}showMsg('✅ Welcome '+(data.user.name||data.user.username)+'! Redirecting...','success');setTimeout(()=>{window.location.href='/' + data.user.role.toLowerCase();},550);}).catch(err=>{showMsg('❌ '+err.message,'error');newCaptcha();});});
 </script>
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>

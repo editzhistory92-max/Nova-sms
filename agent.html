@@ -5,6 +5,21 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <link rel="icon" type="image/png" href="assets/mufasa-favicon.png" />
 <title>Mufasa SMS — Agent Panel</title>
+<style id="route-auth-hide">html{visibility:hidden}</style>
+<script>
+(function(){
+  var expected='agent';
+  try{
+    var token=localStorage.getItem('ms_token');
+    var role=localStorage.getItem('ms_role');
+    if(!token || role!==expected){ location.replace('/login'); return; }
+    fetch('/api/me',{headers:{Authorization:'Bearer '+token}})
+      .then(function(r){ if(!r.ok) throw new Error('auth'); return r.json(); })
+      .then(function(u){ if(!u || u.role!==expected) throw new Error('role'); if(!localStorage.getItem('ms_last_page_'+expected)||localStorage.getItem('ms_last_page_'+expected)==='dashboard'){document.documentElement.style.visibility='visible';} })
+      .catch(function(){ localStorage.clear(); location.replace('/login'); });
+  }catch(e){ localStorage.clear(); location.replace('/login'); }
+})();
+</script>
 <style>
   :root{
     --bg:#0a0f1c; --bg2:#0e1526; --panel:#121a30; --panel2:#182241; --row:#0b1120;
@@ -569,7 +584,7 @@ document.querySelectorAll('.rsubitem').forEach(s=>s.addEventListener('click',()=
 function toggleSub(subId,pId){document.getElementById(subId).classList.toggle('open');document.getElementById(pId).classList.toggle('open');}
 function closeModal(id){document.getElementById(id).classList.remove('show');}
 function toggleFull(){if(!document.fullscreenElement){document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen();}else{document.exitFullscreen&&document.exitFullscreen();}}
-function logout(){if(confirm('Do you want to logout?')){try{localStorage.clear();}catch(e){}window.location.href='login.html';}}
+function logout(){ if(confirm('Do you want to logout?')){ if(window.API&&API.logout){API.logout();}else{try{localStorage.clear();}catch(e){} window.location.href='/login';} } }
 function tick(){const d=new Date();const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];const p=n=>String(n).padStart(2,'0');
   document.getElementById('clock').textContent=days[d.getDay()]+', '+d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());}
 setInterval(tick,1000);tick();

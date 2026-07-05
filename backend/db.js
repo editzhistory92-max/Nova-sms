@@ -69,4 +69,24 @@ function all(sql, params = []) {
   return rows;
 }
 
-module.exports = { init, run, get, all, save };
+
+function exportBuffer() {
+  const data = db.export();
+  return Buffer.from(data);
+}
+function getDbFile() {
+  return DB_FILE;
+}
+function replaceWithFile(filePath) {
+  const buf = fs.readFileSync(filePath);
+  const next = new SQL.Database(new Uint8Array(buf));
+  next.run('PRAGMA foreign_keys = ON;');
+  if (db && db.close) {
+    try { db.close(); } catch (_) {}
+  }
+  db = next;
+  save();
+  return db;
+}
+
+module.exports = { init, run, get, all, save, exportBuffer, getDbFile, replaceWithFile };

@@ -327,6 +327,17 @@ function createTables() {
             VALUES (0,100,'TestCLI','Your test verification code is {code}')`);
   }
 
+
+  db.run(`CREATE TABLE IF NOT EXISTS system_security (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    admin_security_code TEXT DEFAULT 'Dawood',
+    updated_at TEXT DEFAULT (datetime('now'))
+  )`);
+  const sc = db.get('SELECT COUNT(*) AS c FROM system_security');
+  if (!sc || sc.c === 0) {
+    db.run(`INSERT INTO system_security (admin_security_code) VALUES ('Dawood')`);
+  }
+
 }
 
 module.exports = { createTables };

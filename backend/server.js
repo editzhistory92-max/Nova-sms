@@ -11,14 +11,30 @@ const db = require('./db');
 const { createTables } = require('./schema');
 const { seed } = require('./seed');
 const { sign, authRequired, requireRole, descendantIds } = require('./auth');
+const backup = require('./backup');
 
 const app = express();
 app.set('trust proxy', true);
 app.use(cors());
 app.use(express.json());
 
-// serve the frontend panels (login/admin/manager/agent/client .html) from parent dir
-app.use(express.static(path.join(__dirname, '..')));
+// Clean URL routes (must be before static so /admin.html can redirect to /admin)
+const FRONTEND_ROOT = path.join(__dirname, '..');
+function sendFrontendPage(res, file) { res.sendFile(path.join(FRONTEND_ROOT, file)); }
+app.get('/', (req, res) => sendFrontendPage(res, 'login.html'));
+app.get('/login', (req, res) => sendFrontendPage(res, 'login.html'));
+app.get('/login.html', (req, res) => res.redirect(301, '/login'));
+app.get('/admin', (req, res) => sendFrontendPage(res, 'admin.html'));
+app.get('/admin.html', (req, res) => res.redirect(301, '/admin'));
+app.get('/manager', (req, res) => sendFrontendPage(res, 'manager.html'));
+app.get('/manager.html', (req, res) => res.redirect(301, '/manager'));
+app.get('/agent', (req, res) => sendFrontendPage(res, 'agent.html'));
+app.get('/agent.html', (req, res) => res.redirect(301, '/agent'));
+app.get('/client', (req, res) => sendFrontendPage(res, 'client.html'));
+app.get('/client.html', (req, res) => res.redirect(301, '/client'));
+
+// serve frontend assets and static files from project root
+app.use(express.static(FRONTEND_ROOT));
 
 app.get('/health', (req, res) => res.json({ ok: true, service: 'Mufasa SMS', time: new Date().toISOString() }));
 app.get('/api/health', (req, res) => res.json({ ok: true, service: 'Mufasa SMS', time: new Date().toISOString() }));
@@ -1138,6 +1154,142 @@ app.post('/api/incoming-sms', (req, res) => {
   const result = processIncomingSmsPayload(req, req.body || {}, clientIp);
   cleanupWebhookLogs(settings.retention_days||30);
   res.status(result.status).json(result.body);
+});
+
+
+
+
+function getAdminSecurityCode(){
+  let row = db.get('SELECT * FROM system_security ORDER BY id ASC LIMIT 1');
+  if(!row){ db.run("INSERT INTO system_security (admin_security_code) VALUES ('Dawood')"); row=db.get('SELECT * FROM system_security ORDER BY id ASC LIMIT 1'); }
+  return row.admin_security_code || 'Dawood';
+}
+
+
+
+/* ============ DATABASE BACKUPS ============ */
+app.get('/api/backups', authRequired, requireRole('admin'), (req, res) => {
+  try {
+    res.json({ backups: backup.listBackups(db), backup_dir: backup.getBackupDir(db), db_file: db.getDbFile ? db.getDbFile() : '' });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.post('/api/backups/create', authRequired, requireRole('admin'), (req, res) => {
+  try {
+    const b = backup.createBackup(db, 'manual');
+    backup.cleanupOldBackups(db);
+    logAction(req, 'create_database_backup', 'backup', b.file);
+    res.json({ ok: true, backup: b });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.get('/api/backups/latest/download', authRequired, requireRole('admin'), (req, res) => {
+  try {
+    const latest = backup.getLatestBackup(db) || backup.createBackup(db, 'manual-latest');
+    const filePath = backup.backupPath(db, latest.file);
+    res.download(filePath, latest.file);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.get('/api/backups/:file/download', authRequired, requireRole('admin'), (req, res) => {
+  try {
+    const filePath = backup.backupPath(db, req.params.file);
+    res.download(filePath, req.params.file);
+  } catch (e) { res.status(404).json({ error: e.message }); }
+});
+app.post('/api/backups/:file/restore', authRequired, requireRole('admin'), (req, res) => {
+  try {
+    const result = backup.restoreBackup(db, req.params.file);
+    createTables();
+    seed();
+    logAction(req, 'restore_database_backup', 'backup', result);
+    res.json(result);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.delete('/api/backups/:file', authRequired, requireRole('admin'), (req, res) => {
+  try {
+    backup.deleteBackup(db, req.params.file);
+    logAction(req, 'delete_database_backup', 'backup', req.params.file);
+    res.json({ ok: true });
+  } catch (e) { res.status(404).json({ error: e.message }); }
+});
+
+/* ============ PROFILE / ACTIVITY ============ */
+app.get('/api/profile', authRequired, (req, res) => {
+  const u = db.get('SELECT id, username, role, name, email, whatsapp, contact, skype, active, created_at FROM users WHERE id=?', [req.user.id]);
+  if (!u) return res.status(404).json({ error: 'User not found' });
+  res.json(u);
+});
+
+app.put('/api/profile', authRequired, (req, res) => {
+  if (req.user.role === 'client') return res.status(403).json({ error: 'Profile editing is not available for clients' });
+  const b = req.body || {};
+  const current = db.get('SELECT * FROM users WHERE id=?', [req.user.id]);
+  if (!current) return res.status(404).json({ error: 'User not found' });
+
+  const newUsername = String(b.username || current.username).trim().toLowerCase();
+  if (!newUsername) return res.status(400).json({ error: 'Username is required' });
+  const exists = db.get('SELECT id FROM users WHERE username=? AND id<>?', [newUsername, req.user.id]);
+  if (exists) return res.status(409).json({ error: 'Username already exists' });
+
+  const newPassword = String(b.new_password || '');
+  const confirmPassword = String(b.confirm_password || '');
+  if (newPassword || confirmPassword) {
+    if (!b.current_password) return res.status(400).json({ error: 'Current password is required' });
+    if (!bcrypt.compareSync(String(b.current_password), current.password)) return res.status(400).json({ error: 'Current password is incorrect' });
+    if (req.user.role === 'admin') {
+      if (!b.admin_security_code) return res.status(400).json({ error: 'Admin security code is required to change password' });
+      if (String(b.admin_security_code) !== getAdminSecurityCode()) return res.status(400).json({ error: 'Invalid admin security code' });
+    }
+    if (newPassword.length < 6) return res.status(400).json({ error: 'New password must be at least 6 characters' });
+    if (newPassword !== confirmPassword) return res.status(400).json({ error: 'New password and confirmation do not match' });
+    db.run('UPDATE users SET username=?, password=? WHERE id=?', [newUsername, bcrypt.hashSync(newPassword, 10), req.user.id]);
+  } else {
+    db.run('UPDATE users SET username=? WHERE id=?', [newUsername, req.user.id]);
+  }
+  const updated = db.get('SELECT id, username, role, name, email, whatsapp, contact, skype FROM users WHERE id=?', [req.user.id]);
+  logAction(req, 'update_own_profile', 'profile', { username: newUsername, password_changed: !!newPassword });
+  res.json({ ok: true, user: updated, token: sign(updated) });
+});
+
+
+app.put('/api/admin-security-code', authRequired, requireRole('admin'), (req,res)=>{
+  const b=req.body||{};
+  const oldCode=String(b.old_security_code||'');
+  const newCode=String(b.new_security_code||'').trim();
+  const confirm=String(b.confirm_security_code||'').trim();
+  if(!oldCode) return res.status(400).json({error:'Old security code is required'});
+  if(oldCode !== getAdminSecurityCode()) return res.status(400).json({error:'Old security code is incorrect'});
+  if(!newCode || newCode.length < 3) return res.status(400).json({error:'New security code must be at least 3 characters'});
+  if(newCode !== confirm) return res.status(400).json({error:'New security code and confirmation do not match'});
+  const row=db.get('SELECT id FROM system_security ORDER BY id ASC LIMIT 1');
+  if(row) db.run('UPDATE system_security SET admin_security_code=?, updated_at=datetime(\'now\') WHERE id=?',[newCode,row.id]);
+  else db.run('INSERT INTO system_security (admin_security_code) VALUES (?)',[newCode]);
+  logAction(req,'update_admin_security_code','security','Admin security code changed');
+  res.json({ok:true});
+});
+
+app.post('/api/logout', authRequired, (req, res) => {
+  logAction(req, 'logout', 'auth', 'User logged out');
+  res.json({ ok: true });
+});
+
+app.get('/api/activity-log', authRequired, (req, res) => {
+  if (req.user.role === 'client') return res.status(403).json({ error: 'Activity log is not available for clients' });
+  const own = db.all("SELECT id, user_id, username, role, action, module, details, ip, created_at FROM audit_logs WHERE user_id=? AND action IN ('login','logout') ORDER BY id DESC LIMIT 200", [req.user.id]);
+  let childRole = null;
+  if (req.user.role === 'admin') childRole = 'manager';
+  if (req.user.role === 'manager') childRole = 'agent';
+  if (req.user.role === 'agent') childRole = 'client';
+  let child = [];
+  if (childRole) {
+    const children = db.all('SELECT id FROM users WHERE role=? AND parent_id=?', [childRole, req.user.id]).map(x => x.id);
+    // Admin managers are direct children of admin in this project. If some old data has null parent_id, include all managers for admin.
+    let ids = children;
+    if (req.user.role === 'admin') ids = db.all("SELECT id FROM users WHERE role='manager'").map(x => x.id);
+    if (ids.length) {
+      const ph = ids.map(() => '?').join(',');
+      child = db.all(`SELECT id, user_id, username, role, action, module, details, ip, created_at FROM audit_logs WHERE user_id IN (${ph}) AND action IN ('login','logout') ORDER BY id DESC LIMIT 500`, ids);
+    }
+  }
+  res.json({ own, child_role: childRole, child });
 });
 
 /* ============ START ============ */
