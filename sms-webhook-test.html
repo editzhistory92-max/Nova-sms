@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" type="image/png" href="assets/mufasa-favicon.png" />
+<title>Mufasa SMS — Webhook SMS Tester</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;font-family:Inter,Segoe UI,system-ui,-apple-system,sans-serif}
+  body{min-height:100vh;background:linear-gradient(180deg,#f8fbff,#eef4fb);color:#0f2454;padding:28px}
+  .wrap{max-width:760px;margin:0 auto}
+  .head{margin-bottom:18px}.head h1{font-size:28px;letter-spacing:-.04em}.head p{color:#64748b;margin-top:6px;line-height:1.6}
+  .card{background:#fff;border:1px solid #e4eaf3;border-radius:18px;box-shadow:0 16px 30px rgba(15,23,42,.08);padding:22px;margin-bottom:16px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}@media(max-width:650px){.grid{grid-template-columns:1fr}}
+  label{display:block;font-weight:800;font-size:13px;margin-bottom:7px;color:#102a5c}
+  input,textarea{width:100%;border:1px solid #d7e0ec;border-radius:12px;padding:12px 13px;font-size:14px;outline:none;color:#0f2454;background:#fff}
+  textarea{min-height:115px;resize:vertical;line-height:1.55}
+  input:focus,textarea:focus{border-color:#60a5fa;box-shadow:0 0 0 4px rgba(37,99,235,.08)}
+  .form-group{margin-bottom:14px}.hint{font-size:12px;color:#64748b;margin-top:6px;line-height:1.5}
+  .btn{border:0;border-radius:13px;padding:13px 18px;background:linear-gradient(135deg,#1d4ed8,#0ea5e9);color:#fff;font-weight:900;cursor:pointer;box-shadow:0 12px 22px rgba(37,99,235,.18)}
+  .btn:hover{filter:brightness(1.05)}
+  .btn.secondary{background:#eef4ff;color:#1d4ed8;box-shadow:none;border:1px solid #d7e0ec}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  pre{white-space:pre-wrap;background:#0f172a;color:#dbeafe;border-radius:14px;padding:14px;min-height:86px;font-size:13px;line-height:1.55;overflow:auto}
+  .ok{color:#16a34a}.err{color:#dc2626}.note{background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:14px;padding:14px;line-height:1.6;font-size:13px}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="head">
+      <h1>Mufasa SMS — SMS Webhook Tester</h1>
+      <p>Is page se aap provider/carrier ke webhook ko simulate kar sakte hain. Ye real database mein SMS record insert karega.</p>
+    </div>
+
+    <div class="note">
+      <b>Important:</b> Number pehle system mein import/allocate hona chahiye. Agar number database mein nahi mila to API 404 return karegi.
+    </div>
+
+    <div class="card">
+      <div class="grid">
+        <div class="form-group">
+          <label for="number">Receiving Number</label>
+          <input id="number" placeholder="e.g. 923001234567" />
+          <div class="hint">Ye woh number hai jo SMS Numbers table mein added/allocated hai.</div>
+        </div>
+        <div class="form-group">
+          <label for="cli">CLI / Sender</label>
+          <input id="cli" placeholder="e.g. TikTok, WhatsApp, 236424" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="message">Message Body</label>
+        <textarea id="message" placeholder="e.g. [TikTok] 123456 is your verification code"></textarea>
+      </div>
+      <div class="row">
+        <button class="btn" onclick="sendSms()">Send Test SMS</button>
+        <button class="btn secondary" onclick="fillSample()">Fill Sample</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <label>API Response</label>
+      <pre id="output">Ready.</pre>
+    </div>
+  </div>
+
+<script>
+function fillSample(){
+  document.getElementById('cli').value='TikTok';
+  document.getElementById('message').value='[#][TikTok] 123456 is your verification code';
+  if(!document.getElementById('number').value) document.getElementById('number').value='923001234567';
+}
+async function sendSms(){
+  const output=document.getElementById('output');
+  const number=document.getElementById('number').value.trim();
+  const cli=document.getElementById('cli').value.trim();
+  const message=document.getElementById('message').value.trim();
+  if(!number){output.textContent='❌ Number required';return;}
+  output.textContent='Sending...';
+  try{
+    const r=await fetch('/api/webhook/sms',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({number,cli,message})});
+    const data=await r.json().catch(()=>({}));
+    output.textContent=(r.ok?'✅ Success\n':'❌ Error\n')+JSON.stringify(data,null,2);
+  }catch(e){output.textContent='❌ '+e.message;}
+}
+</script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a164c9ed7d52fd67',t:'MTc4MzIzNzkzMQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>

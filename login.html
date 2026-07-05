@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" type="image/png" href="assets/mufasa-favicon.png" />
+<title>Mufasa SMS — Login</title>
+<style>
+  :root{--bg:#f4f7fb;--panel:#ffffff;--border:#e4eaf3;--border2:#d7e0ec;--text:#0f2454;--muted:#64748b;--blue:#1d4ed8;--cyan:#0ea5e9;--purple:#7c3aed;--danger:#dc2626;--ok:#16a34a}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{min-height:100vh;font-family:Inter,Segoe UI,system-ui,-apple-system,sans-serif;background:linear-gradient(180deg,#f8fbff,#eef4fb);color:var(--text);display:flex;align-items:center;justify-content:center;padding:22px;line-height:1.5}
+  .shell{width:min(1060px,100%);display:grid;grid-template-columns:1.05fr .95fr;background:rgba(255,255,255,.78);border:1px solid var(--border);border-radius:28px;box-shadow:0 28px 80px rgba(15,23,42,.12);overflow:hidden;backdrop-filter:blur(12px)}
+  .brand-panel{position:relative;padding:48px;min-height:640px;background:linear-gradient(135deg,#1d4ed8 0%,#0ea5e9 55%,#7c3aed 100%);color:#fff;overflow:hidden}
+  .brand-panel:before{content:"";position:absolute;width:360px;height:360px;border-radius:50%;right:-120px;top:-120px;background:rgba(255,255,255,.16)}
+  .brand-panel:after{content:"";position:absolute;width:250px;height:250px;border-radius:50%;left:-80px;bottom:-80px;background:rgba(255,255,255,.10)}
+  .brand-logo{position:relative;display:flex;align-items:center;gap:14px;margin-bottom:80px}.logo{width:58px;height:58px;border-radius:18px;background:#fff;display:grid;place-items:center;box-shadow:0 14px 30px rgba(15,23,42,.16)}.logo svg{width:32px;height:32px;stroke:#1d4ed8}.brand-logo h1{font-size:21px;letter-spacing:.05em}.brand-logo p{font-size:12px;color:rgba(255,255,255,.76);margin-top:2px;text-transform:uppercase;letter-spacing:.12em}
+  .hero{position:relative;max-width:520px}.pill{display:inline-flex;align-items:center;gap:8px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.13);border-radius:999px;padding:9px 13px;font-size:12px;font-weight:800;margin-bottom:22px}.dot{width:8px;height:8px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 6px rgba(34,197,94,.18)}
+  .hero h2{font-size:clamp(38px,5vw,58px);line-height:1;letter-spacing:-.055em;margin-bottom:20px}.hero p{font-size:16px;line-height:1.8;color:rgba(255,255,255,.78)}
+  .features{position:relative;display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:46px}.feature{border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.11);border-radius:18px;padding:16px}.feature b{display:block;font-size:14px;margin-bottom:5px}.feature span{font-size:12.5px;color:rgba(255,255,255,.72)}
+  .login-panel{padding:46px;display:flex;align-items:center;justify-content:center;background:#fff}.login-card{width:100%;max-width:410px}.login-head{margin-bottom:28px}.login-head .eyebrow{font-size:12px;text-transform:uppercase;letter-spacing:.16em;color:var(--blue);font-weight:900;margin-bottom:8px}.login-head h2{font-size:34px;letter-spacing:-.045em;margin-bottom:8px}.login-head p{color:var(--muted);font-size:14px}
+  .field{margin-bottom:17px}.field label{display:block;font-size:13.5px;font-weight:800;margin-bottom:8px}.input-wrap{position:relative}.input-wrap svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);width:18px;height:18px;stroke:#94a3b8}input{width:100%;border:1px solid var(--border2);background:#fff;color:var(--text);border-radius:14px;padding:13px 14px 13px 43px;font-size:15px;outline:none;transition:.16s}input:focus{border-color:#60a5fa;box-shadow:0 0 0 4px rgba(37,99,235,.08)}
+  .toggle-pass{position:absolute;right:10px;top:50%;transform:translateY(-50%);border:0;background:#eef4ff;color:#1d4ed8;border-radius:10px;padding:7px 9px;font-size:12px;font-weight:800;cursor:pointer}.pass-input{padding-right:72px}
+  .captcha-row{display:grid;grid-template-columns:130px 1fr;gap:12px}.captcha-box{height:48px;border:1px dashed #60a5fa;background:linear-gradient(135deg,#eff6ff,#f5f3ff);border-radius:14px;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:900;color:#1d4ed8;font-size:18px}.refresh-btn{border:0;background:transparent;color:#7c3aed;cursor:pointer;font-size:17px}
+  .row-between{display:flex;align-items:center;justify-content:space-between;margin:4px 0 20px;font-size:13px}.checkbox{display:flex;align-items:center;gap:8px;color:var(--muted);cursor:pointer}.checkbox input{width:auto;padding:0}.row-between a{color:var(--blue);text-decoration:none;font-weight:800}
+  .btn{width:100%;border:0;border-radius:15px;padding:14px;background:linear-gradient(135deg,#1d4ed8,#0ea5e9);color:#fff;font-weight:900;font-size:15px;cursor:pointer;box-shadow:0 16px 30px rgba(37,99,235,.20);transition:.16s}.btn:hover{transform:translateY(-1px);filter:brightness(1.04)}
+  .msg{margin-top:15px;border-radius:13px;padding:11px 13px;font-size:13.5px;display:none}.msg.show{display:block}.msg.error{background:#fef2f2;border:1px solid #fecaca;color:#991b1b}.msg.success{background:#f0fdf4;border:1px solid #bbf7d0;color:#166534}.footer{text-align:center;color:#94a3b8;font-size:12px;margin-top:24px}
+  @media(max-width:900px){.shell{grid-template-columns:1fr}.brand-panel{display:none}.login-panel{min-height:calc(100vh - 44px);padding:30px 22px}.captcha-row{grid-template-columns:1fr}}
+
+
+  /* ===== Mufasa SMS branding polish ===== */
+  .sb-logo,.brand .logo,.rail .logo,.sb-brand .logo,.brand-logo .logo{background:linear-gradient(135deg,#2563EB,#06B6D4)!important;color:#fff!important;box-shadow:0 12px 26px rgba(37,99,235,.24)!important}
+  .sb-logo svg,.brand .logo svg,.rail .logo svg,.sb-brand .logo svg,.brand-logo .logo svg{stroke:#fff!important;color:#fff!important}
+  .sb-brand h1,.brand h1,.brand-text h1,.brand-logo h1{color:#1E293B!important;font-weight:700!important;letter-spacing:-.01em!important}
+  .brand-panel .brand-logo h1{color:#fff!important}
+  .sb-brand small,.brand small,.brand-text small{color:#64748B!important}
+
+
+  /* ===== Mufasa SMS login polish ===== */
+  body{background:#F8FAFC!important}
+  .brand-panel{background:linear-gradient(135deg,#2563EB 0%,#06B6D4 100%)!important}
+  .feature{background:rgba(255,255,255,.14)!important;border-color:rgba(255,255,255,.24)!important;min-height:48px;display:flex;align-items:center}.feature b{font-size:13.5px!important;margin-bottom:0!important}.features{grid-template-columns:1fr!important;gap:10px!important;margin-top:34px!important}.login-panel{background:#fff!important}.btn{background:linear-gradient(135deg,#2563EB,#06B6D4)!important}.login-head .eyebrow{color:#2563EB!important}input:focus{border-color:#2563EB!important;box-shadow:0 0 0 4px rgba(37,99,235,.10)!important}
+
+
+
+  /* ===== Uploaded Mufasa SMS logo ===== */
+  .mufasa-logo-img{width:100%!important;height:100%!important;object-fit:cover!important;display:block!important;border-radius:inherit!important}
+  .sb-logo,.brand .logo,.rail .logo,.sb-brand .logo,.brand-logo .logo{background:#050505!important;padding:0!important;overflow:hidden!important;border:1px solid rgba(245,158,11,.28)!important;box-shadow:0 12px 26px rgba(245,158,11,.18)!important}
+  .brand-logo .logo{width:92px!important;height:92px!important;border-radius:22px!important;margin-bottom:16px!important}
+  .sb-logo{width:44px!important;height:44px!important;border-radius:13px!important}.brand .logo,.sb-brand .logo{width:46px!important;height:46px!important;border-radius:13px!important}.rail .logo{width:50px!important;height:50px!important;border-radius:14px!important}
+  .brand-panel .brand-logo{align-items:flex-start!important}.brand-panel .brand-logo h1{color:#fff!important;font-size:24px!important}.brand-panel .brand-logo p{color:rgba(255,255,255,.82)!important}
+
+
+
+  /* ===== Login logo-only left panel ===== */
+  .brand-panel.logo-only-panel{background:#050505!important;padding:0!important;display:flex!important;align-items:center!important;justify-content:center!important;min-height:640px!important;overflow:hidden!important}
+  .brand-panel.logo-only-panel::before,.brand-panel.logo-only-panel::after{display:none!important}
+  .login-hero-logo{width:100%!important;height:100%!important;object-fit:contain!important;display:block!important;background:#050505!important;padding:26px!important}
+  .login-panel{background:#ffffff!important}
+  @media(max-width:900px){.login-card:before{content:"";display:block;width:104px;height:104px;margin:0 auto 24px;background:url('assets/mufasa-logo.png') center/contain no-repeat;border-radius:22px;box-shadow:0 14px 30px rgba(15,23,42,.16)}}
+
+
+
+  /* ===== Mobile login refinement ===== */
+  @media(max-width:900px){
+    body{align-items:flex-start!important;background:#F8FAFC!important;padding:36px 18px!important;overflow:auto!important}
+    .shell{display:block!important;width:min(94vw,640px)!important;border-radius:30px!important;background:#FFFFFF!important;box-shadow:0 24px 70px rgba(15,23,42,.14)!important;border:1px solid #E2E8F0!important;margin:0 auto!important}
+    .brand-panel{display:none!important}
+    .login-panel{padding:44px 38px 36px!important;min-height:auto!important;background:#FFFFFF!important;border-radius:30px!important}
+    .login-card{max-width:none!important;width:100%!important}
+    .login-card:before{content:""!important;display:block!important;width:118px!important;height:118px!important;margin:0 auto 28px!important;background:url('assets/mufasa-logo.png') center/cover no-repeat!important;border-radius:24px!important;box-shadow:0 18px 36px rgba(15,23,42,.18)!important}
+    .login-head{margin-bottom:28px!important}.login-head .eyebrow{letter-spacing:.18em!important;color:#2563EB!important}.login-head h2{font-size:42px!important;line-height:1.05!important;color:#0F2454!important;letter-spacing:-.05em!important}.login-head p{font-size:16px!important;line-height:1.65!important;color:#64748B!important}
+    .field{margin-bottom:22px!important}.field label{font-size:15px!important;color:#0F172A!important}.input-wrap input{height:58px!important;border-radius:18px!important;font-size:16px!important}.captcha-row{display:block!important}.captcha-box{width:100%!important;height:58px!important;margin-bottom:14px!important;border-radius:18px!important}.row-between{margin-top:8px!important;margin-bottom:24px!important}.btn{height:58px!important;border-radius:18px!important;font-size:16px!important;background:linear-gradient(135deg,#2563EB,#06B6D4)!important}.footer{font-size:13px!important;margin-top:28px!important;color:#94A3B8!important}
+  }
+
+</style>
+</head>
+<body>
+  <main class="shell">
+    <section class="brand-panel logo-only-panel" aria-label="Mufasa SMS branding">
+      <img class="login-hero-logo" src="assets/mufasa-logo.png" alt="Mufasa SMS" />
+    </section>
+    <section class="login-panel"><div class="login-card">
+      <div class="login-head"><div class="eyebrow">Secure Login</div><h2>Welcome back</h2><p>Enter your credentials and complete the security check to continue.</p></div>
+      <form id="loginForm" autocomplete="off">
+        <div class="field"><label for="username">Username</label><div class="input-wrap"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><input type="text" id="username" placeholder="Enter username" required /></div></div>
+        <div class="field"><label for="password">Password</label><div class="input-wrap"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg><input class="pass-input" type="password" id="password" placeholder="Enter password" required /><button type="button" class="toggle-pass" id="togglePass">Show</button></div></div>
+        <div class="field"><label for="captcha">Math Captcha</label><div class="captcha-row"><div class="captcha-box"><span id="captchaText">? + ?</span><button type="button" class="refresh-btn" id="refreshCaptcha">↻</button></div><div class="input-wrap"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><input type="number" id="captcha" placeholder="Answer" required /></div></div></div>
+        <div class="row-between"><label class="checkbox"><input type="checkbox" id="remember"/> Remember me</label><a href="#" onclick="return false;">Forgot password?</a></div>
+        <button type="submit" class="btn">Sign In</button><div class="msg" id="msg"></div>
+      </form>
+      <div class="footer">© 2026 Mufasa SMS • All rights reserved</div>
+    </div></section>
+  </main>
+<script>
+  let captchaAnswer = 0;
+  function newCaptcha(){const a=Math.floor(Math.random()*9)+1,b=Math.floor(Math.random()*9)+1;captchaAnswer=a+b;document.getElementById('captchaText').textContent=a+' + '+b;document.getElementById('captcha').value='';}
+  document.getElementById('refreshCaptcha').addEventListener('click', newCaptcha);newCaptcha();
+  const passInput=document.getElementById('password'),togglePass=document.getElementById('togglePass');togglePass.addEventListener('click',()=>{if(passInput.type==='password'){passInput.type='text';togglePass.textContent='Hide';}else{passInput.type='password';togglePass.textContent='Show';}});
+  function showMsg(text,type){const m=document.getElementById('msg');m.textContent=text;m.className='msg show '+type;}
+  document.getElementById('loginForm').addEventListener('submit',function(e){e.preventDefault();const u=document.getElementById('username').value.trim().toLowerCase(),p=document.getElementById('password').value,c=parseInt(document.getElementById('captcha').value,10);if(c!==captchaAnswer){showMsg('❌ Incorrect captcha answer. Please try again.','error');newCaptcha();return;}showMsg('⏳ Verifying...','success');fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})}).then(async r=>{const data=await r.json();if(!r.ok)throw new Error(data.error||'Login failed');return data;}).then(data=>{try{localStorage.setItem('ms_token',data.token);localStorage.setItem('ms_role',data.user.role);localStorage.setItem('ms_user',data.user.username);localStorage.setItem('ms_name',data.user.name||data.user.username);}catch(e){}showMsg('✅ Welcome '+(data.user.name||data.user.username)+'! Redirecting...','success');setTimeout(()=>{window.location.href=data.user.role.toLowerCase()+'.html';},550);}).catch(err=>{showMsg('❌ '+err.message,'error');newCaptcha();});});
+</script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body>
+</html>
