@@ -5,7 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <link rel="icon" type="image/png" href="assets/mufasa-favicon.png" />
 <title>Mufasa SMS — Client Panel</title>
-<style id="route-auth-hide">html{visibility:hidden}</style>
+<style id="route-auth-hide">html{visibility:hidden}
+
+  /* Client simplicity update */
+  .copy-otp-btn{border:1px solid #CBD5E1;background:#E2E8F0;color:#1E293B;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}.copy-otp-btn:hover{background:#CBD5E1}.otp-code{font-family:"SFMono-Regular",Consolas,monospace;font-weight:800;color:#1E40AF;background:#DBEAFE;border:1px solid #93C5FD;border-radius:8px;padding:5px 9px;display:inline-block}.otp-empty{color:#94A3B8;font-weight:600}.last-sms{font-weight:700;color:#334155}.client-welcome-overlay{position:fixed;inset:0;background:rgba(15,23,42,.48);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px}.client-welcome-card{width:min(420px,96vw);background:#fff;border:1px solid #E2E8F0;border-radius:20px;box-shadow:0 28px 80px rgba(15,23,42,.24);padding:22px;color:#1E293B}.client-welcome-card h3{font-size:22px;margin-bottom:8px}.client-welcome-card p{color:#64748B;margin-bottom:14px}.welcome-step{display:flex;gap:10px;align-items:flex-start;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:12px;padding:11px;margin-bottom:9px}.welcome-step b:first-child{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,#2563EB,#06B6D4);color:#fff;font-size:12px;flex:0 0 auto}body.ms-dark-mode .client-welcome-card{background:#111827;border-color:#334155;color:#F8FAFC}body.ms-dark-mode .welcome-step{background:#0F172A;border-color:#334155}body.ms-dark-mode .copy-otp-btn{background:#334155;color:#F8FAFC;border-color:#64748B}body.ms-dark-mode .otp-code{background:#1E293B;color:#FDE68A;border-color:#475569}body.ms-dark-mode .last-sms{color:#E2E8F0}
+
+</style>
 <script>
 (function(){
   var expected='client';
@@ -294,6 +299,11 @@
   .sb-logo,.brand .logo,.rail .logo,.sb-brand .logo{border:1px solid rgba(212,175,55,.45)!important;box-shadow:0 10px 24px rgba(212,175,55,.18)!important}
   .main,.content{background:#F8FAFC!important}.topbar,.tb1{background:#F8FAFC!important;border-bottom:1px solid #E2E8F0!important}.topbar .tb-btn,.tb1 .tb-btn,.hamburger{color:#64748B!important}.topbar .tb-btn:hover,.tb1 .tb-btn:hover,.hamburger:hover{background:#FEF3C7!important;color:#92400E!important}
 
+
+
+  /* Client simplicity update */
+  .copy-otp-btn{border:1px solid #CBD5E1;background:#E2E8F0;color:#1E293B;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}.copy-otp-btn:hover{background:#CBD5E1}.otp-code{font-family:"SFMono-Regular",Consolas,monospace;font-weight:800;color:#1E40AF;background:#DBEAFE;border:1px solid #93C5FD;border-radius:8px;padding:5px 9px;display:inline-block}.otp-empty{color:#94A3B8;font-weight:600}.last-sms{font-weight:700;color:#334155}.client-welcome-overlay{position:fixed;inset:0;background:rgba(15,23,42,.48);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px}.client-welcome-card{width:min(420px,96vw);background:#fff;border:1px solid #E2E8F0;border-radius:20px;box-shadow:0 28px 80px rgba(15,23,42,.24);padding:22px;color:#1E293B}.client-welcome-card h3{font-size:22px;margin-bottom:8px}.client-welcome-card p{color:#64748B;margin-bottom:14px}.welcome-step{display:flex;gap:10px;align-items:flex-start;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:12px;padding:11px;margin-bottom:9px}.welcome-step b:first-child{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,#2563EB,#06B6D4);color:#fff;font-size:12px;flex:0 0 auto}body.ms-dark-mode .client-welcome-card{background:#111827;border-color:#334155;color:#F8FAFC}body.ms-dark-mode .welcome-step{background:#0F172A;border-color:#334155}body.ms-dark-mode .copy-otp-btn{background:#334155;color:#F8FAFC;border-color:#64748B}body.ms-dark-mode .otp-code{background:#1E293B;color:#FDE68A;border-color:#475569}body.ms-dark-mode .last-sms{color:#E2E8F0}
+
 </style>
 </head>
 <body>
@@ -358,7 +368,7 @@
         <div class="exp-btns"><button class="btn btn-blue">Copy</button><button class="btn btn-blue">CSV</button><button class="btn btn-green">Excel</button><button class="btn btn-red">PDF</button><button class="btn btn-blue">Print</button></div></div>
         <div class="tc-right"><label>Search:</label><input type="text" id="numSearch" oninput="renderNumbers()" placeholder="Search..."/></div></div></div>
       <div class="table-wrap"><div class="tscroll"><table>
-        <thead><tr><th class="sortable" onclick="sortNum('range')">Range <span class="sort">⇅</span></th><th class="sortable" onclick="sortNum('number')">Number <span class="sort" id="nSortHint">⇅</span></th><th>Payterm</th><th>Status</th><th>Limits</th></tr></thead>
+        <thead><tr><th class="sortable" onclick="sortNum('range')">Range <span class="sort">⇅</span></th><th class="sortable" onclick="sortNum('number')">Number <span class="sort" id="nSortHint">⇅</span></th><th>Payterm</th><th>Status</th><th>Last SMS Time</th><th>Limits</th></tr></thead>
         <tbody id="numBody"></tbody></table></div>
         <div class="table-foot"><div class="info" id="numInfo"></div><div class="pagination"><button>‹</button><button class="active">1</button><button>2</button><button>›</button></div></div></div>
     </section>
@@ -366,18 +376,24 @@
     <!-- SMS STATS (received SMS / OTP records, full CLI + message) -->
     <section class="page" id="page-stats">
       <div class="page-head"><div><h2>SMS Stats</h2><div class="breadcrumb"><b>My Panel</b> › Received SMS &amp; OTP</div></div></div>
-      <div class="toolbar"><div class="filter-row">
-        <select class="sel-lg" id="stRange"><option value="">All Ranges</option></select>
-        <input type="text" id="stCliFilter" placeholder="Filter by CLI" oninput="renderStats()" style="min-width:200px"/>
-        <button class="btn btn-rose" onclick="renderStats()">Filter</button>
-        <button class="btn btn-ghost" onclick="document.getElementById('stRange').value='';document.getElementById('stCliFilter').value='';document.getElementById('stSearch').value='';renderStats()">Reset</button>
-      </div></div>
+      <div class="toolbar">
+        <div class="filter-row">
+          <button class="btn btn-rose" onclick="toggleAdvancedFilters()">Advanced Filters</button>
+          <span class="muted" style="font-size:12.5px">Use search for quick OTP, CLI or number lookup.</span>
+        </div>
+        <div class="filter-row" id="advancedFilters" style="display:none;margin-top:12px">
+          <select class="sel-lg" id="stRange"><option value="">All Ranges</option></select>
+          <input type="text" id="stCliFilter" placeholder="Filter by CLI" oninput="renderStats()" style="min-width:200px"/>
+          <button class="btn btn-rose" onclick="renderStats()">Apply Filters</button>
+          <button class="btn btn-ghost" onclick="document.getElementById('stRange').value='';document.getElementById('stCliFilter').value='';document.getElementById('stSearch').value='';renderStats()">Reset</button>
+        </div>
+      </div>
       <div class="table-wrap" style="padding:15px 17px;margin-top:0"><div class="table-controls">
         <div class="tc-left"><label>Show Records:</label><select id="stLen" onchange="renderStats()"><option>10</option><option selected>25</option><option>50</option><option value="All">All</option></select>
         <div class="exp-btns"><button class="btn btn-blue">Copy</button><button class="btn btn-blue">CSV</button><button class="btn btn-green">Excel</button><button class="btn btn-red">PDF</button><button class="btn btn-blue">Print</button></div></div>
         <div class="tc-right"><label>Search:</label><input type="text" id="stSearch" oninput="renderStats()" placeholder="Search..."/></div></div></div>
       <div class="table-wrap"><div class="tscroll"><table>
-        <thead><tr><th>Date</th><th>Range</th><th>Number</th><th>CLI</th><th>SMS (Message Body)</th></tr></thead>
+        <thead><tr><th>Date</th><th>Range</th><th>Number</th><th>CLI</th><th>OTP Code</th><th>Copy</th><th>Message</th></tr></thead>
         <tbody id="statsBody"></tbody></table></div>
         <div class="table-foot"><div class="info" id="statsInfo"></div><div class="pagination"><button>‹</button><button class="active">1</button><button>2</button><button>›</button></div></div></div>
     </section>
@@ -409,6 +425,18 @@
       <div id="newsFeed"></div>
     </section>
     </div>
+  </div>
+</div>
+
+
+<div class="client-welcome-overlay" id="clientWelcome" style="display:none">
+  <div class="client-welcome-card">
+    <h3>Welcome to Mufasa SMS</h3>
+    <p>Here is the simple workflow:</p>
+    <div class="welcome-step"><b>1</b><span>View your allocated numbers in <b>SMS Numbers</b>.</span></div>
+    <div class="welcome-step"><b>2</b><span>Open <b>SMS Stats</b> to see your latest OTP messages.</span></div>
+    <div class="welcome-step"><b>3</b><span>Use <b>Copy OTP</b> to quickly copy verification codes.</span></div>
+    <button class="btn btn-rose" onclick="closeClientWelcome()" style="width:100%;margin-top:14px">Got it</button>
   </div>
 </div>
 
@@ -448,20 +476,57 @@ fillSel('numRange',rangeNames);fillSel('stRange',rangeNames);fillSel('testRange'
 /* NUMBERS */
 let nSort={k:null,d:1};
 function sortNum(k){if(nSort.k===k)nSort.d*=-1;else{nSort.k=k;nSort.d=1;}if(k==='number')document.getElementById('nSortHint').textContent=nSort.d===1?'▲':'▼';renderNumbers();}
+function extractOTP(message){
+  const text=String(message||'');
+  let m=text.match(/\b\d{4,8}\b/);
+  if(m) return m[0];
+  m=text.match(/\b(?=[A-Z0-9]*\d)[A-Z0-9]{4,10}\b/i);
+  return m ? m[0] : '';
+}
+function copyText(value){
+  if(!value){return;}
+  if(navigator.clipboard){navigator.clipboard.writeText(value).then(()=>showCopyToast('OTP copied'));}
+  else{const t=document.createElement('textarea');t.value=value;document.body.appendChild(t);t.select();document.execCommand('copy');t.remove();showCopyToast('OTP copied');}
+}
+function showCopyToast(msg){
+  let el=document.getElementById('copyToast');
+  if(!el){el=document.createElement('div');el.id='copyToast';el.style.cssText='position:fixed;right:18px;bottom:18px;background:#1E293B;color:white;padding:10px 14px;border-radius:10px;z-index:99999;font-weight:700;box-shadow:0 12px 28px rgba(15,23,42,.24)';document.body.appendChild(el);}
+  el.textContent=msg;el.style.display='block';clearTimeout(window.__copyToastTimer);window.__copyToastTimer=setTimeout(()=>el.style.display='none',1400);
+}
+function lastSmsForNumber(number){
+  const rows=(stats||[]).filter(s=>String(s.number)===String(number));
+  if(!rows.length) return '—';
+  return rows.map(s=>s.date).sort().pop() || '—';
+}
+function toggleAdvancedFilters(){
+  const el=document.getElementById('advancedFilters');
+  if(el) el.style.display = el.style.display==='none' ? 'flex' : 'none';
+}
+function showClientWelcome(){
+  if(localStorage.getItem('client_welcome_seen')==='1') return;
+  const el=document.getElementById('clientWelcome');
+  if(el) el.style.display='flex';
+}
+function closeClientWelcome(){
+  localStorage.setItem('client_welcome_seen','1');
+  const el=document.getElementById('clientWelcome');
+  if(el) el.style.display='none';
+}
+
 async function loadNumbers(){ try{ numData=(await API.get('/numbers')).map(r=>({range:r.range_name||'',number:r.number,payterm:r.payterm||'Weekly',status:'Active',sd:r.sd_limit||0,sw:r.sw_limit||0})); }catch(e){ numData=[]; } renderNumbers(); }
 function renderNumbers(){const rf=document.getElementById('numRange').value,len=document.getElementById('numLen').value,q=(document.getElementById('numSearch').value||'').toLowerCase();
   let rows=numData.filter(r=>(!rf||r.range===rf)&&[r.range,r.number].join(' ').toLowerCase().includes(q));
   if(nSort.k)rows.sort((a,b)=>((a[nSort.k]||'')+'').localeCompare((b[nSort.k]||'')+'',undefined,{numeric:true})*nSort.d);
-  const t=rows.length;if(len!=='All')rows=rows.slice(0,parseInt(len));
-  document.getElementById('numBody').innerHTML=rows.map(r=>`<tr><td>${r.range}</td><td><b>${r.number}</b></td><td><span class="tag tag-gray">${r.payterm}</span></td><td><span class="tag tag-green">${r.status}</span></td><td class="muted">SD : ${r.sd} | SW : ${r.sw}</td></tr>`).join('')||`<tr><td colspan="5" class="muted" style="text-align:center;padding:24px">No allocated numbers found</td></tr>`;
+  const pag=API.paginateRows('cliNumbers',rows,len,'numInfo',renderNumbers);const t=pag.total;rows=pag.rows;
+  document.getElementById('numBody').innerHTML=rows.map(r=>`<tr><td>${r.range}</td><td><b>${r.number}</b></td><td><span class="tag tag-gray">${r.payterm}</span></td><td><span class="tag tag-green">${r.status}</span></td><td><span class="last-sms">${lastSmsForNumber(r.number)}</span></td><td class="muted">SD : ${r.sd} | SW : ${r.sw}</td></tr>`).join('')||`<tr><td colspan="6" class="muted" style="text-align:center;padding:24px">No allocated numbers found</td></tr>`;
   document.getElementById('numInfo').textContent=`Showing ${rows.length} of ${t} numbers`;}
 
 /* SMS STATS (API) */
-async function loadStats(){ try{ stats=(await API.get('/sms')).map(r=>({range:r.range_name||'',number:r.number,cli:r.cli||'',msg:r.message||'',date:(r.received_at||'').slice(0,16)})); }catch(e){ stats=[]; } renderStats(); }
+async function loadStats(){ try{ stats=(await API.get('/sms')).map(r=>{const msg=r.message||'';return {range:r.range_name||'',number:r.number,cli:r.cli||'',msg,date:(r.received_at||'').slice(0,16),otp:extractOTP(msg)};}); }catch(e){ stats=[]; } renderStats(); renderNumbers(); }
 function renderStats(){const rf=document.getElementById('stRange').value,cf=(document.getElementById('stCliFilter').value||'').toLowerCase(),len=document.getElementById('stLen').value,q=(document.getElementById('stSearch').value||'').toLowerCase();
-  let rows=stats.filter(r=>(!rf||r.range===rf)&&(!cf||r.cli.toLowerCase().includes(cf))&&[r.range,r.number,r.cli,r.msg].join(' ').toLowerCase().includes(q));
-  const t=rows.length;if(len!=='All')rows=rows.slice(0,parseInt(len));
-  document.getElementById('statsBody').innerHTML=rows.map(r=>`<tr><td class="muted">${r.date}</td><td>${r.range}</td><td class="mono">${r.number}</td><td class="mono">${r.cli}</td><td class="msg-body">${r.msg}</td></tr>`).join('')||`<tr><td colspan="5" class="muted" style="text-align:center;padding:24px">No records found</td></tr>`;
+  let rows=stats.filter(r=>(!rf||r.range===rf)&&(!cf||r.cli.toLowerCase().includes(cf))&&[r.range,r.number,r.cli,r.otp,r.msg].join(' ').toLowerCase().includes(q));
+  const pag=API.paginateRows('cliStats',rows,len,'statsInfo',renderStats);const t=pag.total;rows=pag.rows;
+  document.getElementById('statsBody').innerHTML=rows.map(r=>`<tr><td class="muted">${r.date}</td><td>${r.range}</td><td class="mono">${r.number}</td><td class="mono">${r.cli}</td><td>${r.otp?`<span class="otp-code">${r.otp}</span>`:'<span class="otp-empty">—</span>'}</td><td>${r.otp?`<button class="copy-otp-btn" onclick="copyText('${r.otp}')">Copy OTP</button>`:'—'}</td><td class="msg-body">${r.msg}</td></tr>`).join('')||`<tr><td colspan="7" class="muted" style="text-align:center;padding:24px">No records found</td></tr>`;
   document.getElementById('statsInfo').textContent=`Showing ${rows.length} of ${t} records`;}
 
 /* TEST PANEL (masked CLI + masked SMS; range filter only on test numbers) */
@@ -489,7 +554,7 @@ async function loadDashboard(){try{const d=await API.get('/dashboard');const car
 async function loadRanges(){try{const ranges=await API.get('/ranges');rangeNames=ranges.map(r=>r.name);try{testNumbers=(await API.get('/test-numbers')).map(t=>({range:t.range_name,num:t.number,payout:t.payout||'Ask'}));}catch(e){testNumbers=[];}}catch(e){rangeNames=[];testNumbers=[];}fillSel('numRange',rangeNames);fillSel('stRange',rangeNames);fillSel('testRange',rangeNames);renderTest();}
 async function loadStats(){ try{ const sms=await API.get('/sms'); stats=sms.map(r=>({range:r.range_name||'',number:r.number,cli:r.cli||'',msg:r.message||'',date:(r.received_at||'').slice(0,16)})); recentTests=sms.slice(0,50).map(r=>({date:(r.received_at||'').slice(0,16),range:r.range_name||'',num:r.number||'',cli:r.cli||''})); }catch(e){ stats=[]; recentTests=[]; } renderStats();renderTest();loadDashboard(); }
 /* INIT */
-loadProfile();loadDashboard();loadRanges();loadNumbers();loadStats();renderTest();loadNews();
+loadProfile();loadDashboard();loadRanges();loadNumbers();loadStats();renderTest();loadNews();setTimeout(showClientWelcome,700);
 </script>
 
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
