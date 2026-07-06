@@ -396,6 +396,7 @@
       </div>
     </div>
 
+    <div class="navtab" data-page="cliSearch"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><span class="lbl">CLI Search</span></div>
     <div class="navtab" data-page="test"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18v-6a3 3 0 0 1 6 0v6"/><rect x="4" y="18" width="16" height="3"/><path d="M12 3v3"/></svg><span class="lbl">Test Panel</span></div>
     <div class="navtab" data-page="credit"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg><span class="lbl">Credit / Payouts</span></div>
     <div class="navtab" data-page="cliLimit"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 6v6l4 2"/></svg><span class="lbl">CLI Limits</span></div>
@@ -676,7 +677,7 @@ fillSel('numAgent',myAgents);fillSel('bulkAgent',myAgents);fillSel('baAgent',myA
 function fr(v){return v==='NA'||!v?'<span class="muted">NA</span>':'<span class="cell-money">$ '+v+'</span>';}
 async function loadRateCard(){ try{ rateCard=(await API.get('/ranges')).map(r=>({range:r.name,prefix:r.prefix,cur:r.currency,r1:r.rate_1_1,r2:r.rate_7_1,r3:r.rate_7_7,r4:r.rate_30_45})); }catch(e){ rateCard=[]; } renderRateCard(); }
 function renderRateCard(){const len=document.getElementById('rcLen').value,q=(document.getElementById('rcSearch').value||'').toLowerCase();
-  let rows=rateCard.filter(r=>r.range.toLowerCase().includes(q));const t=rows.length;if(len!=='All')rows=rows.slice(0,parseInt(len));
+  let rows=rateCard.filter(r=>r.range.toLowerCase().includes(q));const pag=API.paginateRows('mgrRateCard',rows,len,'rcInfo',renderRateCard);const t=pag.total;rows=pag.rows;
   document.getElementById('rcBody').innerHTML=rows.map(r=>`<tr><td><b>${r.range}</b></td><td class="muted">${r.prefix||'—'}</td><td><span class="tag tag-green">${r.cur}</span></td><td>${fr(r.r1)}</td><td>${fr(r.r2)}</td><td>${fr(r.r3)}</td><td>${fr(r.r4)}</td></tr>`).join('');
   document.getElementById('rcInfo').textContent=`Showing ${rows.length} of ${t} ranges`;}
 
@@ -693,7 +694,7 @@ function renderNumbers(){
   if(rangeF)rows=rows.filter(r=>r.range===rangeF);if(agentF)rows=rows.filter(r=>r.agent===agentF);
   if(agFilter===1)rows=rows.filter(r=>!r.agent);else if(agFilter===2)rows=rows.filter(r=>!!r.agent);
   if(nSort.k)rows.sort((a,b)=>((a[nSort.k]||'')+'').localeCompare((b[nSort.k]||'')+'',undefined,{numeric:true})*nSort.d);
-  const t=rows.length;if(len!=='All')rows=rows.slice(0,parseInt(len));
+  const pag=API.paginateRows('mgrNumbers',rows,len,'numInfo',renderNumbers);const t=pag.total;rows=pag.rows;
   document.getElementById('numBody').innerHTML=rows.map(r=>`<tr>
     <td><input type="checkbox" class="rc" data-id="${r.id}" onchange="updSel()"/></td>
     <td>${r.range}</td><td><b>${r.number}</b></td><td class="cell-money">${r.rate}</td>
@@ -749,7 +750,7 @@ function buildAgents(){document.getElementById('page-agents').innerHTML=`
 async function loadAgents(){ try{ agentsData=await API.get('/users/agent'); }catch(e){ agentsData=[]; } renderAgents(); }
 function renderAgents(){const len=document.getElementById('agLen').value,q=(document.getElementById('agSearch').value||'').toLowerCase();
   let rows=(agentsData||[]).filter(r=>r.username.toLowerCase().includes(q)||(r.name||'').toLowerCase().includes(q));
-  const t=rows.length;if(len!=='All')rows=rows.slice(0,parseInt(len));
+  const pag=API.paginateRows('mgrAgents',rows,len,'agInfo',renderAgents);const t=pag.total;rows=pag.rows;
   document.getElementById('agBody').innerHTML=rows.map(r=>`<tr>
     <td><span class="tag tag-agt">${r.username}</span></td><td>${r.name||'<span class="muted">—</span>'}</td><td>${r.whatsapp||'<span class="muted">—</span>'}</td>
     <td>${r.email||'<span class="muted">—</span>'}</td><td><span class="tag tag-cli">—</span></td>
@@ -784,7 +785,7 @@ function buildClients(){document.getElementById('page-clients').innerHTML=`
   renderClients();}
 function renderClients(){const len=document.getElementById('clLen').value,q=(document.getElementById('clSearch').value||'').toLowerCase(),af=document.getElementById('clAgentF').value;
   let list=[];myAgents.forEach(a=>{if(af&&a!==af)return;agentClients[a].forEach(c=>list.push({c,a}));});
-  list=list.filter(x=>x.c.toLowerCase().includes(q));const t=list.length;if(len!=='All')list=list.slice(0,parseInt(len));
+  list=list.filter(x=>x.c.toLowerCase().includes(q));const pag=API.paginateRows('mgrClients',list,len,'clInfo',renderClients);const t=pag.total;list=pag.rows;
   document.getElementById('clBody').innerHTML=list.map(x=>{const sms=cdr.filter(r=>r.client===x.c).reduce((s,r)=>s+r.sms,0);const nums=numData.filter(n=>agentOfClient(x.c)===n.agent).length;
     return `<tr><td><span class="tag tag-cli">${x.c}</span></td><td><span class="tag tag-agt">${x.a}</span></td><td><span class="tag tag-mgr">${MGR}</span></td><td>${nums}</td><td class="cell-money">${sms.toLocaleString()}</td></tr>`;}).join('')||`<tr><td colspan="5" class="muted" style="text-align:center;padding:24px">No clients found</td></tr>`;
   document.getElementById('clInfo').textContent=`Showing ${list.length} of ${t} clients`;}
@@ -809,7 +810,7 @@ async function loadSms(){ try{ smsRecords=await API.get('/sms'); }catch(e){ smsR
   if(b)b.innerHTML=Object.keys(byAgt).map(a=>`<tr><td><span class="tag tag-agt">${a}</span></td><td><span class="tag tag-cli">—</span></td><td class="cell-money">${byAgt[a]}</td><td class="cell-money" style="color:#6ee7b7">$ ${sumPay((smsRecords||[]).filter(r=>r.agent_name===a))}</td></tr>`).join('')||`<tr><td colspan="4" class="muted" style="text-align:center;padding:16px">No records found</td></tr>`;
   renderSmsReport();if(document.getElementById('sdBody'))renderSmsDetail();}
 function renderSmsReport(){const len=document.getElementById('srLen').value,q=(document.getElementById('srSearch').value||'').toLowerCase();
-  let rows=(smsRecords||[]).filter(r=>[r.agent_name,r.range_name,r.cli,r.message].join(' ').toLowerCase().includes(q));const t=rows.length;if(len!=='All')rows=rows.slice(0,parseInt(len));
+  let rows=(smsRecords||[]).filter(r=>[r.agent_name,r.range_name,r.cli,r.message].join(' ').toLowerCase().includes(q));const pag=API.paginateRows('mgrSmsReport',rows,len,'srInfo',renderSmsReport);const t=pag.total;rows=pag.rows;
   document.getElementById('srBody').innerHTML=rows.map(r=>`<tr><td class="muted">${(r.received_at||'').slice(0,16)}</td><td><span class="tag tag-agt">${r.agent_name||'—'}</span></td><td>${r.range_name||'—'}</td><td class="mono">${r.cli||''}</td><td class="msg-body">${r.message||''}</td></tr>`).join('')||`<tr><td colspan="5" class="muted" style="text-align:center;padding:24px">No records found</td></tr>`;
   document.getElementById('srInfo').textContent=`Showing ${rows.length} of ${t} records`;}
 
@@ -832,7 +833,7 @@ function toggleDetailFilters(){document.getElementById('sdRange').disabled=!docu
 function populateSmsDetailFilterLists(base){const rs=document.getElementById('sdRange'),us=document.getElementById('sdUser');if(!rs||!us)return;const cr=rs.value,cu=us.value;const ranges=uniqueVals(base.map(r=>r.range_name)).sort();const users=uniqueVals(base.map(r=>r.agent_name)).sort();rs.innerHTML='<option value="">All Ranges</option>'+ranges.map(v=>`<option value="${v}">${v}</option>`).join('');us.innerHTML='<option value="">All</option>'+users.map(v=>`<option value="${v}">${v}</option>`).join('');if(ranges.includes(cr))rs.value=cr;if(users.includes(cu))us.value=cu;}
 function sdReset(){sdUseDate.checked=true;sdDate.value=todayStr();sdUseRange.checked=false;sdUseNumber.checked=false;sdUseUser.checked=false;sdSearch.value='';toggleDetailFilters();}
 function groupRows(rows,key,label){const map={};rows.forEach(r=>{const k=r[key]||'—';if(!map[k])map[k]={name:k,sms:0,pay:'0'};map[k].sms++;map[k].pay=decAdd(map[k].pay,r.payout_amount||r.payout_rate||0);});const arr=Object.values(map);return {head:`<tr><th>${label}</th><th>Total OTPs</th><th>Total Payout</th></tr>`,rows:arr.map(x=>`<tr><td><span class="tag tag-agt">${x.name}</span></td><td class="cell-money">${x.sms}</td><td class="cell-money">${money(x.pay)}</td></tr>`)};}
-function renderSmsDetail(){const dateVal=(document.getElementById('sdDate')?.value)||todayStr();let base=(smsRecords||[]).filter(r=>!sdUseDate.checked||String(r.received_at||'').slice(0,10)===dateVal);populateSmsDetailFilterLists(base);const rangeVal=sdRange.value,userVal=sdUser.value,q=(sdSearch.value||'').toLowerCase();let filtered=base.filter(r=>(!sdUseRange.checked||!rangeVal||r.range_name===rangeVal)&&(!sdUseUser.checked||!userVal||r.agent_name===userVal)&&[r.agent_name,r.range_name,r.number,r.cli,r.message,r.payout_rate].join(' ').toLowerCase().includes(q));let head='',body=[];if(sdUseNumber.checked){const g=groupRows(filtered,'number','Number');head=g.head;body=g.rows;}else if(sdUseRange.checked){const g=groupRows(filtered,'range_name','Range Name');head=g.head;body=g.rows;}else if(sdUseUser.checked){const g=groupRows(filtered,'agent_name','Agent');head=g.head;body=g.rows;}else{head='<tr><th>Date</th><th>Agent</th><th>Range</th><th>Number</th><th>CLI</th><th>Payout Rate</th><th>SMS (Message Body)</th></tr>';body=filtered.map(r=>`<tr><td class="muted">${(r.received_at||'').slice(0,16)}</td><td><span class="tag tag-agt">${r.agent_name||'—'}</span></td><td><b>${r.range_name||'—'}</b></td><td class="mono">${r.number}</td><td class="mono">${r.cli||''}</td><td class="cell-money">${cleanDec(r.payout_rate||0)}</td><td class="msg-body">${r.message||''}</td></tr>`);}const total=body.length,len=sdLen.value;if(len!=='All')body=body.slice(0,parseInt(len));sdHead.innerHTML=head;sdBody.innerHTML=body.join('')||`<tr><td colspan="7" class="muted" style="text-align:center;padding:24px">No records found</td></tr>`;sdInfo.textContent=`Showing ${body.length} of ${total} rows`;sdPayoutInfo.textContent=`Filtered total payout: ${money(sumPay(filtered))}`;}
+function renderSmsDetail(){const dateVal=(document.getElementById('sdDate')?.value)||todayStr();let base=(smsRecords||[]).filter(r=>!sdUseDate.checked||String(r.received_at||'').slice(0,10)===dateVal);populateSmsDetailFilterLists(base);const rangeVal=sdRange.value,userVal=sdUser.value,q=(sdSearch.value||'').toLowerCase();let filtered=base.filter(r=>(!sdUseRange.checked||!rangeVal||r.range_name===rangeVal)&&(!sdUseUser.checked||!userVal||r.agent_name===userVal)&&[r.agent_name,r.range_name,r.number,r.cli,r.message,r.payout_rate].join(' ').toLowerCase().includes(q));let head='',body=[];if(sdUseNumber.checked){const g=groupRows(filtered,'number','Number');head=g.head;body=g.rows;}else if(sdUseRange.checked){const g=groupRows(filtered,'range_name','Range Name');head=g.head;body=g.rows;}else if(sdUseUser.checked){const g=groupRows(filtered,'agent_name','Agent');head=g.head;body=g.rows;}else{head='<tr><th>Date</th><th>Agent</th><th>Range</th><th>Number</th><th>CLI</th><th>Payout Rate</th><th>SMS (Message Body)</th></tr>';body=filtered.map(r=>`<tr><td class="muted">${(r.received_at||'').slice(0,16)}</td><td><span class="tag tag-agt">${r.agent_name||'—'}</span></td><td><b>${r.range_name||'—'}</b></td><td class="mono">${r.number}</td><td class="mono">${r.cli||''}</td><td class="cell-money">${cleanDec(r.payout_rate||0)}</td><td class="msg-body">${r.message||''}</td></tr>`);}const len=sdLen.value;const pag=API.paginateRows('mgrSmsDetail',body,len,'sdInfo',renderSmsDetail);const total=pag.total;body=pag.rows;sdHead.innerHTML=head;sdBody.innerHTML=body.join('')||`<tr><td colspan="7" class="muted" style="text-align:center;padding:24px">No records found</td></tr>`;sdInfo.textContent=`Showing ${body.length} of ${total} rows`;sdPayoutInfo.textContent=`Filtered total payout: ${money(sumPay(filtered))}`;}
 
 /* ===== CDR: entity stats (client/agent) ===== */
 function buildEntity(kind){const titles={client:'Client Stats',agent:'Agent Stats'};
@@ -861,7 +862,7 @@ function renderEntity(kind){const len=document.getElementById(kind+'Len').value,
   let list=[];
   if(kind==='agent'){list=myAgents.map(a=>({name:a}));}
   else{const af=document.getElementById('clientFAgt').value;list=myClients(af).map(c=>({name:c,agent:agentOfClient(c)}));}
-  list=list.filter(x=>x.name.toLowerCase().includes(q));const t=list.length;if(len!=='All')list=list.slice(0,parseInt(len));
+  list=list.filter(x=>x.name.toLowerCase().includes(q));const pag=API.paginateRows('mgrEntity'+kind,list,len,kind+'Info',()=>renderEntity(kind));const t=pag.total;list=pag.rows;
   document.getElementById(kind+'Body').innerHTML=list.map(x=>{const recs=cdr.filter(r=>r[kind]===x.name);const sms=recs.reduce((s,r)=>s+r.sms,0),pay=sumPay(recs);
     let nameTag,extra;
     if(kind==='client'){nameTag=`<span class="tag tag-cli">${x.name}</span>`;extra=`<td><span class="tag tag-agt">${x.agent}</span></td>`;}
@@ -893,7 +894,7 @@ function buildDrillTot(kind){const key=kind==='range'?'range':'number';const uni
 function renderDrill(kind){const len=document.getElementById(kind+'Len').value,q=(document.getElementById(kind+'Search').value||'').toLowerCase(),a=document.getElementById(kind+'FAgt').value;
   const key=kind==='range'?'range':'number';let recs=cdr.filter(r=>(!a||r.agent===a));
   const map={};recs.forEach(r=>{const gk=r[key]+'|'+r.client;if(!map[gk])map[gk]={val:r[key],agent:r.agent,client:r.client,sms:0,pay:'0'};map[gk].sms+=r.sms;map[gk].pay=decAdd(map[gk].pay,r.pay);});
-  let rows=Object.values(map).filter(x=>[x.val,x.agent,x.client].join(' ').toLowerCase().includes(q));const t=rows.length;if(len!=='All')rows=rows.slice(0,parseInt(len));
+  let rows=Object.values(map).filter(x=>[x.val,x.agent,x.client].join(' ').toLowerCase().includes(q));const pag=API.paginateRows('mgrDrill'+kind,rows,len,kind+'Info',()=>renderDrill(kind));const t=pag.total;rows=pag.rows;
   document.getElementById(kind+'Body').innerHTML=rows.map(x=>`<tr><td><b>${kind==='number'?'<span class="mono">'+x.val+'</span>':x.val}</b></td><td><span class="tag tag-agt">${x.agent}</span></td><td><span class="tag tag-cli">${x.client}</span></td><td class="cell-money">${x.sms.toLocaleString()}</td><td class="cell-money" style="color:#6ee7b7">$ ${cleanDec(x.pay)}</td></tr>`).join('')||`<tr><td colspan="5" class="muted" style="text-align:center;padding:24px">No records found</td></tr>`;
   document.getElementById(kind+'Info').textContent=`Showing ${rows.length} of ${t} rows`;}
 
@@ -905,7 +906,7 @@ function renderTest(){const rf=document.getElementById('testRange').value,cf=(do
 
 /* ===== CREDIT NOTES ===== */
 function renderCredit(){const len=document.getElementById('crLen').value,q=(document.getElementById('crSearch').value||'').toLowerCase();
-  let rows=creditData.filter(r=>r.ag.toLowerCase().includes(q));const t=rows.length;if(len!=='All')rows=rows.slice(0,parseInt(len));
+  let rows=creditData.filter(r=>r.ag.toLowerCase().includes(q));const pag=API.paginateRows('mgrCredit',rows,len,'crInfo',renderCredit);const t=pag.total;rows=pag.rows;
   document.getElementById('crBody').innerHTML=rows.map((r,i)=>`<tr><td><span class="tag tag-agt">${r.ag}</span></td><td class="muted">${r.period}</td><td class="cell-money">$ ${r.w}</td><td class="cell-money">$ ${r.m}</td>
     <td>${r.st==='Paid'?'<span class="tag tag-green">Paid</span>':'<span class="tag tag-amber">Pending</span>'}</td>
     <td><button class="btn btn-green btn-sm" onclick="alert('Payout to ${r.ag} processed .')">Pay</button> <button class="btn btn-ghost btn-sm" onclick="alert('Credit note for ${r.ag}')">View</button></td></tr>`).join('');
@@ -963,6 +964,15 @@ async function submitWithdrawal(role){
 }
 async function forwardWithdrawal(id){const note=prompt('Forward note optional:','')||'';try{await API.post('/withdrawals/'+id+'/forward',{manager_note:note});loadManagerPayout();}catch(e){alert('❌ '+e.message)}}
 
+
+/* ===== CLI SEARCH & ANALYTICS ===== */
+let cliRangeRows=[];let cliCustomDate=false;
+async function loadCliSuggestions(){const q=(cliSearchInput?.value||'').trim();if(!q){cliSuggestBox.style.display='none';return;}try{const rows=await API.get('/cli-search/suggestions?q='+encodeURIComponent(q));cliSuggestBox.innerHTML=rows.map(r=>`<div style="padding:10px 12px;cursor:pointer;border-bottom:1px solid #F1F5F9" onclick="selectCliSuggestion('${String(r.cli).replace(/'/g,"\\'")}')"><b>${r.cli}</b><span class="muted"> — ${r.count} OTPs</span></div>`).join('')||'<div class="muted" style="padding:10px 12px">No matching CLI</div>';cliSuggestBox.style.display='block';}catch(e){cliSuggestBox.style.display='none';}}
+function selectCliSuggestion(v){cliSearchInput.value=v;cliSuggestBox.style.display='none';}
+function resetCliSearch(){cliSearchInput.value='';cliFrom.value='';cliTo.value='';cliRangeRows=[];renderCliRanges();['cliToday','cliYesterday','cliLast7','cliMonth'].forEach(id=>document.getElementById(id).textContent='0');}
+async function searchCliAnalytics(){const cli=cliSearchInput.value.trim();if(!cli){alert('Please select or type a CLI.');return;}let url='/cli-search?cli='+encodeURIComponent(cli);if(cliFrom.value)url+='&from='+encodeURIComponent(cliFrom.value);if(cliTo.value)url+='&to='+encodeURIComponent(cliTo.value);try{const r=await API.get(url);cliCustomDate=!!r.custom_date;const s=r.summary||{};if(cliCustomDate){cliToday.textContent=s.selected_period||0;cliYesterday.textContent='—';cliLast7.textContent='—';cliMonth.textContent='—';}else{cliToday.textContent=s.today||0;cliYesterday.textContent=s.yesterday||0;cliLast7.textContent=s.last7||0;cliMonth.textContent=s.month||0;}cliRangeRows=r.ranges||[];renderCliRanges();}catch(e){alert('❌ '+e.message)}}
+function renderCliRanges(){const q=(cliRangeSearch?.value||'').toLowerCase();let rows=(cliRangeRows||[]).filter(r=>(r.range_name||'').toLowerCase().includes(q));const len=cliLen.value;const pag=API.paginateRows('managerCliSearch',rows,len,'cliRangeInfo',renderCliRanges);rows=pag.rows;cliRangeHead.innerHTML=cliCustomDate?'<tr><th>Range</th><th>OTP Count</th></tr>':'<tr><th>Range</th><th>Today Count</th><th>Yesterday Count</th></tr>';cliRangeBody.innerHTML=rows.map(r=>cliCustomDate?`<tr><td><span class="tag tag-blue">${r.range_name||'Unknown'}</span></td><td class="cell-money">${r.total_count||0}</td></tr>`:`<tr><td><span class="tag tag-blue">${r.range_name||'Unknown'}</span></td><td class="cell-money">${r.today_count||0}</td><td class="cell-money">${r.yesterday_count||0}</td></tr>`).join('')||`<tr><td colspan="3" class="muted" style="text-align:center;padding:20px">No range analytics found</td></tr>`;cliRangeInfo.textContent=`Showing ${rows.length} of ${pag.total} ranges`;}
+
 /* ===== INIT ===== */
 loadProfile();loadDashboard();
 loadRateCard();loadNumbers();renderBulk();
@@ -973,6 +983,5 @@ buildDrill('range');buildDrill('number');
 renderTest();renderCredit();loadManagerPayout();loadClim();loadNews();
 </script>
 
-<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 </html>

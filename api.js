@@ -206,6 +206,42 @@
     try{const data=await req('GET','/activity-log');const role=ROLE();const childTitle=role==='admin'?'Manager Activity':(role==='manager'?'Agent Activity':'Client Activity');document.getElementById('msActivityBody').innerHTML=renderActivityTable('My Activity',data.own)+renderActivityTable(childTitle,data.child);}catch(e){document.getElementById('msActivityBody').textContent='Error: '+e.message;}
   }
 
+
+  function paginateRows(key, rows, len, infoId, rerender) {
+    rows = rows || [];
+    const state = window.__pagerState || (window.__pagerState = {});
+    const perPage = len === 'All' ? rows.length || 1 : Math.max(1, parseInt(len || '25'));
+    const totalPages = len === 'All' ? 1 : Math.max(1, Math.ceil(rows.length / perPage));
+    if (!state[key]) state[key] = { page: 1, signature: '' };
+    const signature = rows.length + '|' + len;
+    if (state[key].signature !== signature) { state[key].signature = signature; if (state[key].page > totalPages) state[key].page = 1; }
+    if (state[key].page < 1) state[key].page = 1;
+    if (state[key].page > totalPages) state[key].page = totalPages;
+    const page = state[key].page;
+    const sliced = len === 'All' ? rows : rows.slice((page - 1) * perPage, page * perPage);
+    setTimeout(() => {
+      const info = document.getElementById(infoId);
+      if (!info) return;
+      let foot = info.closest('.table-foot') || info.parentElement;
+      if (!foot) return;
+      let pag = foot.querySelector('.pagination');
+      if (!pag) { pag = document.createElement('div'); pag.className = 'pagination'; foot.appendChild(pag); }
+      const nums = [];
+      const maxBtns = 7;
+      let start = Math.max(1, page - 3), end = Math.min(totalPages, start + maxBtns - 1);
+      start = Math.max(1, end - maxBtns + 1);
+      for (let i = start; i <= end; i++) nums.push(i);
+      pag.innerHTML = `<button data-pg="prev">‹</button>` + nums.map(n=>`<button data-pg="${n}" class="${n===page?'active':''}">${n}</button>`).join('') + `<button data-pg="next">›</button>`;
+      pag.querySelectorAll('button').forEach(btn => btn.onclick = () => {
+        const v = btn.dataset.pg;
+        if (v === 'prev') state[key].page = Math.max(1, state[key].page - 1);
+        else if (v === 'next') state[key].page = Math.min(totalPages, state[key].page + 1);
+        else state[key].page = parseInt(v);
+        if (typeof rerender === 'function') rerender();
+      });
+    }, 0);
+    return { rows: sliced, total: rows.length, page, totalPages };
+  }
   function initRoutePersistence(){
     if(!TOKEN()) return;
     const key='ms_last_page_'+(ROLE()||'');
@@ -247,6 +283,7 @@
     markNotificationRead,
     openSettings,
     openProfileMenu,
+    paginateRows,
   };
   document.addEventListener('DOMContentLoaded', ()=>{ initNotifications(); initRoutePersistence(); enhancePageSizeOptions(); setInterval(enhancePageSizeOptions, 2000); });
 })();

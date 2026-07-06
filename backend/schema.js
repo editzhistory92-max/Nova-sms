@@ -338,6 +338,17 @@ function createTables() {
     db.run(`INSERT INTO system_security (admin_security_code) VALUES ('Dawood')`);
   }
 
+
+  // Performance indexes for analytics/search/reporting.
+  db.run(`CREATE INDEX IF NOT EXISTS idx_sms_cli ON sms_records(cli)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_sms_received_at ON sms_records(received_at)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_sms_cli_received ON sms_records(cli, received_at)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_sms_manager_cli_date ON sms_records(manager_id, cli, received_at)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_sms_agent_cli_date ON sms_records(agent_id, cli, received_at)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_sms_client_cli_date ON sms_records(client_id, cli, received_at)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_sms_range_cli_date ON sms_records(range_id, cli, received_at)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_sms_number_cli_date ON sms_records(number, cli, received_at)`);
+
 }
 
 module.exports = { createTables };

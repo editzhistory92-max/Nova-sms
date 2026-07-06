@@ -560,6 +560,77 @@ app.get('/api/stats/:by', authRequired, (req, res) => {
   res.json({ rows: out, totalSms: rows.length, totalPayment: sumPayout(rows) });
 });
 
+
+/* ============ CLI SEARCH & ANALYTICS ============ */
+function cliSearchScope(user, alias='s') {
+  if (!['admin','manager'].includes(user.role)) return null;
+  const p = alias ? alias + '.' : '';
+  if (user.role === 'manager') return { where: `${p}manager_id=?`, params: [user.id] };
+  return { where: '1=1', params: [] };
+}
+function hasCustomDate(q){ return !!(q.from || q.to); }
+function dateRangeWhere(q, alias='s') {
+  const p = alias ? alias + '.' : '';
+  const where=[]; const params=[];
+  if(q.from){ where.push(`date(${p}received_at) >= date(?)`); params.push(q.from); }
+  if(q.to){ where.push(`date(${p}received_at) <= date(?)`); params.push(q.to); }
+  return { where: where.length ? where.join(' AND ') : '1=1', params };
+}
+function cliBaseWhere(user, cli, q, alias='s') {
+  const scope=cliSearchScope(user, alias);
+  if(!scope) return null;
+  const dr=dateRangeWhere(q, alias);
+  const p=alias ? alias+'.' : '';
+  const where=[scope.where, `${p}cli=?`, dr.where];
+  return { where: where.join(' AND '), params:[...scope.params, cli, ...dr.params] };
+}
+app.get('/api/cli-search/suggestions', authRequired, requireRole('admin','manager'), (req,res)=>{
+  const prefix=String(req.query.q||'').trim();
+  if(!prefix) return res.json([]);
+  const scope=cliSearchScope(req.user,'s');
+  const rows=db.all(`SELECT s.cli AS cli, COUNT(*) AS count
+    FROM sms_records s
+    WHERE ${scope.where} AND s.cli IS NOT NULL AND s.cli<>'' AND s.cli LIKE ?
+    GROUP BY s.cli
+    ORDER BY count DESC, s.cli ASC
+    LIMIT 20`, [...scope.params, prefix+'%']);
+  res.json(rows);
+});
+app.get('/api/cli-search', authRequired, requireRole('admin','manager'), (req,res)=>{
+  const cli=String(req.query.cli||'').trim();
+  if(!cli) return res.status(400).json({error:'CLI is required'});
+  const custom=hasCustomDate(req.query);
+  const base=cliBaseWhere(req.user, cli, req.query, 's');
+  if(!base) return res.status(403).json({error:'Forbidden'});
+  const countWhere=(extra, extraParams=[]) => db.get(`SELECT COUNT(*) AS c FROM sms_records s WHERE ${base.where} ${extra?(' AND '+extra):''}`, [...base.params, ...extraParams])?.c||0;
+  let summary;
+  if(custom){
+    summary={ selected_period: countWhere(''), from:req.query.from||'', to:req.query.to||'' };
+  } else {
+    summary={
+      today: countWhere(`date(s.received_at)=date('now')`),
+      yesterday: countWhere(`date(s.received_at)=date('now','-1 day')`),
+      last7: countWhere(`s.received_at >= datetime('now','-7 days')`),
+      month: countWhere(`strftime('%Y-%m',s.received_at)=strftime('%Y-%m','now')`)
+    };
+  }
+  let rangeRows;
+  if(custom){
+    rangeRows=db.all(`SELECT COALESCE(r.name,'Unknown') AS range_name, COUNT(*) AS total_count
+      FROM sms_records s LEFT JOIN ranges r ON r.id=s.range_id
+      WHERE ${base.where}
+      GROUP BY s.range_id, r.name ORDER BY total_count DESC`, base.params);
+  } else {
+    rangeRows=db.all(`SELECT COALESCE(r.name,'Unknown') AS range_name,
+      SUM(CASE WHEN date(s.received_at)=date('now') THEN 1 ELSE 0 END) AS today_count,
+      SUM(CASE WHEN date(s.received_at)=date('now','-1 day') THEN 1 ELSE 0 END) AS yesterday_count
+      FROM sms_records s LEFT JOIN ranges r ON r.id=s.range_id
+      WHERE ${base.where}
+      GROUP BY s.range_id, r.name ORDER BY today_count DESC, yesterday_count DESC`, base.params);
+  }
+  res.json({ cli, custom_date:custom, summary, ranges:rangeRows });
+});
+
 /* ============ DASHBOARD ============ */
 function smsScopeWhere(user, alias = '') {
   const p = alias ? alias + '.' : '';

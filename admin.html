@@ -386,6 +386,7 @@
       <div class="nav-item" id="cdrParent" onclick="toggleSub('cdrSub','cdrParent')"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/></svg><span>SMS CDR Stats</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
       <div class="submenu" id="cdrSub">
         <div class="sub-item" data-page="smsReport"><span class="dot"></span> SMS Report</div>
+        <div class="sub-item" data-page="cliSearch"><span class="dot"></span> CLI Search</div>
         <div class="sub-item" data-page="smsDetail"><span class="dot"></span> SMS Detailed Report</div>
         <div class="sub-item" data-page="clientStats"><span class="dot"></span> Client Stats</div>
         <div class="sub-item" data-page="agentStats"><span class="dot"></span> Agent Stats</div>
@@ -611,6 +612,27 @@
         </table></div>
           <div class="table-foot"><div class="info" id="ratesInfo"></div><div class="pagination"><button>‹</button><button class="active">1</button><button>2</button><button>3</button><button>›</button></div></div>
         </div>
+      </section>
+
+
+      <section class="page" id="page-cliSearch">
+        <div class="page-head"><div><h2>CLI Search</h2><div class="breadcrumb"><b>Reports</b> › CLI Search & Analytics</div></div></div>
+        <div class="toolbar">
+          <div class="filter-row" style="align-items:flex-start">
+            <div style="position:relative;min-width:260px"><label>CLI / Sender ID</label><input type="text" id="cliSearchInput" placeholder="Type prefix: T, Ti, Whats..." autocomplete="off" oninput="loadCliSuggestions()"/><div id="cliSuggestBox" style="position:absolute;left:0;right:0;top:64px;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 16px 36px rgba(15,23,42,.14);z-index:20;display:none;max-height:240px;overflow:auto"></div></div>
+            <div><label>From Date</label><input type="date" id="cliFrom"/></div>
+            <div><label>To Date</label><input type="date" id="cliTo"/></div>
+            <div style="padding-top:25px"><button class="btn btn-blue" onclick="searchCliAnalytics()">Search</button> <button class="btn btn-ghost" onclick="resetCliSearch()">Reset</button></div>
+          </div>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-card dash-metric d-blue"><div class="stat-info"><p>Today OTP Count</p><h3 id="cliToday">0</h3><span>Selected CLI</span></div><div class="dash-go">C</div></div>
+          <div class="stat-card dash-metric d-pink"><div class="stat-info"><p>Yesterday OTP Count</p><h3 id="cliYesterday">0</h3><span>Selected CLI</span></div><div class="dash-go">Y</div></div>
+          <div class="stat-card dash-metric d-green"><div class="stat-info"><p>Last 7 Days OTP Count</p><h3 id="cliLast7">0</h3><span>Selected CLI</span></div><div class="dash-go">7</div></div>
+          <div class="stat-card dash-metric d-orange"><div class="stat-info"><p>This Month OTP Count</p><h3 id="cliMonth">0</h3><span>Selected CLI</span></div><div class="dash-go">M</div></div>
+        </div>
+        <div class="table-wrap" style="padding:16px 18px;margin-top:0"><div class="table-controls"><div class="tc-left"><label>Show Records:</label><select id="cliLen" onchange="renderCliRanges()"><option>10</option><option selected>25</option><option>50</option><option>100</option><option>500</option><option>1000</option><option>10000</option><option value="All">All</option></select></div><div class="tc-right"><label>Search Range:</label><input type="text" id="cliRangeSearch" oninput="renderCliRanges()" placeholder="Search range..."/></div></div></div>
+        <div class="table-wrap"><div class="tscroll"><table><thead id="cliRangeHead"><tr><th>Range</th><th>Today Count</th><th>Yesterday Count</th></tr></thead><tbody id="cliRangeBody"></tbody></table></div><div class="table-foot"><div class="info" id="cliRangeInfo"></div></div></div>
       </section>
 
       <!-- CDR STAT PAGES (built via JS) -->
@@ -1100,7 +1122,7 @@ async function loadRates(){ try{ ratesData = await API.get('/ranges'); }catch(e)
 function renderRates(){
   const len=document.getElementById('rateLen').value,q=(document.getElementById('rateSearch').value||'').toLowerCase();
   let rows=(ratesData||[]).filter(r=>(r.name||'').toLowerCase().includes(q)||(r.test_number||'').includes(q));
-  const total=rows.length; if(len!=='All') rows=rows.slice(0,parseInt(len));
+  const pag=API.paginateRows('adminRates',rows,len,'ratesInfo',renderRates);const total=pag.total;rows=pag.rows;
   document.getElementById('ratesBody').innerHTML=rows.map(r=>`<tr>
     <td><b>${r.name}</b></td><td class="muted">${r.prefix||'—'}</td><td>${r.test_number||'—'}</td><td><span class="tag tag-green">${r.currency}</span></td>
     <td>${fmtRate(r.rate_1_1)}</td><td>${fmtRate(r.rate_7_1)}</td><td>${fmtRate(r.rate_7_7)}</td><td>${fmtRate(r.rate_30_45)}</td><td class="muted">${r.memo||'—'}</td>
@@ -1123,7 +1145,7 @@ async function delRate(id){if(confirm('Delete this range?')){try{await API.del('
 function renderAlloc(){
   const len=document.getElementById('allocLen').value,q=(document.getElementById('allocSearch').value||'').toLowerCase();
   let rows=allocData.map((r,i)=>({...r,_i:i})).filter(r=>r.range.toLowerCase().includes(q));
-  const total=rows.length; if(len!=='All') rows=rows.slice(0,parseInt(len));
+  const pag=API.paginateRows('adminAlloc',rows,len,'allocInfo',renderAlloc);const total=pag.total;rows=pag.rows;
   document.getElementById('allocBody').innerHTML=rows.map(r=>`<tr>
     <td><b>${r.range}</b></td>
     <td><span class="tag tag-green">${r.avail}</span> <span class="muted">/ ${r.total}</span></td>
@@ -1186,7 +1208,7 @@ function renderNumbers(){
   if(clientFilterMode===1) rows=rows.filter(r=>!r.client);
   else if(clientFilterMode===2) rows=rows.filter(r=>!!r.client);
   if(numSort.key){rows.sort((a,b)=>((a[numSort.key]||'')+'').localeCompare((b[numSort.key]||'')+'',undefined,{numeric:true})*numSort.dir);}
-  const total=rows.length; if(len!=='All') rows=rows.slice(0,parseInt(len));
+  const pag=API.paginateRows('adminNumbers',rows,len,'numbersInfo',renderNumbers);const total=pag.total;rows=pag.rows;
   document.getElementById('numbersBody').innerHTML=rows.map(r=>`<tr>
     <td><input type="checkbox" class="rowchk" data-id="${r._id}" onchange="updateSelInfo()"/></td>
     <td>${r.range}</td><td class="muted">${r.prefix||'—'}</td><td><b>${r.number}</b></td>
@@ -1286,7 +1308,7 @@ async function loadUsers(role){
 }
 function renderUsers(role){const len=document.getElementById(role+'Len').value,q=(document.getElementById(role+'Search').value||'').toLowerCase();
   let rows=(usersData[role]||[]).filter(r=>r.username.toLowerCase().includes(q)||(r.name||'').toLowerCase().includes(q)||(r.email||'').toLowerCase().includes(q));
-  const total=rows.length;if(len!=='All')rows=rows.slice(0,parseInt(len));
+  const pag=API.paginateRows('adminUsers'+role,rows,len,role+'Info',()=>renderUsers(role));const total=pag.total;rows=pag.rows;
   document.getElementById(role+'Body').innerHTML=rows.map(r=>`<tr>
     <td><input type="checkbox" class="uchk-${role}" data-id="${r.id}"/></td><td><b>${r.username}</b></td>
     <td>${r.name||'<span class="muted">—</span>'}</td><td>${r.email||'<span class="muted">—</span>'}</td>
@@ -1367,7 +1389,7 @@ function renderSmsReport(){
   let base=dateFiltered(smsRecords,'srFrom','srTo');
   const byMgr={};base.forEach(r=>{const m=r.manager_name||'—';byMgr[m]=(byMgr[m]||0)+1;});const sumBody=document.getElementById('mgrSumBody');if(sumBody)sumBody.innerHTML=Object.keys(byMgr).map(m=>`<tr><td><span class="tag tag-mgr">${m}</span></td><td><span class="tag tag-agt">—</span></td><td><span class="tag tag-cli">—</span></td><td class="cell-money">${byMgr[m].toLocaleString()}</td></tr>`).join('')||`<tr><td colspan="4" class="muted" style="text-align:center;padding:16px">No records found</td></tr>`;
   let filtered=base.filter(r=>[r.manager_name,r.range_name,r.number,r.cli,r.message,r.payout_rate].join(' ').toLowerCase().includes(q));
-  const total=filtered.length;let rows=filtered;if(len!=='All')rows=filtered.slice(0,parseInt(len));
+  const pag=API.paginateRows('adminSmsReport',filtered,len,'srInfo',renderSmsReport);const total=pag.total;let rows=pag.rows;
   document.getElementById('srBody').innerHTML=rows.map(r=>`<tr><td class="muted">${(r.received_at||'').slice(0,16)}</td><td><span class="tag tag-mgr">${r.manager_name||'—'}</span></td><td>${r.range_name||'—'}</td><td class="mono">${r.number||''}</td><td class="mono">${r.cli||''}</td><td class="cell-money">${cleanDec(r.payout_rate||0)}</td><td class="msg-body">${r.message||''}</td></tr>`).join('')||`<tr><td colspan="7" class="muted" style="text-align:center;padding:24px">No records found</td></tr>`;
   document.getElementById('srInfo').textContent=`Showing ${rows.length} of ${total} records`;
   const pi=document.getElementById('srPayoutInfo'); if(pi) pi.textContent=`Visible total payout: ${money(sumPay(rows))}`;
@@ -1441,7 +1463,7 @@ function renderSmsDetail(){
   const summaryMode=sdUseRange.checked||sdUseNumber.checked||sdUseUser.checked;
   if(summaryMode){const g=buildSummaryRows(filtered);head=g.head;body=g.rows;}
   else{head='<tr><th>Date</th><th>Manager</th><th>Range</th><th>Number</th><th>CLI</th><th>Payout Rate</th><th>SMS (Message Body)</th></tr>';body=filtered.map(r=>`<tr><td class="muted">${(r.received_at||'').slice(0,16)}</td><td><span class="tag tag-mgr">${r.manager_name||'—'}</span></td><td><span class="tag tag-blue">${r.range_name||'—'}</span></td><td><span class="tag tag-gray mono">${r.number}</span></td><td class="mono">${r.cli||''}</td><td class="cell-money payout-rate">${cleanDec(r.payout_rate||0)}</td><td class="msg-body">${r.message||''}</td></tr>`);}
-  const total=body.length,len=sdLen.value;if(len!=='All')body=body.slice(0,parseInt(len));
+  const len=sdLen.value;const pag=API.paginateRows('adminSmsDetail',body,len,'sdInfo',renderSmsDetail);const total=pag.total;body=pag.rows;
   sdHead.innerHTML=head;sdBody.innerHTML=body.join('')||`<tr><td colspan="7" class="muted" style="text-align:center;padding:24px">No records found</td></tr>`;
   sdInfo.textContent=`Showing ${body.length} of ${total} rows`;sdPayoutInfo.textContent=`Filtered total payout: ${money(sumPay(filtered))}`;
 }
@@ -1498,7 +1520,7 @@ function renderEntityStats(kind){
   else if(kind==='agent'){ const m=document.getElementById('agentFMgr').value; list=agentsOf(m).map(a=>({name:a,manager:managerOfAgent(a)})); }
   else { const m=document.getElementById('clientFMgr').value,a=document.getElementById('clientFAgt').value; list=clientsOf(m,a).map(c=>{const o=ownerOfClient(c);return {name:c,manager:o.manager,agent:o.agent};}); }
   list=list.filter(x=>x.name.toLowerCase().includes(q));
-  const total=list.length;if(len!=='All')list=list.slice(0,parseInt(len));
+  const pag=API.paginateRows('adminEntity'+kind,list,len,kind+'SInfo',()=>renderEntityStats(kind));const total=pag.total;list=pag.rows;
   document.getElementById(kind+'SBody').innerHTML=list.map(x=>{
     const st=statsFor(kind,x.name);let extra='',nameTag='';
     if(kind==='client'){nameTag=`<span class="tag tag-cli">${x.name}</span>`;extra=`<td><span class="tag tag-mgr">${x.manager}</span></td><td><span class="tag tag-agt">${x.agent}</span></td>`;}
@@ -1582,7 +1604,7 @@ function renderDrillStats(kind){
   const map={};
   recs.forEach(r=>{const gk=r[key]+'|'+r.client;if(!map[gk])map[gk]={val:r[key],manager:r.manager,agent:r.agent,client:r.client,sms:0,pay:'0'};map[gk].sms+=r.sms;map[gk].pay=decAdd(map[gk].pay,r.pay);});
   let rows=Object.values(map).filter(x=>[x.val,x.manager,x.agent,x.client].join(' ').toLowerCase().includes(q));
-  const total=rows.length;if(len!=='All')rows=rows.slice(0,parseInt(len));
+  const pag=API.paginateRows('adminDrill'+kind,rows,len,kind+'SInfo',()=>renderDrillStats(kind));const total=pag.total;rows=pag.rows;
   document.getElementById(kind+'SBody').innerHTML=rows.map(x=>`<tr><td><b>${kind==='number'?'<span class="mono">'+x.val+'</span>':x.val}</b></td><td><span class="tag tag-mgr">${x.manager}</span></td><td><span class="tag tag-agt">${x.agent}</span></td><td><span class="tag tag-cli">${x.client}</span></td><td class="cell-money">${x.sms.toLocaleString()}</td><td class="cell-money" style="color:#4ade80">$ ${cleanDec(x.pay)}</td></tr>`).join('')||`<tr><td colspan="6" class="muted" style="text-align:center;padding:24px">No records found</td></tr>`;
   document.getElementById(kind+'SInfo').textContent=`Showing ${rows.length} of ${total} rows`;
 }
@@ -1591,7 +1613,7 @@ function renderDrillStats(kind){
 let payData=[];
 async function loadPayments(){ try{ payData=await API.get('/payments'); }catch(e){ payData=[]; } renderPayments(); }
 function renderPayments(){const len=document.getElementById('payLen').value,q=(document.getElementById('paySearch').value||'').toLowerCase();
-  let rows=(payData||[]).filter(r=>(r.username||'').toLowerCase().includes(q));const total=rows.length;if(len!=='All')rows=rows.slice(0,parseInt(len));
+  let rows=(payData||[]).filter(r=>(r.username||'').toLowerCase().includes(q));const pag=API.paginateRows('adminPayments',rows,len,'payInfo',renderPayments);const total=pag.total;rows=pag.rows;
   document.getElementById('payBody').innerHTML=rows.map(r=>`<tr><td><b>${r.username}</b></td><td class="muted">${r.period}</td><td class="cell-money">${money(r.weekly||0)}</td><td class="cell-money">${money(r.monthly||0)}</td>
     <td>${r.status==='Paid'?'<span class="tag tag-green">Paid</span>':'<span class="tag tag-amber">Pending</span>'}</td>
     <td><button class="btn btn-green btn-sm" onclick="alert('Payout processed for ${r.username} .')">Pay</button> <button class="btn btn-ghost btn-sm" onclick="alert('View credit note for ${r.username}')">View</button></td></tr>`).join('')||`<tr><td colspan="6" class="muted" style="text-align:center;padding:24px">No payment records found</td></tr>`;
@@ -2006,6 +2028,39 @@ async function deleteBackupFile(file){
   try{await API.del('/backups/'+encodeURIComponent(file));loadBackups();}catch(e){alert('❌ '+e.message)}
 }
 
+
+/* =============== CLI SEARCH & ANALYTICS =============== */
+let cliRangeRows=[];let cliCustomDate=false;
+async function loadCliSuggestions(){
+  const q=(document.getElementById('cliSearchInput')?.value||'').trim();
+  const box=document.getElementById('cliSuggestBox'); if(!box)return;
+  if(!q){box.style.display='none';box.innerHTML='';return;}
+  try{const rows=await API.get('/cli-search/suggestions?q='+encodeURIComponent(q));
+    box.innerHTML=rows.map(r=>`<div style="padding:10px 12px;cursor:pointer;border-bottom:1px solid #F1F5F9" onclick="selectCliSuggestion('${String(r.cli).replace(/'/g,"\\'")}')"><b>${r.cli}</b><span class="muted"> — ${r.count} OTPs</span></div>`).join('')||'<div class="muted" style="padding:10px 12px">No matching CLI</div>';
+    box.style.display='block';
+  }catch(e){box.style.display='none';}
+}
+function selectCliSuggestion(v){cliSearchInput.value=v;cliSuggestBox.style.display='none';}
+function resetCliSearch(){cliSearchInput.value='';cliFrom.value='';cliTo.value='';cliRangeRows=[];renderCliRanges();['cliToday','cliYesterday','cliLast7','cliMonth'].forEach(id=>document.getElementById(id).textContent='0');}
+async function searchCliAnalytics(){
+  const cli=cliSearchInput.value.trim(); if(!cli){alert('Please select or type a CLI.');return;}
+  let url='/cli-search?cli='+encodeURIComponent(cli);
+  if(cliFrom.value) url+='&from='+encodeURIComponent(cliFrom.value);
+  if(cliTo.value) url+='&to='+encodeURIComponent(cliTo.value);
+  try{const r=await API.get(url);cliCustomDate=!!r.custom_date;const s=r.summary||{};
+    if(cliCustomDate){cliToday.textContent=s.selected_period||0;cliYesterday.textContent='—';cliLast7.textContent='—';cliMonth.textContent='—';}
+    else{cliToday.textContent=s.today||0;cliYesterday.textContent=s.yesterday||0;cliLast7.textContent=s.last7||0;cliMonth.textContent=s.month||0;}
+    cliRangeRows=r.ranges||[];renderCliRanges();
+  }catch(e){alert('❌ '+e.message)}
+}
+function renderCliRanges(){
+  const q=(cliRangeSearch?.value||'').toLowerCase();let rows=(cliRangeRows||[]).filter(r=>(r.range_name||'').toLowerCase().includes(q));
+  const len=cliLen.value;const pag=API.paginateRows('adminCliSearch',rows,len,'cliRangeInfo',renderCliRanges);rows=pag.rows;
+  cliRangeHead.innerHTML=cliCustomDate?'<tr><th>Range</th><th>OTP Count</th></tr>':'<tr><th>Range</th><th>Today Count</th><th>Yesterday Count</th></tr>';
+  cliRangeBody.innerHTML=rows.map(r=>cliCustomDate?`<tr><td><span class="tag tag-blue">${r.range_name||'Unknown'}</span></td><td class="cell-money">${r.total_count||0}</td></tr>`:`<tr><td><span class="tag tag-blue">${r.range_name||'Unknown'}</span></td><td class="cell-money">${r.today_count||0}</td><td class="cell-money">${r.yesterday_count||0}</td></tr>`).join('')||`<tr><td colspan="3" class="muted" style="text-align:center;padding:20px">No range analytics found</td></tr>`;
+  cliRangeInfo.textContent=`Showing ${rows.length} of ${pag.total} ranges`;
+}
+
 /* =============== INIT =============== */
 loadDashboard();
 buildUserPage('manager');buildUserPage('agent');buildUserPage('client');  // loadUsers() API se
@@ -2026,6 +2081,6 @@ loadNews();
   loadCliLimits();
 })();
 </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a167d60369ba394b',t:'MTc4MzI2OTg4Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 </html>
