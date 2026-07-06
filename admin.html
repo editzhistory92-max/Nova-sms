@@ -767,18 +767,10 @@
             <div class="form-group"><label>Future Auth Token</label><input id="ciToken" placeholder="Optional / future" /></div>
           </div>
           <div class="card" style="margin:10px 0 14px;padding:14px;background:#F8FAFC!important">
-            <div class="card-head" style="margin-bottom:8px"><div><h3 style="font-size:14px">HTTP + SMPP Integration</h3><div class="sub">HTTP endpoint remains available, and SMPP is now active when credentials are configured.</div></div><button class="btn btn-blue btn-sm" onclick="reconnectSmpp()" type="button">Reconnect SMPP</button><button class="btn btn-amber btn-sm" onclick="testSmppBindModes()" type="button">Test Bind Modes</button></div>
-            <div class="form-grid" style="grid-template-columns:.9fr 1fr .55fr .9fr 1fr 1fr;gap:14px">
-              <div class="form-group"><label>SMPP Connection</label><select id="ciSmppEnabled"><option value="0">Disabled</option><option value="1">Enabled</option></select></div>
-              <div class="form-group"><label>SMPP Host</label><input id="ciSmppHost" placeholder="51.77.64.61" /></div>
-              <div class="form-group"><label>SMPP Port</label><input id="ciSmppPort" placeholder="2775" /></div>
-              <div class="form-group"><label>Bind Type</label><select id="ciSmppBindType"><option value="transceiver">Transceiver</option><option value="receiver">Receiver</option><option value="transmitter">Transmitter</option></select></div>
-              <div class="form-group"><label>SMPP System ID</label><input id="ciSmppSystem" placeholder="System ID / Username" /></div>
-              <div class="form-group"><label>SMPP Password</label><input id="ciSmppPass" type="password" placeholder="Password" /></div>
-            </div>
-            <div class="hint" style="margin-top:8px"><b>SMPP Status:</b> <span id="ciSmppStatus" class="tag tag-gray">DISCONNECTED</span> <span id="ciSmppInfo" class="muted"></span></div>
-            <div class="hint" style="margin-top:6px"><b>HTTP accepted content types:</b> application/json, application/x-www-form-urlencoded, multipart/form-data</div>
-          </div>
+            <div class="card-head" style="margin-bottom:8px"><div><h3 style="font-size:14px">HTTP Integration Active</h3><div class="sub">SMPP is fully disabled. Only HTTP carrier callback is used.</div></div></div>
+            <div class="hint"><b>Production endpoint:</b> <code>POST /api/incoming-sms</code></div>
+            <div class="hint" style="margin-top:6px"><b>Accepted content types:</b> application/json, application/x-www-form-urlencoded, multipart/form-data</div>
+          </div></div>
           <div class="form-group"><label>Notes</label><textarea id="ciNotes" style="width:100%;min-height:80px;border:1px solid var(--border2);border-radius:9px;padding:10px" placeholder="Request format, field names, auth notes or carrier instructions..."></textarea></div>
           <div class="hint" id="ciInfo" style="margin-bottom:12px"></div>
           <button class="btn btn-purple" onclick="saveCarrierSettings()">Save Carrier Settings</button>
@@ -803,14 +795,14 @@ ngrok http 4000</pre>
       <section class="page" id="page-integrations">
         <div class="page-head"><div><h2>Integration Layer</h2><div class="breadcrumb"><b>System Master</b> › Provider Connectors</div></div></div>
         <div class="card" style="margin-bottom:16px">
-          <div class="card-head"><div><h3>Add / Update Connector</h3><div class="sub">Provider method is not finalized. This layer keeps HTTP/API/Webhook/SMPP/File/Sync support modular.</div></div></div>
+          <div class="card-head"><div><h3>Add / Update Connector</h3><div class="sub">Provider method is not finalized. This layer keeps HTTP/API/Webhook/File/Sync support modular.</div></div></div>
           <div class="form-grid" style="grid-template-columns:1.2fr 1fr 1fr 1fr;gap:14px">
             <div class="form-group"><label>Name</label><input id="icName" placeholder="e.g. Upstream HTTP Provider" /></div>
-            <div class="form-group"><label>Type</label><select id="icType"><option>HTTP</option><option>API</option><option>WEBHOOK</option><option>SMPP</option><option>FILE</option><option>PANEL_SYNC</option><option>MANUAL</option></select></div>
+            <div class="form-group"><label>Type</label><select id="icType"><option>HTTP</option><option>API</option><option>WEBHOOK</option><option>FILE</option><option>PANEL_SYNC</option><option>MANUAL</option></select></div>
             <div class="form-group"><label>Direction</label><select id="icDirection"><option value="both">Both</option><option value="number_provision">Number Provision</option><option value="sms_receiving">SMS Receiving</option></select></div>
             <div class="form-group"><label>Status</label><select id="icStatus"><option value="disabled">Disabled</option><option value="testing">Testing</option><option value="active">Active</option></select></div>
           </div>
-          <div class="form-group"><label>Endpoint URL / Host</label><input id="icEndpoint" placeholder="https://provider.com/api or smpp host" /></div>
+          <div class="form-group"><label>Endpoint URL / Host</label><input id="icEndpoint" placeholder="https://provider.com/api" /></div>
           <div class="form-group"><label>Notes / Config JSON</label><textarea id="icNotes" style="width:100%;min-height:75px;border:1px solid var(--border2);border-radius:9px;padding:10px" placeholder="Provider details, credentials placeholder, webhook format notes..."></textarea></div>
           <button class="btn btn-purple" onclick="saveIntegration()">Save Connector</button>
         </div>
@@ -1898,13 +1890,6 @@ function carrierStatusTag(status){
   if(st.includes('INVALID')) return '<span class="tag tag-red">INVALID PAYLOAD</span>';
   return `<span class="tag tag-gray">${miniEsc(st||'NO REQUESTS')}</span>`;
 }
-async function loadSmppStatus(){
-  try{
-    const st=await API.get('/smpp/status');
-    if(document.getElementById('ciSmppStatus')){ciSmppStatus.textContent=st.state||'DISCONNECTED';ciSmppStatus.className='tag '+(st.state==='CONNECTED'?'tag-green':(st.state==='CONNECTING'||st.state==='RECONNECTING'?'tag-amber':'tag-red'));}
-    if(document.getElementById('ciSmppInfo')) ciSmppInfo.textContent=`Host: ${st.host||'—'}:${st.port||'—'} · Bind: ${st.bind_type||'—'} · Attempts: ${st.reconnect_attempts||0} · Last bind: ${st.last_bind_status||'—'} · Last error: ${st.last_error||'—'}`;
-  }catch(e){console.warn(e)}
-}
 async function loadCarrierSettings(){
   try{
     const c=await API.get('/carrier-settings');
@@ -1914,12 +1899,6 @@ async function loadCarrierSettings(){
     ciCallback.value=c.http_callback_url && c.http_callback_url !== '/api/incoming-sms' ? c.http_callback_url : (c.generated_callback_url||'/api/incoming-sms');
     ciApiKey.value=c.api_key||'';
     ciToken.value=c.auth_token||'';
-    if(document.getElementById('ciSmppEnabled')) ciSmppEnabled.value=String(c.smpp_enabled||0);
-    if(document.getElementById('ciSmppHost')) ciSmppHost.value=c.smpp_host||'';
-    if(document.getElementById('ciSmppPort')) ciSmppPort.value=c.smpp_port||'';
-    if(document.getElementById('ciSmppBindType')) ciSmppBindType.value=c.smpp_bind_type||'transceiver';
-    if(document.getElementById('ciSmppSystem')) ciSmppSystem.value=c.smpp_system_id||'';
-    if(document.getElementById('ciSmppPass')) ciSmppPass.value=c.smpp_password||'';
     ciNotes.value=c.notes||'';
     ciRetention.value=String(c.retention_days||30);
     ciLastSms.textContent=c.last_sms_received||'—';
@@ -1927,19 +1906,13 @@ async function loadCarrierSettings(){
     ciLastStatus.innerHTML=carrierStatusTag(c.last_request_status);
     ciLastError.textContent=c.last_error||'Carrier request status';
     ciRetentionCard.textContent=(c.retention_days||30)+' Days';
-    if(c.smpp_status){
-      const st=c.smpp_status.state||'DISCONNECTED';
-      if(document.getElementById('ciSmppStatus')){ciSmppStatus.textContent=st;ciSmppStatus.className='tag '+(st==='CONNECTED'?'tag-green':(st==='CONNECTING'?'tag-amber':'tag-red'));}
-      if(document.getElementById('ciSmppInfo')) ciSmppInfo.textContent=`Host: ${c.smpp_status.host||'—'}:${c.smpp_status.port||'—'} · Bind: ${c.smpp_status.bind_type||'—'} · Last error: ${c.smpp_status.last_error||'—'}`;
-    }
     ciInfo.innerHTML=`Endpoint path: <b>${c.endpoint_path||'/api/incoming-sms'}</b> · Current generated URL: <b>${c.generated_callback_url||''}</b>`;
     await loadCarrierWebhookLogs();
-    await loadSmppStatus();
   }catch(e){console.warn(e)}
 }
 async function saveCarrierSettings(){
   try{
-    const body={integration_status:ciStatus.value,carrier_ip:ciIp.value.trim(),http_callback_url:ciCallback.value.trim(),api_key:ciApiKey.value.trim(),auth_token:ciToken.value.trim(),smpp_enabled:(document.getElementById('ciSmppEnabled')?ciSmppEnabled.value==='1':false),smpp_host:(document.getElementById('ciSmppHost')?ciSmppHost.value.trim():''),smpp_port:(document.getElementById('ciSmppPort')?ciSmppPort.value.trim():''),smpp_bind_type:(document.getElementById('ciSmppBindType')?ciSmppBindType.value:'transceiver'),smpp_system_id:(document.getElementById('ciSmppSystem')?ciSmppSystem.value.trim():''),smpp_password:(document.getElementById('ciSmppPass')?ciSmppPass.value:''),notes:ciNotes.value.trim(),retention_days:+ciRetention.value};
+    const body={integration_status:ciStatus.value,carrier_ip:ciIp.value.trim(),http_callback_url:ciCallback.value.trim(),api_key:ciApiKey.value.trim(),auth_token:ciToken.value.trim(),notes:ciNotes.value.trim(),retention_days:+ciRetention.value};
     await API.put('/carrier-settings',body);
     alert('✅ Carrier settings saved.');
     loadCarrierSettings();
@@ -1954,22 +1927,6 @@ async function testCarrierConnection(){
   try{
     const r=await API.post('/carrier-test',{});
     alert(`✅ Endpoint reachable\nURL: ${r.endpoint}\nStatus: ${r.integration_status}\nAllowed IPs: ${(r.allowed_ips||[]).join(', ')||'none'}`);
-  }catch(e){alert('❌ '+e.message)}
-}
-async function reconnectSmpp(){
-  try{const r=await API.post('/smpp/reconnect',{});alert('SMPP reconnect triggered. Status: '+(r.status&&r.status.state?r.status.state:'UNKNOWN'));loadCarrierSettings();}catch(e){alert('❌ '+e.message)}
-}
-async function testSmppBindModes(){
-  try{
-    const r=await API.post('/smpp/test-bind-modes',{});
-    const lines=(r.results||[]).map(x=>`bind_${x.bind_type}: ${x.success?'SUCCESS':'FAILED'} ${x.command_status!==null?'('+x.command_status+' '+x.status_name+')':''} ${x.error||''}`);
-    alert('SMPP Bind Mode Test Results:\n\n'+lines.join('\n')+'\n\nRecommended: '+(r.recommended||'none'));
-    if(r.recommended && confirm('Apply recommended bind type: '+r.recommended+' ?')){
-      await API.post('/smpp/apply-bind-type',{bind_type:r.recommended});
-      if(document.getElementById('ciSmppBindType')) ciSmppBindType.value=r.recommended;
-      alert('✅ Applied bind type: '+r.recommended);
-    }
-    loadCarrierSettings();
   }catch(e){alert('❌ '+e.message)}
 }
 async function loadCarrierWebhookLogs(){
@@ -2170,7 +2127,7 @@ renderAlloc();                     // range allocation live counts
 buildSmsReport();buildSmsDetail();
 buildEntityStats('client');buildEntityStats('agent');buildEntityStats('manager');
 buildDrillStats('range');buildDrillStats('number');
-loadPayments();loadAdminPayout();loadPaymentConfig();loadCarrierSettings();setInterval(loadSmppStatus,10000);loadIntegrations();loadNotificationRules();loadSystemLogs();loadTestGeneratorSettings();loadBackups();renderTest();
+loadPayments();loadAdminPayout();loadPaymentConfig();loadCarrierSettings();loadIntegrations();loadNotificationRules();loadSystemLogs();loadTestGeneratorSettings();loadBackups();renderTest();
 /* System Master selects + render (API) */
 fillSelect('climCli',cliPool,false);
 loadNews();
