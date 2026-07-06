@@ -389,22 +389,104 @@ app.post('/api/test-numbers/import', authRequired, requireRole('admin'), (req, r
 
 
 /* ============ NUMBERS ============ */
-// list numbers visible to caller (based on ownership column for their level)
-app.get('/api/numbers', authRequired, (req, res) => {
-  const u = req.user;
-  let where = '1=1', params = [];
-  if (u.role === 'manager') { where = 'n.manager_id=?'; params = [u.id]; }
-  else if (u.role === 'agent') { where = 'n.agent_id=?'; params = [u.id]; }
-  else if (u.role === 'client') { where = 'n.client_id=?'; params = [u.id]; }
-  const rows = db.all(
-    `SELECT n.*, r.name AS range_name,
+function numberOwnerColumnForRole(role) {
+  if (role === 'admin') return 'manager_id';
+  if (role === 'manager') return 'agent_id';
+  if (role === 'agent') return 'client_id';
+  return 'client_id';
+}
+function numberScope(user, alias='n') {
+  const p = alias ? alias + '.' : '';
+  if (user.role === 'manager') return { where: `${p}manager_id=?`, params: [user.id] };
+  if (user.role === 'agent') return { where: `${p}agent_id=?`, params: [user.id] };
+  if (user.role === 'client') return { where: `${p}client_id=?`, params: [user.id] };
+  return { where: '1=1', params: [] };
+}
+function buildNumberQuery(user, q) {
+  const scope = numberScope(user, 'n');
+  const where = [scope.where];
+  const params = [...scope.params];
+  if (q.search) {
+    where.push(`(n.number LIKE ? OR r.name LIKE ? OR n.prefix LIKE ? OR COALESCE(cu.username,'') LIKE ? OR COALESCE(au.username,'') LIKE ? OR COALESCE(mu.username,'') LIKE ?)`);
+    const v = `%${q.search}%`;
+    params.push(v, v, v, v, v, v);
+  }
+  if (q.range) { where.push('r.name=?'); params.push(q.range); }
+  if (q.range_id) { where.push('n.range_id=?'); params.push(+q.range_id); }
+  if (q.owner) {
+    if (user.role === 'admin') { where.push('mu.username=?'); params.push(q.owner); }
+    else if (user.role === 'manager') { where.push('au.username=?'); params.push(q.owner); }
+    else if (user.role === 'agent') { where.push('cu.username=?'); params.push(q.owner); }
+  }
+  if (q.allocation === 'unallocated') {
+    const col = numberOwnerColumnForRole(user.role);
+    where.push(`n.${col} IS NULL`);
+  } else if (q.allocation === 'allocated') {
+    const col = numberOwnerColumnForRole(user.role);
+    where.push(`n.${col} IS NOT NULL`);
+  }
+  return { where: where.join(' AND '), params };
+}
+function numberSelectSql(where) {
+  return `SELECT n.*, r.name AS range_name,
             cu.username AS client_name, au.username AS agent_name, mu.username AS manager_name
      FROM numbers n
      LEFT JOIN ranges r ON r.id=n.range_id
      LEFT JOIN users cu ON cu.id=n.client_id
      LEFT JOIN users au ON au.id=n.agent_id
      LEFT JOIN users mu ON mu.id=n.manager_id
-     WHERE ${where} ORDER BY n.number ASC`, params);
+     WHERE ${where}`;
+}
+app.get('/api/numbers/summary', authRequired, (req, res) => {
+  const scope = numberScope(req.user, 'n');
+  const ownerCol = numberOwnerColumnForRole(req.user.role);
+  const rows = db.all(`SELECT r.id AS range_id, r.name AS range_name,
+      COUNT(n.id) AS total,
+      SUM(CASE WHEN n.${ownerCol} IS NULL THEN 1 ELSE 0 END) AS available,
+      SUM(CASE WHEN n.${ownerCol} IS NOT NULL THEN 1 ELSE 0 END) AS allocated,
+      COALESCE(NULLIF(r.rate_30_45,''), NULLIF(r.rate_7_1,''), '0') AS rate
+    FROM ranges r
+    LEFT JOIN numbers n ON n.range_id=r.id AND ${scope.where}
+    GROUP BY r.id, r.name
+    ORDER BY r.name`, scope.params);
+  res.json(rows.map(r => ({...r, total:+(r.total||0), available:+(r.available||0), allocated:+(r.allocated||0)})));
+});
+
+// list numbers visible to caller (supports server-side pagination with ?paged=1)
+const NUMBER_PAGE_DEFAULT = 25;
+const NUMBER_PAGE_MAX = 1000; // keep large imports fast; never return 20k rows in one UI request
+function parsePositiveInt(v, fallback) {
+  const n = parseInt(v, 10);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+app.get('/api/numbers', authRequired, (req, res) => {
+  const query = buildNumberQuery(req.user, req.query || {});
+  const baseSql = numberSelectSql(query.where);
+
+  // IMPORTANT: total is always a fresh database COUNT(*) after scope/search/filter.
+  // It never comes from import batch/file metadata.
+  const countRow = db.get(`SELECT COUNT(*) AS c FROM (${baseSql}) x`, query.params);
+  const total = countRow ? +(countRow.c || 0) : 0;
+
+  const paged = req.query.paged || req.query.page || req.query.limit;
+  if (paged) {
+    const requestedLimitRaw = String(req.query.limit || NUMBER_PAGE_DEFAULT);
+    const requestedLimit = requestedLimitRaw.toLowerCase() === 'all'
+      ? NUMBER_PAGE_MAX
+      : parsePositiveInt(requestedLimitRaw, NUMBER_PAGE_DEFAULT);
+    const limit = Math.min(NUMBER_PAGE_MAX, Math.max(1, requestedLimit));
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+    const requestedPage = parsePositiveInt(req.query.page || '1', 1);
+    const page = Math.min(Math.max(1, requestedPage), totalPages);
+    const offset = (page - 1) * limit;
+    const sortMap = { range:'r.name', prefix:'n.prefix', number:'n.number', myVal:'n.rate', payVal:'n.payout', manager:'mu.username', agent:'au.username', client:'cu.username', owner:"COALESCE(mu.username,au.username,cu.username,'')" };
+    const sortCol = sortMap[req.query.sort] || 'n.number';
+    const dir = String(req.query.dir||'asc').toLowerCase()==='desc'?'DESC':'ASC';
+    const rows = db.all(`${baseSql} ORDER BY ${sortCol} ${dir}, n.id ASC LIMIT ? OFFSET ?`, [...query.params, limit, offset]);
+    return res.json({ rows, total, page, limit, totalPages, count_source: 'database_count' });
+  }
+
+  const rows = db.all(`${baseSql} ORDER BY n.number ASC`, query.params);
   res.json(rows);
 });
 
@@ -481,6 +563,59 @@ app.post('/api/numbers/unallocate', authRequired, (req, res) => {
   beforeRows.forEach(nr=>logNumberHistory(req,nr,'unallocated','','','Unallocate selected numbers'));
   logAction(req,'unallocate_numbers','numbers',{count:beforeRows.length,role:req.user.role});
   res.json({ ok: true, count: beforeRows.length });
+});
+
+function deleteNumbersWhere(whereSql, params = [], req, action, details = {}) {
+  const count = db.get(`SELECT COUNT(*) c FROM numbers WHERE ${whereSql}`, params)?.c || 0;
+  if (!count) return { deleted: 0, deleted_sms: 0, vacuum: false };
+
+  // Remove linked SMS records too so dashboard/report/statistics refresh from actual DB immediately.
+  // Match by number_id and by number text for older rows that may not have number_id populated.
+  const smsWhere = `number_id IN (SELECT id FROM numbers WHERE ${whereSql}) OR number IN (SELECT number FROM numbers WHERE ${whereSql})`;
+  const smsParams = [...params, ...params];
+  const smsCount = db.get(`SELECT COUNT(*) c FROM sms_records WHERE ${smsWhere}`, smsParams)?.c || 0;
+  db.run(`DELETE FROM sms_records WHERE ${smsWhere}`, smsParams);
+  db.run(`DELETE FROM numbers WHERE ${whereSql}`, params);
+  const vacuum = db.vacuum();
+  logAction(req, action, 'numbers', { ...details, count, smsCount });
+  return { deleted: count, deleted_sms: smsCount, vacuum };
+}
+
+// hard delete selected numbers (Admin only). This is not a soft-delete, so no "Deleted" rows remain in lists.
+app.post('/api/numbers/delete', authRequired, requireRole('admin'), (req, res) => {
+  const ids = (req.body && Array.isArray(req.body.ids) ? req.body.ids : [])
+    .map(x => parseInt(x, 10)).filter(x => Number.isFinite(x) && x > 0);
+  if (!ids.length) return res.status(400).json({ error: 'ids[] required' });
+  const uniqueIds = [...new Set(ids)];
+  const ph = uniqueIds.map(() => '?').join(',');
+  const result = deleteNumbersWhere(`id IN (${ph})`, uniqueIds, req, 'delete_selected_numbers', { requested: ids.length });
+  res.json({ ok: true, ...result });
+});
+
+// unallocate a quantity from a range using the database directly (works even with server-side pagination).
+app.post('/api/numbers/unallocate-by-range', authRequired, (req, res) => {
+  const rangeId = parsePositiveInt(req.body?.range_id, 0);
+  const qty = Math.min(NUMBER_PAGE_MAX, parsePositiveInt(req.body?.qty, 0));
+  if (!rangeId || !qty) return res.status(400).json({ error: 'range_id and qty required' });
+  if (!['admin','manager','agent'].includes(req.user.role)) return res.status(403).json({ error: 'Not allowed' });
+
+  const scope = numberScope(req.user, 'n');
+  const ownerCol = numberOwnerColumnForRole(req.user.role);
+  const rows = db.all(`SELECT n.id,n.number,n.manager_id,n.agent_id,n.client_id
+    FROM numbers n
+    WHERE n.range_id=? AND ${scope.where} AND n.${ownerCol} IS NOT NULL
+    ORDER BY n.id ASC LIMIT ?`, [rangeId, ...scope.params, qty]);
+  if (!rows.length) return res.status(404).json({ error: 'Allocated numbers were not found' });
+  const ids = rows.map(r => r.id);
+  const ph = ids.map(() => '?').join(',');
+
+  if (req.user.role === 'admin') db.run(`UPDATE numbers SET manager_id=NULL, agent_id=NULL, client_id=NULL WHERE id IN (${ph})`, ids);
+  else if (req.user.role === 'manager') db.run(`UPDATE numbers SET agent_id=NULL, client_id=NULL WHERE id IN (${ph}) AND manager_id=?`, [...ids, req.user.id]);
+  else if (req.user.role === 'agent') db.run(`UPDATE numbers SET client_id=NULL WHERE id IN (${ph}) AND agent_id=?`, [...ids, req.user.id]);
+
+  rows.forEach(nr=>logNumberHistory(req,nr,'unallocated','','','Unallocate range quantity'));
+  logAction(req,'unallocate_numbers_by_range','numbers',{rangeId,count:rows.length,role:req.user.role});
+  res.json({ ok:true, count: rows.length });
 });
 
 // smart divide: multi-range + multi-target, split UNALLOCATED evenly
@@ -717,7 +852,6 @@ async function processNumberImportJob(jobId, payload, user){
     const range=db.get('SELECT name FROM ranges WHERE id=?',[rid]);
     db.run(`INSERT INTO number_import_batches (batch_id,range_id,range_name,file_name,total,status,created_by) VALUES (?,?,?,?,?,?,?)`,
       [jobId,rid,range?range.name:(range_name||''),file_name||'',numbers.length,'processing',user.id]);
-    const existing=new Set(db.all('SELECT number FROM numbers').map(x=>normalizeNumberForImport(x.number)));
     const batchSize=parseInt(process.env.IMPORT_BATCH_SIZE||'1000',10);
     let inserted=0, skipped=0, processed=0;
     for(let i=0;i<numbers.length;i+=batchSize){
@@ -727,8 +861,8 @@ async function processNumberImportJob(jobId, payload, user){
         for(const raw of chunk){
           const number=normalizeNumberForImport(raw);
           processed++;
-          if(!number || existing.has(number)){skipped++; continue;}
-          existing.add(number);
+          if(!number){skipped++; continue;}
+          if(db.get('SELECT id FROM numbers WHERE number=?',[number])){skipped++; continue;}
           db.runNoSave(`INSERT INTO numbers (range_id,number,prefix,payterm,payout,import_batch_id,import_source,imported_by,imported_at) VALUES (?,?,?,?,?,?,?,?,datetime('now'))`,
             [rid,number,prefix||'',payterm||'Weekly',payout||'0',jobId,'file',user.id]);
           inserted++;
@@ -770,24 +904,20 @@ app.get('/api/numbers/import-jobs/:jobId', authRequired, requireRole('admin'), (
   res.json({job_id:b.batch_id,status:b.status,total:b.total,processed:b.inserted+b.skipped,inserted:b.inserted,skipped:b.skipped,progress:b.status==='done'?100:0,error:b.error,created_at:b.created_at,completed_at:b.completed_at});
 });
 app.get('/api/number-import-batches', authRequired, requireRole('admin'), (req,res)=>{
-  res.json(db.all(`SELECT * FROM number_import_batches ORDER BY id DESC LIMIT 200`));
+  const includeDeleted = String(req.query.include_deleted || '').toLowerCase() === '1' || String(req.query.include_deleted || '').toLowerCase() === 'true';
+  const where = includeDeleted ? '1=1' : `status<>'deleted'`;
+  res.json(db.all(`SELECT * FROM number_import_batches WHERE ${where} ORDER BY id DESC LIMIT 200`));
 });
 app.delete('/api/number-import-batches/:batchId', authRequired, requireRole('admin'), (req,res)=>{
   const batchId=req.params.batchId;
-  const count=db.get('SELECT COUNT(*) c FROM numbers WHERE import_batch_id=?',[batchId])?.c||0;
-  db.run('DELETE FROM numbers WHERE import_batch_id=?',[batchId]);
+  const result = deleteNumbersWhere('import_batch_id=?', [batchId], req, 'delete_import_batch', { batchId });
   db.run(`UPDATE number_import_batches SET status='deleted', deleted_at=datetime('now') WHERE batch_id=?`,[batchId]);
-  db.vacuum();
-  logAction(req,'delete_import_batch','numbers',{batchId,count});
-  res.json({ok:true,deleted:count,vacuum:true});
+  res.json({ok:true,...result});
 });
 app.delete('/api/numbers/imported-all', authRequired, requireRole('admin'), (req,res)=>{
-  const count=db.get(`SELECT COUNT(*) c FROM numbers WHERE import_source='file' OR import_batch_id<>''`)?.c||0;
-  db.run(`DELETE FROM numbers WHERE import_source='file' OR import_batch_id<>''`);
+  const result = deleteNumbersWhere(`import_source='file' OR import_batch_id<>''`, [], req, 'delete_all_imported_numbers', {});
   db.run(`UPDATE number_import_batches SET status='deleted', deleted_at=datetime('now') WHERE status<>'deleted'`);
-  db.vacuum();
-  logAction(req,'delete_all_imported_numbers','numbers',{count});
-  res.json({ok:true,deleted:count,vacuum:true});
+  res.json({ok:true,...result});
 });
 
 /* ============ PAYMENTS ============ */
@@ -1054,16 +1184,18 @@ function carrierRuntimeStatus(){
 }
 app.get('/api/carrier-settings', authRequired, requireRole('admin'), (req,res)=>{
   const c=getCarrierSettings();
-  res.json({ ...c, ...carrierRuntimeStatus(), integration_mode: 'HTTP', generated_callback_url: publicCallbackUrl(req), endpoint_path:'/api/incoming-sms' });
+  // Runtime mode is HTTP only. SMPP fields may exist in old DBs, but are not used or enabled.
+  res.json({ ...c, smpp_host:'', smpp_port:'', smpp_system_id:'', smpp_password:'', smpp_bind_type:'disabled', smpp_enabled:0, ...carrierRuntimeStatus(), integration_mode: 'HTTP', generated_callback_url: publicCallbackUrl(req), endpoint_path:'/api/incoming-sms' });
 });
 app.put('/api/carrier-settings', authRequired, requireRole('admin'), (req,res)=>{
   const b=req.body||{};
   const c=getCarrierSettings();
-  db.run(`UPDATE carrier_settings SET integration_status=?,carrier_ip=?,http_callback_url=?,api_key=?,auth_token=?,smpp_host=?,smpp_port=?,smpp_system_id=?,smpp_password=?,smpp_bind_type=?,smpp_enabled=?,notes=?,retention_days=?,updated_at=datetime('now') WHERE id=?`,
-    [b.integration_status==='enabled'?'enabled':'disabled', b.carrier_ip||'', b.http_callback_url||'/api/incoming-sms', b.api_key||'', b.auth_token||'', b.smpp_host||'', b.smpp_port||'', b.smpp_system_id||'', b.smpp_password||'', ['receiver','transmitter','transceiver'].includes(String(b.smpp_bind_type||'').toLowerCase()) ? String(b.smpp_bind_type).toLowerCase() : 'transceiver', b.smpp_enabled?1:0, b.notes||'', parseInt(b.retention_days||30), c.id]);
+  // Force SMPP disabled at settings level too. No SMPP connect/reconnect loop exists in runtime.
+  db.run(`UPDATE carrier_settings SET integration_status=?,carrier_ip=?,http_callback_url=?,api_key=?,auth_token=?,smpp_host='',smpp_port='',smpp_system_id='',smpp_password='',smpp_bind_type='disabled',smpp_enabled=0,notes=?,retention_days=?,updated_at=datetime('now') WHERE id=?`,
+    [b.integration_status==='enabled'?'enabled':'disabled', b.carrier_ip||'', b.http_callback_url||'/api/incoming-sms', b.api_key||'', b.auth_token||'', b.notes||'', parseInt(b.retention_days||30), c.id]);
   cleanupWebhookLogs(b.retention_days||30);
-  logAction(req,'update_carrier_settings','carrier_integration',{carrier_ip:b.carrier_ip,status:b.integration_status,smpp_host:b.smpp_host,smpp_enabled:!!b.smpp_enabled});
-  res.json({ ok:true, settings:{...getCarrierSettings(),...carrierRuntimeStatus()}, generated_callback_url: publicCallbackUrl(req) });
+  logAction(req,'update_carrier_settings','carrier_integration',{carrier_ip:b.carrier_ip,status:b.integration_status,mode:'HTTP_ONLY'});
+  res.json({ ok:true, settings:{...getCarrierSettings(), smpp_host:'', smpp_port:'', smpp_system_id:'', smpp_password:'', smpp_bind_type:'disabled', smpp_enabled:0, ...carrierRuntimeStatus()}, generated_callback_url: publicCallbackUrl(req) });
 });
 
 

@@ -165,11 +165,13 @@
   }
 
   function enhancePageSizeOptions(){
-    const wanted=['10','25','50','100','500','1000','10000','All'];
+    const standard=['10','25','50','100','500','1000','10000','All'];
+    const serverNumbers=['10','25','50','100','250','500','1000']; // Admin Numbers uses DB LIMIT/OFFSET; no huge "All" load.
     document.querySelectorAll('select').forEach(sel=>{
       const id=(sel.id||'').toLowerCase();
       if(!(id.includes('len') || id.includes('slen'))) return;
-      const current=sel.value || '25';
+      const wanted = id === 'numlen' ? serverNumbers : standard;
+      const current = wanted.includes(sel.value) ? sel.value : (id === 'numlen' ? '1000' : (sel.value || '25'));
       sel.innerHTML=wanted.map(v=>`<option value="${v}" ${v===current?'selected':''}>${v}</option>`).join('');
     });
   }

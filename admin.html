@@ -508,6 +508,7 @@
           <div class="head-actions">
             <button class="btn btn-green" onclick="openAllocAll()">✔ Allocate Selected</button>
             <button class="btn btn-red" onclick="unallocateSelected()">↩ Unallocate Selected</button>
+            <button class="btn btn-red" onclick="deleteSelectedNumbers()">🗑 Delete Selected</button>
             <button class="btn btn-purple" onclick="openSmart()">⚡ Smart Divide</button>
             <button class="btn btn-ghost" onclick="showPageByName('import')">⬆ Import Numbers</button>
           </div>
@@ -521,7 +522,7 @@
           </div>
           <div class="table-controls">
             <div class="tc-left"><label>Show Records:</label>
-              <select id="numLen" onchange="renderNumbers()"><option>10</option><option selected>25</option><option>50</option><option>100</option><option value="All">All</option></select>
+              <select id="numLen" onchange="renderNumbers()"><option>10</option><option selected>25</option><option>50</option><option>100</option><option>250</option><option>500</option><option>1000</option></select>
               <div class="exp-btns"><button class="btn btn-blue">Copy</button><button class="btn btn-blue">CSV</button><button class="btn btn-green">Excel</button><button class="btn btn-red">PDF</button><button class="btn btn-blue">Print</button></div>
             </div>
             <div class="tc-right"><label>Search:</label><input type="text" id="numSearch" oninput="renderNumbers()" placeholder="Search..." /></div>
@@ -530,6 +531,7 @@
             <span class="info" id="selInfo">0 selected</span>
             <button class="btn btn-green btn-sm" onclick="openAllocAll()">Allocate Selected → Manager</button>
             <button class="btn btn-red btn-sm" onclick="unallocateSelected()">Unallocate Selected</button>
+            <button class="btn btn-red btn-sm" onclick="deleteSelectedNumbers()">Delete Selected</button>
           </div>
         </div>
         <div class="table-wrap">
@@ -1199,9 +1201,8 @@ function allocRow(i){
 function unallocRow(i){
   const q=parseInt(document.getElementById('ul'+i).value), row=allocData[i];
   if(!q||q<=0){alert('Enter a valid quantity.');return;}
-  const ids=(numbersData||[]).filter(n=>n.range_id===row.id && n.manager_id).slice(0,q).map(n=>n.id);
-  if(!ids.length){alert('Allocated numbers were not found.');return;}
-  API.post('/numbers/unallocate',{ids}).then(()=>{alert(`✅ ${ids.length} numbers unallocated.`);loadNumbers();}).catch(e=>alert('❌ '+e.message));
+  if(!row){alert('Range not found.');return;}
+  API.post('/numbers/unallocate-by-range',{range_id:row.id,qty:q}).then(res=>{alert(`✅ ${res.count||0} numbers unallocated.`);loadNumbers();}).catch(e=>alert('❌ '+e.message));
 }
 function doAllocate(){
   const rname=document.getElementById('allocRange').value,m=document.getElementById('allocManager').value,q=parseInt(document.getElementById('allocQty').value);
@@ -1252,6 +1253,18 @@ function getSelectedIds(){return [...document.querySelectorAll('.rowchk:checked'
 async function unallocateSelected(){const ids=getSelectedIds();if(!ids.length){alert('Please select numbers first.');return;}
   try{ await API.post('/numbers/unallocate',{ids}); alert(`✅ ${ids.length} numbers unallocated.`); loadNumbers(); }catch(e){ alert('❌ '+e.message); }}
 async function unassignOne(id){if(confirm('Unallocate this number?')){try{await API.post('/numbers/unallocate',{ids:[id]});loadNumbers();}catch(e){alert('❌ '+e.message);}}}
+async function deleteSelectedNumbers(){
+  const ids=getSelectedIds();
+  if(!ids.length){alert('Please select numbers first.');return;}
+  const confirmText='DELETE NUMBERS';
+  const v=prompt(`This will permanently delete ${ids.length} selected number(s) and linked SMS records, so all counts/statistics refresh immediately.\nType ${confirmText} to continue:`);
+  if(v!==confirmText)return;
+  try{
+    const r=await API.post('/numbers/delete',{ids});
+    alert(`✅ Deleted ${r.deleted||0} numbers. Linked SMS removed: ${r.deleted_sms||0}. Database optimized.`);
+    if(typeof refreshNumberDependentViews==='function') await refreshNumberDependentViews(); else loadNumbers();
+  }catch(e){ alert('❌ '+e.message); }
+}
 /* Allocate All modal (Admin -> Manager, as per rule) */
 async function openAllocAll(){const ids=getSelectedIds();if(!ids.length){alert('Please select numbers first (checkbox).');return;}
   // admin allocates to managers
@@ -1762,7 +1775,7 @@ async function loadNumbers(){ try{ numbersData=await API.get('/numbers'); }catch
 }
 async function doAllocate(){const r=document.getElementById('allocRange').value,m=document.getElementById('allocManager').value,q=parseInt(document.getElementById('allocQty').value);if(!r||!m||!q){alert('Select range, manager and quantity.');return;}const range=(ratesData||[]).find(x=>x.name===r);const mgr=(usersData.manager||[]).find(x=>x.username===m);if(!range||!mgr){alert('Range or manager not found.');return;}try{const res=await API.post('/numbers/smart-divide',{range_ids:[range.id],target_ids:[mgr.id],qty:q});alert(`✅ ${res.total||0} numbers allocated.`);document.getElementById('allocQty').value='';loadNumbers();}catch(e){alert('❌ '+e.message);}}
 function allocRangeRow(i){const q=parseInt(document.getElementById('ra'+i).value),m=document.getElementById('am'+i).value;if(!q||!m){alert('Select manager and quantity.');return;}const row=allocData[i],mgr=(usersData.manager||[]).find(x=>x.username===m);if(!row||!mgr)return;API.post('/numbers/smart-divide',{range_ids:[row.id],target_ids:[mgr.id],qty:q}).then(res=>{alert(`✅ ${res.total||0} numbers allocated.`);loadNumbers();}).catch(e=>alert('❌ '+e.message));}
-function unallocRangeRow(i){const q=parseInt(document.getElementById('ru'+i).value);const row=allocData[i];if(!q||!row){alert('Enter quantity.');return;}const ids=(numbersData||[]).filter(n=>n.range_id===row.id && n.manager_id).slice(0,q).map(n=>n.id);if(!ids.length){alert('Allocated numbers were not found.');return;}API.post('/numbers/unallocate',{ids}).then(()=>{alert(`✅ ${ids.length} numbers unallocated.`);loadNumbers();}).catch(e=>alert('❌ '+e.message));}
+function unallocRangeRow(i){const q=parseInt(document.getElementById('ru'+i).value);const row=allocData[i];if(!q||!row){alert('Enter quantity.');return;}API.post('/numbers/unallocate-by-range',{range_id:row.id,qty:q}).then(res=>{alert(`✅ ${res.count||0} numbers unallocated.`);loadNumbers();}).catch(e=>alert('❌ '+e.message));}
 async function importFile(type){
   const input=document.getElementById(type==='numbers'?'numFile':'rangeFile');const f=input.files&&input.files[0];if(!f){alert('Select a file.');return;}
   const text=await f.text();
@@ -2108,13 +2121,86 @@ async function loadImportBatches(){
 }
 async function deleteImportBatch(batchId){
   if(!confirm('Delete all numbers imported in this batch?\n'+batchId))return;
-  try{const r=await API.del('/number-import-batches/'+encodeURIComponent(batchId));alert(`✅ Deleted ${r.deleted||0} numbers. Database optimized.`);await loadNumbers();await loadImportBatches();}catch(e){alert('❌ '+e.message)}
+  try{const r=await API.del('/number-import-batches/'+encodeURIComponent(batchId));alert(`✅ Deleted ${r.deleted||0} numbers. Linked SMS removed: ${r.deleted_sms||0}. Database optimized.`);if(typeof refreshNumberDependentViews==='function')await refreshNumberDependentViews();else await loadNumbers();await loadImportBatches();}catch(e){alert('❌ '+e.message)}
 }
 async function deleteAllImportedNumbers(){
   const confirmText='DELETE IMPORTED';
-  const v=prompt(`This will delete all numbers imported from files/batches. Type ${confirmText} to continue:`);
+  const v=prompt(`This will delete all numbers imported from files/batches and linked SMS records. Type ${confirmText} to continue:`);
   if(v!==confirmText)return;
-  try{const r=await API.del('/numbers/imported-all');alert(`✅ Deleted ${r.deleted||0} imported numbers. Database optimized.`);await loadNumbers();await loadImportBatches();}catch(e){alert('❌ '+e.message)}
+  try{const r=await API.del('/numbers/imported-all');alert(`✅ Deleted ${r.deleted||0} imported numbers. Linked SMS removed: ${r.deleted_sms||0}. Database optimized.`);if(typeof refreshNumberDependentViews==='function')await refreshNumberDependentViews();else await loadNumbers();await loadImportBatches();}catch(e){alert('❌ '+e.message)}
+}
+
+
+/* =============== SERVER-SIDE NUMBERS PAGINATION =============== */
+const serverPager = window.__serverPager || (window.__serverPager = {});
+let adminNumbersReqSeq = 0;
+function pagerState(key){ if(!serverPager[key]) serverPager[key]={page:1,totalPages:1,signature:''}; return serverPager[key]; }
+function drawServerPagination(container, state, rerender){
+  if(!container) return;
+  const totalPages=Math.max(1,state.totalPages||1), page=Math.min(Math.max(1,state.page||1),totalPages);
+  let start=Math.max(1,page-3), end=Math.min(totalPages,start+6); start=Math.max(1,end-6);
+  let html='<button data-pg="prev" '+(page<=1?'disabled':'')+'>‹</button>';
+  for(let i=start;i<=end;i++) html+=`<button data-pg="${i}" class="${i===page?'active':''}">${i}</button>`;
+  html+='<button data-pg="next" '+(page>=totalPages?'disabled':'')+'>›</button>';
+  container.innerHTML=html;
+  container.querySelectorAll('button').forEach(b=>b.onclick=()=>{const v=b.dataset.pg;if(v==='prev')state.page=Math.max(1,page-1);else if(v==='next')state.page=Math.min(totalPages,page+1);else state.page=parseInt(v);rerender();});
+}
+async function loadNumberSummary(){
+  try{
+    const rows=await API.get('/numbers/summary');
+    allocData=(rows||[]).map(r=>({id:r.range_id,range:r.range_name,total:r.total||0,alloc:r.allocated||0,avail:r.available||0,rate:r.rate||'0'}));
+  }catch(e){allocData=[];}
+  renderAlloc();
+}
+function rebuildAllocData(){ /* server summary handles this */ }
+async function refreshNumberDependentViews(){
+  await loadNumberSummary();
+  await renderNumbers();
+  if(typeof loadDashboard==='function') loadDashboard();
+  if(typeof loadImportBatches==='function') loadImportBatches();
+  if(typeof loadSmsRecords==='function') loadSmsRecords();
+  if(typeof populateTestGeneratorNumbers==='function') populateTestGeneratorNumbers();
+}
+async function loadNumbers(){ await refreshNumberDependentViews(); }
+async function renderNumbers(){
+  const state=pagerState('adminNumbersServer');
+  const len=document.getElementById('numLen').value;
+  const q=(document.getElementById('numSearch').value||'').trim();
+  const signature=JSON.stringify({len,q,range:numRangeFilter,owner:numClientFilter,allocation:clientFilterMode,sort:numSort.key||'',dir:numSort.dir});
+  if(state.signature && state.signature!==signature) state.page=1;
+  state.signature=signature;
+  const params=new URLSearchParams({paged:'1',page:String(state.page),limit:len});
+  if(q) params.set('search',q);
+  if(numRangeFilter) params.set('range',numRangeFilter);
+  if(numClientFilter) params.set('owner',numClientFilter);
+  if(clientFilterMode===1) params.set('allocation','unallocated');
+  if(clientFilterMode===2) params.set('allocation','allocated');
+  if(numSort.key) { params.set('sort',numSort.key); params.set('dir',numSort.dir===-1?'desc':'asc'); }
+  const reqSeq=++adminNumbersReqSeq;
+  let data;
+  try{ data=await API.get('/numbers?'+params.toString()); }catch(e){ data={rows:[],total:0,page:1,limit:25,totalPages:1}; }
+  if(reqSeq!==adminNumbersReqSeq) return; // ignore stale search/filter responses
+  numbersData=data.rows||[];
+  state.page=data.page||state.page; state.totalPages=data.totalPages||1;
+  const total=Number(data.total||0);
+  const pageLimit=Number(data.limit||25);
+  const rows=(data.rows||[]).map(r=>({
+    _id:r.id, range:r.range_name||'', prefix:r.prefix||'', number:r.number||'',
+    myPay:r.payterm||'Weekly', myVal:r.rate||'', client:r.manager_name||'',
+    payType:r.payterm||'Weekly', payVal:'$ '+(r.payout||'0'), sd:r.sd_limit||0, sw:r.sw_limit||0
+  }));
+  document.getElementById('numbersBody').innerHTML=rows.map(r=>`<tr>
+    <td><input type="checkbox" class="rowchk" data-id="${r._id}" onchange="updateSelInfo()"/></td>
+    <td>${r.range}</td><td class="muted">${r.prefix||'—'}</td><td><b>${r.number}</b></td>
+    <td>${r.myPay}<br><span class="cell-sub cell-money">${r.myVal}</span></td>
+    <td>${r.client?`<span class="tag tag-mgr">${r.client} <span class="x" onclick="unassignOne(${r._id})">✕</span></span>`:`<span class="tag tag-gray">Unallocated</span>`}</td>
+    <td>${r.payType}<br><span class="cell-sub">${r.payVal}</span></td>
+    <td class="muted">SD : ${r.sd} | SW : ${r.sw}</td></tr>`).join('')||`<tr><td colspan="8" class="muted" style="text-align:center;padding:24px">No numbers found</td></tr>`;
+  const shown=total===0?0:Math.min(total,((state.page-1)*pageLimit)+rows.length);
+  document.getElementById('numbersInfo').textContent=`Showing ${shown} of ${total} numbers`;
+  const pag=document.getElementById('numbersInfo').closest('.table-foot').querySelector('.pagination');
+  drawServerPagination(pag,state,renderNumbers);
+  updateSelInfo();
 }
 
 /* =============== INIT =============== */
@@ -2138,6 +2224,5 @@ loadNews();
   loadCliLimits();
 })();
 </script>
-<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 </html>

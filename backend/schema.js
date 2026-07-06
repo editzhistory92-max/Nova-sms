@@ -337,8 +337,8 @@ function createTables() {
 
   const cs = db.get('SELECT COUNT(*) AS c FROM carrier_settings');
   if (!cs || cs.c === 0) {
-    db.run(`INSERT INTO carrier_settings (integration_status,carrier_ip,http_callback_url,notes)
-            VALUES ('disabled','','/api/incoming-sms','HTTP integration ready. SMPP credentials reserved for future use.')`);
+    db.run(`INSERT INTO carrier_settings (integration_status,carrier_ip,http_callback_url,notes,smpp_host,smpp_port,smpp_system_id,smpp_password,smpp_bind_type,smpp_enabled)
+            VALUES ('disabled','','/api/incoming-sms','HTTP integration ready. SMPP disabled.','','','','','disabled',0)`);
   }
 
 
@@ -381,6 +381,12 @@ function createTables() {
 
   db.run(`CREATE INDEX IF NOT EXISTS idx_numbers_import_batch ON numbers(import_batch_id)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_numbers_import_source ON numbers(import_source)`);
+
+  db.run(`CREATE INDEX IF NOT EXISTS idx_numbers_number ON numbers(number)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_numbers_range ON numbers(range_id)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_numbers_manager ON numbers(manager_id)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_numbers_agent ON numbers(agent_id)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_numbers_client ON numbers(client_id)`);
 
 }
 
