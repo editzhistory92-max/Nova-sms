@@ -565,20 +565,47 @@ app.post('/api/numbers/unallocate', authRequired, (req, res) => {
   res.json({ ok: true, count: beforeRows.length });
 });
 
-function deleteNumbersWhere(whereSql, params = [], req, action, details = {}) {
-  const count = db.get(`SELECT COUNT(*) c FROM numbers WHERE ${whereSql}`, params)?.c || 0;
+function deleteNumbersFromRows(rows, req, action, details = {}) {
+  const cleanRows = (rows || [])
+    .map(r => ({ id: parseInt(r.id, 10), number: String(r.number || '') }))
+    .filter(r => Number.isFinite(r.id) && r.id > 0);
+  const count = cleanRows.length;
   if (!count) return { deleted: 0, deleted_sms: 0, vacuum: false };
 
-  // Remove linked SMS records too so dashboard/report/statistics refresh from actual DB immediately.
-  // Match by number_id and by number text for older rows that may not have number_id populated.
-  const smsWhere = `number_id IN (SELECT id FROM numbers WHERE ${whereSql}) OR number IN (SELECT number FROM numbers WHERE ${whereSql})`;
-  const smsParams = [...params, ...params];
-  const smsCount = db.get(`SELECT COUNT(*) c FROM sms_records WHERE ${smsWhere}`, smsParams)?.c || 0;
-  db.run(`DELETE FROM sms_records WHERE ${smsWhere}`, smsParams);
-  db.run(`DELETE FROM numbers WHERE ${whereSql}`, params);
+  let smsCount = 0;
+  try {
+    db.execNoSave('BEGIN TRANSACTION');
+    db.execNoSave('DROP TABLE IF EXISTS tmp_delete_numbers');
+    db.execNoSave('CREATE TEMP TABLE tmp_delete_numbers (id INTEGER PRIMARY KEY, number TEXT)');
+    for (const r of cleanRows) db.runNoSave('INSERT OR IGNORE INTO tmp_delete_numbers (id,number) VALUES (?,?)', [r.id, r.number]);
+
+    // Remove linked SMS records too so dashboard/report/statistics refresh from actual DB immediately.
+    // number text match covers old SMS rows where number_id was not populated.
+    smsCount = db.get(`SELECT COUNT(*) c FROM sms_records
+      WHERE number_id IN (SELECT id FROM tmp_delete_numbers)
+         OR number IN (SELECT number FROM tmp_delete_numbers WHERE number<>'')`)?.c || 0;
+    db.runNoSave(`DELETE FROM sms_records
+      WHERE number_id IN (SELECT id FROM tmp_delete_numbers)
+         OR number IN (SELECT number FROM tmp_delete_numbers WHERE number<>'')`);
+    db.runNoSave('DELETE FROM numbers WHERE id IN (SELECT id FROM tmp_delete_numbers)');
+    db.execNoSave('DROP TABLE IF EXISTS tmp_delete_numbers');
+    db.execNoSave('COMMIT');
+    db.save();
+  } catch (e) {
+    try { db.execNoSave('ROLLBACK'); } catch (_) {}
+    throw e;
+  }
+
   const vacuum = db.vacuum();
   logAction(req, action, 'numbers', { ...details, count, smsCount });
   return { deleted: count, deleted_sms: smsCount, vacuum };
+}
+function deleteNumbersFromSelect(selectSql, params = [], req, action, details = {}) {
+  const rows = db.all(selectSql, params);
+  return deleteNumbersFromRows(rows, req, action, details);
+}
+function deleteNumbersWhere(whereSql, params = [], req, action, details = {}) {
+  return deleteNumbersFromSelect(`SELECT id, number FROM numbers WHERE ${whereSql}`, params, req, action, details);
 }
 
 // hard delete selected numbers (Admin only). This is not a soft-delete, so no "Deleted" rows remain in lists.
@@ -590,6 +617,32 @@ app.post('/api/numbers/delete', authRequired, requireRole('admin'), (req, res) =
   const ph = uniqueIds.map(() => '?').join(',');
   const result = deleteNumbersWhere(`id IN (${ph})`, uniqueIds, req, 'delete_selected_numbers', { requested: ids.length });
   res.json({ ok: true, ...result });
+});
+
+// hard delete all numbers that match current filters/search/range (Admin only, DB-side, not current page only)
+app.post('/api/numbers/delete-filtered', authRequired, requireRole('admin'), (req, res) => {
+  const query = buildNumberQuery(req.user, req.body || {});
+  const baseSql = numberSelectSql(query.where);
+  const result = deleteNumbersFromSelect(`SELECT id, number FROM (${baseSql}) x`, query.params, req, 'delete_filtered_numbers', req.body || {});
+  res.json({ ok: true, ...result });
+});
+
+// hard delete every number in the database (Admin only)
+app.delete('/api/numbers/all', authRequired, requireRole('admin'), (req, res) => {
+  const result = deleteNumbersWhere('1=1', [], req, 'delete_all_numbers', {});
+  db.run(`UPDATE number_import_batches SET status='deleted', deleted_at=datetime('now') WHERE status<>'deleted'`);
+  res.json({ ok: true, ...result });
+});
+
+// hard delete all numbers for one range (Admin only)
+app.delete('/api/numbers/range/:rangeId', authRequired, requireRole('admin'), (req, res) => {
+  const rangeId = parsePositiveInt(req.params.rangeId, 0);
+  if (!rangeId) return res.status(400).json({ error: 'Valid range id required' });
+  const range = db.get('SELECT id,name FROM ranges WHERE id=?', [rangeId]);
+  if (!range) return res.status(404).json({ error: 'Range not found' });
+  const result = deleteNumbersWhere('range_id=?', [rangeId], req, 'delete_range_numbers', { rangeId, range: range.name });
+  db.run(`UPDATE number_import_batches SET status='deleted', deleted_at=datetime('now') WHERE range_id=? AND status<>'deleted'`, [rangeId]);
+  res.json({ ok: true, range_id: rangeId, range_name: range.name, ...result });
 });
 
 // unallocate a quantity from a range using the database directly (works even with server-side pagination).

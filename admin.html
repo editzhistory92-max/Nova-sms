@@ -509,6 +509,7 @@
             <button class="btn btn-green" onclick="openAllocAll()">✔ Allocate Selected</button>
             <button class="btn btn-red" onclick="unallocateSelected()">↩ Unallocate Selected</button>
             <button class="btn btn-red" onclick="deleteSelectedNumbers()">🗑 Delete Selected</button>
+            <button class="btn btn-red" onclick="deleteCurrentFilteredNumbers()">🧹 Delete Filtered</button>
             <button class="btn btn-purple" onclick="openSmart()">⚡ Smart Divide</button>
             <button class="btn btn-ghost" onclick="showPageByName('import')">⬆ Import Numbers</button>
           </div>
@@ -532,6 +533,7 @@
             <button class="btn btn-green btn-sm" onclick="openAllocAll()">Allocate Selected → Manager</button>
             <button class="btn btn-red btn-sm" onclick="unallocateSelected()">Unallocate Selected</button>
             <button class="btn btn-red btn-sm" onclick="deleteSelectedNumbers()">Delete Selected</button>
+            <button class="btn btn-red btn-sm" onclick="deleteCurrentFilteredNumbers()">Delete Filtered</button>
           </div>
         </div>
         <div class="table-wrap">
@@ -581,9 +583,23 @@
         </div>
 
         <div class="card" style="margin-top:16px">
-          <div class="card-head"><div><h3>Import Jobs & Bulk Delete</h3><div class="sub">Large uploads run in the background. Delete a batch or remove all imported numbers if a wrong file was uploaded.</div></div><div class="head-actions"><button class="btn btn-blue" onclick="loadImportBatches()">Refresh</button><button class="btn btn-red" onclick="deleteAllImportedNumbers()">Delete All Imported Numbers</button></div></div>
+          <div class="card-head"><div><h3>Import Jobs & Bulk Delete</h3><div class="sub">Large uploads run in the background. Delete a batch only when the batch is listed here.</div></div><div class="head-actions"><button class="btn btn-blue" onclick="loadImportBatches();refreshNumberDbTools()">Refresh</button><button class="btn btn-red" onclick="deleteAllImportedNumbers()">Delete All Imported Numbers</button></div></div>
           <div id="importJobStatus" class="hint" style="margin-bottom:12px">No active import job.</div>
           <div class="table-wrap"><div class="tscroll"><table><thead><tr><th>Batch ID</th><th>Range</th><th>Total</th><th>Inserted</th><th>Skipped</th><th>Status</th><th>Created</th><th>Action</th></tr></thead><tbody id="importBatchBody"></tbody></table></div></div>
+          <div class="hint" style="margin-top:10px">If this table is empty but SMS Numbers still has records, those numbers are old/manual database records. Use the Database Number Delete tools below.</div>
+        </div>
+
+        <div class="card" style="margin-top:16px;border:1px solid rgba(239,68,68,.25)">
+          <div class="card-head"><div><h3>Database Number Delete</h3><div class="sub">Hard delete actual records from the numbers database. This works even when Import Jobs shows 0.</div></div><div class="head-actions"><button class="btn btn-blue" onclick="refreshNumberDbTools()">Refresh Count</button></div></div>
+          <div class="form-grid" style="grid-template-columns:1fr 1fr;gap:16px">
+            <div class="form-group"><label>Actual Numbers in Database</label><div id="numberDbCount" class="hint" style="font-size:18px;font-weight:900;color:#0f2454">Loading...</div></div>
+            <div class="form-group"><label>Delete by Range</label><select id="deleteRangeSelect"><option value="">Select Range</option></select></div>
+          </div>
+          <div class="head-actions" style="justify-content:flex-start;margin-top:10px;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-red" onclick="deleteNumbersByRange()">Delete Selected Range Numbers</button>
+            <button class="btn btn-red" onclick="deleteAllNumbersFromDb()">Delete ALL Numbers</button>
+          </div>
+          <div class="hint" style="margin-top:10px;color:#b91c1c"><b>Warning:</b> This is permanent hard delete. Linked SMS records for deleted numbers are also removed so dashboard, reports and stats update immediately. Take backup before using Delete ALL.</div>
         </div>
       </section>
 
@@ -1766,6 +1782,8 @@ async function loadRates(){ try{ ratesData=await API.get('/ranges'); }catch(e){ 
   fillSelect('importRange',liveRanges);
   fillSelect('testImportRange',liveRanges);
   fillSelect('testRange',liveRanges);
+  const delSel=document.getElementById('deleteRangeSelect');
+  if(delSel) delSel.innerHTML='<option value="">Select Range</option>'+((ratesData||[]).map(r=>`<option value="${r.id}">${r.name}</option>`).join(''));
   try{ testNumbers=(await API.get('/test-numbers')).map(t=>({range:t.range_name,prefix:t.prefix||'',num:t.number,payout:t.payout||'Ask'})); }
   catch(e){ testNumbers=[]; }
   renderRates(); rebuildAllocData(); renderAlloc(); renderTest();
@@ -2127,7 +2145,62 @@ async function deleteAllImportedNumbers(){
   const confirmText='DELETE IMPORTED';
   const v=prompt(`This will delete all numbers imported from files/batches and linked SMS records. Type ${confirmText} to continue:`);
   if(v!==confirmText)return;
-  try{const r=await API.del('/numbers/imported-all');alert(`✅ Deleted ${r.deleted||0} imported numbers. Linked SMS removed: ${r.deleted_sms||0}. Database optimized.`);if(typeof refreshNumberDependentViews==='function')await refreshNumberDependentViews();else await loadNumbers();await loadImportBatches();}catch(e){alert('❌ '+e.message)}
+  try{const r=await API.del('/numbers/imported-all');alert(`✅ Deleted ${r.deleted||0} imported numbers. Linked SMS removed: ${r.deleted_sms||0}. Database optimized.`);if(typeof refreshNumberDependentViews==='function')await refreshNumberDependentViews();else await loadNumbers();await loadImportBatches();await refreshNumberDbTools();}catch(e){alert('❌ '+e.message)}
+}
+async function refreshNumberDbTools(){
+  try{
+    const d=await API.get('/numbers?paged=1&page=1&limit=1');
+    const el=document.getElementById('numberDbCount');
+    if(el) el.textContent=`${Number(d.total||0).toLocaleString()} numbers`;
+  }catch(e){const el=document.getElementById('numberDbCount');if(el)el.textContent='Unable to load count';}
+  try{
+    if(!ratesData||!ratesData.length) ratesData=await API.get('/ranges');
+    const sel=document.getElementById('deleteRangeSelect');
+    if(sel) sel.innerHTML='<option value="">Select Range</option>'+((ratesData||[]).map(r=>`<option value="${r.id}">${r.name}</option>`).join(''));
+  }catch(e){}
+}
+async function afterNumberHardDelete(){
+  if(typeof refreshNumberDependentViews==='function') await refreshNumberDependentViews(); else await loadNumbers();
+  await loadImportBatches();
+  await refreshNumberDbTools();
+}
+async function deleteNumbersByRange(){
+  const sel=document.getElementById('deleteRangeSelect');
+  const rangeId=sel&&sel.value;
+  if(!rangeId){alert('Please select a range first.');return;}
+  const rangeName=sel.options[sel.selectedIndex]?.textContent||rangeId;
+  const confirmText='DELETE RANGE';
+  const v=prompt(`This will permanently delete ALL numbers in range: ${rangeName}\nLinked SMS records will also be removed.\nType ${confirmText} to continue:`);
+  if(v!==confirmText)return;
+  try{const r=await API.del('/numbers/range/'+encodeURIComponent(rangeId));alert(`✅ Range deleted: ${r.deleted||0} numbers. Linked SMS removed: ${r.deleted_sms||0}.`);await afterNumberHardDelete();}catch(e){alert('❌ '+e.message)}
+}
+async function deleteAllNumbersFromDb(){
+  const d=await API.get('/numbers?paged=1&page=1&limit=1').catch(()=>({total:0}));
+  const total=Number(d.total||0);
+  if(!total){alert('No numbers found in database.');return;}
+  const confirmText='DELETE ALL NUMBERS';
+  const v=prompt(`This will permanently delete ALL ${total.toLocaleString()} numbers from the database.\nLinked SMS records will also be removed and stats will reset accordingly.\nType ${confirmText} to continue:`);
+  if(v!==confirmText)return;
+  try{const r=await API.del('/numbers/all');alert(`✅ Deleted ${r.deleted||0} numbers. Linked SMS removed: ${r.deleted_sms||0}. Database optimized.`);await afterNumberHardDelete();}catch(e){alert('❌ '+e.message)}
+}
+async function deleteCurrentFilteredNumbers(){
+  const q=(document.getElementById('numSearch')?.value||'').trim();
+  const body={};
+  if(q) body.search=q;
+  if(numRangeFilter) body.range=numRangeFilter;
+  if(numClientFilter) body.owner=numClientFilter;
+  if(clientFilterMode===1) body.allocation='unallocated';
+  if(clientFilterMode===2) body.allocation='allocated';
+  if(!body.search&&!body.range&&!body.owner&&!body.allocation){alert('Apply Search / Range / Manager / Allocated filter first, or use Delete ALL Numbers from Import section.');return;}
+  const params=new URLSearchParams({paged:'1',page:'1',limit:'1'});
+  Object.keys(body).forEach(k=>params.set(k,body[k]));
+  const d=await API.get('/numbers?'+params.toString()).catch(()=>({total:0}));
+  const total=Number(d.total||0);
+  if(!total){alert('No numbers match current filter.');return;}
+  const confirmText='DELETE FILTERED';
+  const v=prompt(`This will permanently delete ${total.toLocaleString()} number(s) matching current filters.\nOnly current page selection is NOT used; this deletes all matching DB records.\nType ${confirmText} to continue:`);
+  if(v!==confirmText)return;
+  try{const r=await API.post('/numbers/delete-filtered',body);alert(`✅ Deleted ${r.deleted||0} filtered numbers. Linked SMS removed: ${r.deleted_sms||0}.`);await afterNumberHardDelete();}catch(e){alert('❌ '+e.message)}
 }
 
 
@@ -2160,6 +2233,7 @@ async function refreshNumberDependentViews(){
   if(typeof loadImportBatches==='function') loadImportBatches();
   if(typeof loadSmsRecords==='function') loadSmsRecords();
   if(typeof populateTestGeneratorNumbers==='function') populateTestGeneratorNumbers();
+  if(typeof refreshNumberDbTools==='function') refreshNumberDbTools();
 }
 async function loadNumbers(){ await refreshNumberDependentViews(); }
 async function renderNumbers(){
@@ -2209,6 +2283,7 @@ buildUserPage('manager');buildUserPage('agent');buildUserPage('client');  // loa
 loadRates();                       // ranges API se
 loadNumbers();                     // numbers API se
 loadImportBatches();
+refreshNumberDbTools();
 renderAlloc();                     // range allocation live counts
 buildSmsReport();buildSmsDetail();
 buildEntityStats('client');buildEntityStats('agent');buildEntityStats('manager');
@@ -2224,5 +2299,6 @@ loadNews();
   loadCliLimits();
 })();
 </script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 </html>
