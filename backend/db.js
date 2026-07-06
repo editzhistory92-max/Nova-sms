@@ -89,4 +89,25 @@ function replaceWithFile(filePath) {
   return db;
 }
 
-module.exports = { init, run, get, all, save, exportBuffer, getDbFile, replaceWithFile };
+
+function exec(sql) {
+  db.exec(sql);
+  save();
+}
+function execNoSave(sql) {
+  db.exec(sql);
+}
+function runNoSave(sql, params = []) {
+  const stmt = db.prepare(sql);
+  stmt.bind(params);
+  stmt.step();
+  stmt.free();
+  const r = db.exec('SELECT last_insert_rowid() AS id');
+  return { lastInsertRowid: r[0] ? r[0].values[0][0] : null };
+}
+function vacuum() {
+  try { db.exec('VACUUM'); save(); return true; }
+  catch (e) { console.warn('VACUUM failed:', e.message); return false; }
+}
+
+module.exports = { init, run, runNoSave, exec, execNoSave, get, all, save, vacuum, exportBuffer, getDbFile, replaceWithFile };

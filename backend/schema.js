@@ -66,8 +66,30 @@ function createTables() {
     client_id  INTEGER,
     sd_limit   INTEGER DEFAULT 0,
     sw_limit   INTEGER DEFAULT 0,
+    import_batch_id TEXT DEFAULT '',
+    import_source TEXT DEFAULT '',
+    imported_by INTEGER,
+    imported_at TEXT DEFAULT '',
     created_at TEXT DEFAULT (datetime('now')),
     FOREIGN KEY (range_id) REFERENCES ranges(id)
+  )`);
+
+
+  db.run(`CREATE TABLE IF NOT EXISTS number_import_batches (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    batch_id TEXT UNIQUE NOT NULL,
+    range_id INTEGER,
+    range_name TEXT DEFAULT '',
+    file_name TEXT DEFAULT '',
+    total INTEGER DEFAULT 0,
+    inserted INTEGER DEFAULT 0,
+    skipped INTEGER DEFAULT 0,
+    status TEXT DEFAULT 'processing', -- processing | done | failed | deleted
+    error TEXT DEFAULT '',
+    created_by INTEGER,
+    created_at TEXT DEFAULT (datetime('now')),
+    completed_at TEXT,
+    deleted_at TEXT
   )`);
 
   db.run(`CREATE TABLE IF NOT EXISTS sms_records (
@@ -293,6 +315,7 @@ function createTables() {
     smpp_system_id TEXT DEFAULT '',
     smpp_password TEXT DEFAULT '',
     smpp_bind_type TEXT DEFAULT 'transceiver',
+    smpp_enabled INTEGER DEFAULT 0,
     notes TEXT DEFAULT '',
     retention_days INTEGER DEFAULT 30,
     updated_at TEXT DEFAULT (datetime('now'))
@@ -301,9 +324,14 @@ function createTables() {
   ensureColumn('webhook_logs', 'source_ip', "TEXT DEFAULT ''");
   ensureColumn('carrier_settings', 'retention_days', 'INTEGER DEFAULT 30');
   ensureColumn('carrier_settings', 'smpp_bind_type', "TEXT DEFAULT 'transceiver'");
+  ensureColumn('carrier_settings', 'smpp_enabled', 'INTEGER DEFAULT 0');
   ensureColumn('sms_records', 'is_test', 'INTEGER DEFAULT 0');
   ensureColumn('sms_records', 'test_batch_id', "TEXT DEFAULT ''");
   ensureColumn('sms_records', 'source', "TEXT DEFAULT 'carrier'");
+  ensureColumn('numbers', 'import_batch_id', "TEXT DEFAULT ''");
+  ensureColumn('numbers', 'import_source', "TEXT DEFAULT ''");
+  ensureColumn('numbers', 'imported_by', 'INTEGER');
+  ensureColumn('numbers', 'imported_at', "TEXT DEFAULT ''");
   ensureColumn('sms_records', 'payout_rate', "TEXT DEFAULT ''");
   ensureColumn('sms_records', 'payout_amount', "TEXT DEFAULT ''");
 
@@ -350,6 +378,9 @@ function createTables() {
   db.run(`CREATE INDEX IF NOT EXISTS idx_sms_client_cli_date ON sms_records(client_id, cli, received_at)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_sms_range_cli_date ON sms_records(range_id, cli, received_at)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_sms_number_cli_date ON sms_records(number, cli, received_at)`);
+
+  db.run(`CREATE INDEX IF NOT EXISTS idx_numbers_import_batch ON numbers(import_batch_id)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_numbers_import_source ON numbers(import_source)`);
 
 }
 

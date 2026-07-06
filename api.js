@@ -24,6 +24,29 @@
     return data;
   }
 
+
+  // Global modal helpers used by all panel HTML onclick handlers.
+  function closeModalGlobal(id){
+    const el=document.getElementById(id);
+    if(!el) return;
+    el.classList.remove('show');
+    el.style.display='';
+  }
+  function openModalGlobal(id){
+    const el=document.getElementById(id);
+    if(!el) return;
+    el.classList.add('show');
+  }
+  window.closeModal = window.closeModal || closeModalGlobal;
+  window.openModal = window.openModal || openModalGlobal;
+  document.addEventListener('click', (e)=>{
+    const overlay=e.target.closest('.modal-overlay');
+    if(overlay && e.target===overlay) overlay.classList.remove('show');
+  });
+  document.addEventListener('keydown', (e)=>{
+    if(e.key==='Escape') document.querySelectorAll('.modal-overlay.show').forEach(m=>m.classList.remove('show'));
+  });
+
   let notifState = { unread: 0, prefs: { notification_sound: 1, notification_popup: 1 }, audioReady: false };
   function beep() {
     try {

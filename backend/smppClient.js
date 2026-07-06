@@ -13,6 +13,8 @@ let reconnectTimer = null;
 let getSettings = null;
 let onIncomingSms = null;
 let logger = console;
+let runtimeBindTypeOverride = '';
+let fallbackInProgress = false;
 
 const status = {
   enabled: false,
@@ -21,6 +23,7 @@ const status = {
   host: '',
   port: '',
   bind_type: 'transceiver',
+  configured_bind_type: 'transceiver',
   system_id_present: false,
   last_connected_at: '',
   last_disconnected_at: '',
@@ -30,6 +33,7 @@ const status = {
   last_pdu_at: '',
   last_log_at: '',
   reconnect_attempts: 0,
+  last_bind_mode_results: [],
 };
 
 function now() {
@@ -57,9 +61,9 @@ function clearReconnect() {
   }
 }
 
-function closeSession(reason = 'manual') {
+function closeSession(reason = 'manual', silent = false) {
   if (!session) return;
-  log('Closing existing session:', reason);
+  if (!silent) log('Closing existing session:', reason);
   try { session.removeAllListeners(); } catch (_) {}
   try { session.unbind(); } catch (_) {}
   try { session.close(); } catch (_) {}
@@ -104,6 +108,56 @@ function bindSession(sess, bindType, params, cb) {
   return sess.bind_transceiver(params, cb);
 }
 
+function uniqueModes(first) {
+  return [first, 'receiver', 'transmitter', 'transceiver'].filter((v, i, a) => v && a.indexOf(v) === i);
+}
+
+async function attemptAutoBindFallback(cfg, failedType, failedStatus) {
+  const enabled = String(process.env.SMPP_AUTO_BIND_FALLBACK || 'true').toLowerCase() !== 'false';
+  if (!enabled) {
+    scheduleReconnect(15000);
+    return;
+  }
+  if (fallbackInProgress) {
+    log('Auto bind fallback already in progress; skipping duplicate request');
+    return;
+  }
+  fallbackInProgress = true;
+  status.state = 'RECONNECTING';
+  log(`Auto bind fallback started after bind_${failedType} failed (${failedStatus || 'unknown'}). Testing all bind modes...`);
+  const modes = uniqueModes(failedType);
+  const results = [];
+  try {
+    for (const mode of modes) {
+      // eslint-disable-next-line no-await-in-loop
+      const r = await testSingleBind(mode, cfg, parseInt(process.env.SMPP_BIND_TEST_TIMEOUT_MS || '12000', 10));
+      results.push(r);
+      log(`Auto fallback result bind_${mode}:`, r);
+      if (r.success) {
+        runtimeBindTypeOverride = r.bind_type;
+        status.bind_type = r.bind_type;
+        status.last_bind_status = `${r.command_status} ${r.status_name}`;
+        status.last_error = '';
+        status.last_bind_mode_results = results;
+        fallbackInProgress = false;
+        log(`Auto fallback selected bind_${r.bind_type}. Reconnecting normal SMPP session now.`);
+        setTimeout(() => connect().catch(() => {}), 500);
+        return;
+      }
+    }
+    status.last_bind_mode_results = results;
+    status.last_error = 'No SMPP bind mode succeeded: ' + results.map(r => `bind_${r.bind_type}=${r.command_status !== null ? r.command_status + ' ' + r.status_name : r.error}`).join(' | ');
+    error(status.last_error);
+    fallbackInProgress = false;
+    scheduleReconnect(15000);
+  } catch (e) {
+    fallbackInProgress = false;
+    status.last_error = 'Auto bind fallback error: ' + e.message;
+    error(status.last_error);
+    scheduleReconnect(15000);
+  }
+}
+
 function decodeShortMessage(sm) {
   if (!sm) return '';
   if (typeof sm === 'string') return sm;
@@ -130,7 +184,8 @@ function buildPayloadFromDeliverSm(pdu) {
 function scheduleReconnect(delayMs = 10000) {
   clearReconnect();
   const cfg = getSettings ? (getSettings() || {}) : {};
-  if ((cfg.integration_status || 'disabled') !== 'enabled' || !cfg.smpp_host || !cfg.smpp_system_id) {
+  const smppEnabled = cfg.smpp_enabled === 1 || cfg.smpp_enabled === '1' || cfg.smpp_enabled === true;
+  if ((cfg.integration_status || 'disabled') !== 'enabled' || !smppEnabled || !cfg.smpp_host || !cfg.smpp_system_id) {
     log('Reconnect not scheduled: SMPP disabled or missing credentials');
     return;
   }
@@ -147,7 +202,8 @@ function credentialsSummary(cfg) {
     port: cfg.smpp_port || '2775',
     system_id_present: !!cfg.smpp_system_id,
     password_present: !!cfg.smpp_password,
-    bind_type: normalizeBindType(cfg.smpp_bind_type || cfg.bind_type || 'transceiver'),
+    configured_bind_type: normalizeBindType(cfg.smpp_bind_type || cfg.bind_type || 'transceiver'),
+    runtime_bind_override: runtimeBindTypeOverride || '',
   };
 }
 
@@ -160,30 +216,32 @@ async function connect() {
   }
 
   const cfg = getSettings() || {};
-  const enabled = (cfg.integration_status || 'disabled') === 'enabled';
+  const smppEnabled = cfg.smpp_enabled === 1 || cfg.smpp_enabled === '1' || cfg.smpp_enabled === true;
+  const enabled = (cfg.integration_status || 'disabled') === 'enabled' && smppEnabled;
   const host = String(cfg.smpp_host || '').trim();
   const port = String(cfg.smpp_port || '').trim() || '2775';
   const systemId = String(cfg.smpp_system_id || '').trim();
   const password = String(cfg.smpp_password || '');
-  const bindType = normalizeBindType(cfg.smpp_bind_type || cfg.bind_type || 'transceiver');
+  const configuredBindType = normalizeBindType(cfg.smpp_bind_type || cfg.bind_type || 'transceiver');
+  const bindType = runtimeBindTypeOverride || configuredBindType;
 
   status.enabled = enabled;
   status.host = host;
   status.port = port;
+  status.configured_bind_type = configuredBindType;
   status.bind_type = bindType;
   status.system_id_present = !!systemId;
 
-  log('connect() called with settings:', credentialsSummary(cfg));
-
   if (!enabled) {
     clearReconnect();
-    closeSession('integration disabled');
+    closeSession('integration disabled', true);
     status.state = 'DISABLED';
     status.connected = false;
     status.last_error = '';
-    log('SMPP disabled via Carrier Settings');
     return cloneStatus();
   }
+
+  log('connect() called with settings:', credentialsSummary(cfg));
 
   if (!host || !systemId) {
     clearReconnect();
@@ -269,7 +327,9 @@ async function connect() {
             status.connected = false;
             status.last_error = `bind_${bindType} failed: ${status.last_bind_status}`;
             error(status.last_error);
-            scheduleReconnect(15000);
+            const currentCfg = cfg;
+            closeSession(`bind_${bindType} failed`);
+            attemptAutoBindFallback(currentCfg, bindType, status.last_bind_status).catch(() => {});
             finish();
           }
         });
@@ -398,6 +458,7 @@ async function testBindModes() {
     results.push(r);
     log(`Bind mode test result: bind_${mode}`, r);
   }
+  status.last_bind_mode_results = results;
   const recommended = (results.find(r => r.success) || {}).bind_type || '';
   if (recommended) log('Recommended SMPP bind type:', recommended);
   else error('No SMPP bind mode succeeded');
@@ -410,21 +471,23 @@ function init(options) {
   getSettings = options.getSettings;
   onIncomingSms = options.onIncomingSms;
   logger = options.logger || console;
-  log('SMPP client initialized');
+  const cfg = getSettings ? (getSettings() || {}) : {};
+  const smppEnabled = cfg.smpp_enabled === 1 || cfg.smpp_enabled === '1' || cfg.smpp_enabled === true;
+  if ((cfg.integration_status || 'disabled') === 'enabled' && smppEnabled) log('SMPP client initialized');
   return connect();
 }
 
 function restart() {
   log('Manual/setting-triggered SMPP restart requested');
+  runtimeBindTypeOverride = '';
   status.reconnect_attempts = 0;
   return connect();
 }
 
 function stop() {
   clearReconnect();
-  closeSession('stop called');
+  closeSession('stop called', true);
   setDisconnected('disabled');
-  log('SMPP stopped');
   return cloneStatus();
 }
 

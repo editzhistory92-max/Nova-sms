@@ -22,6 +22,7 @@ app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 app.use(express.text({ type: ['text/plain', 'text/*', 'application/xml', 'application/octet-stream'], limit: '2mb' }));
 const upload = multer();
+const importJobs = new Map();
 
 // Clean URL routes (must be before static so /admin.html can redirect to /admin)
 const FRONTEND_ROOT = path.join(__dirname, '..');
@@ -696,33 +697,95 @@ app.get('/api/dashboard', authRequired, (req, res) => {
   });
 });
 
-/* ============ NUMBER IMPORT (Admin only) ============ */
-app.post('/api/numbers/import', authRequired, requireRole('admin'), (req, res) => {
-  const { range_id, range_name, prefix, numbers, payterm, payout } = req.body || {};
-  if (!Array.isArray(numbers) || numbers.length === 0) return res.status(400).json({ error: 'numbers[] required' });
-  let rid = range_id ? +range_id : null;
-  if (!rid) {
-    if (!range_name) return res.status(400).json({ error: 'range_id or range_name is required' });
-    const existing = db.get('SELECT id FROM ranges WHERE name=?', [range_name]);
-    if (existing) rid = existing.id;
-    else {
-      db.run(`INSERT INTO ranges (name,prefix,test_number,currency) VALUES (?,?,?,?)`, [range_name, prefix || '', '', 'USD']);
-      rid = db.get('SELECT id FROM ranges WHERE name=? ORDER BY id DESC', [range_name]).id;
+/* ============ NUMBER IMPORT (Admin only, background/batched) ============ */
+function makeImportJobId(){return 'IMPORT-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).slice(2,8).toUpperCase();}
+function normalizeNumberForImport(n){return String(n||'').trim();}
+function getOrCreateRange(range_id, range_name, prefix, firstNumber){
+  if(range_id) return +range_id;
+  if(!range_name) throw new Error('range_id or range_name is required');
+  const existing=db.get('SELECT id FROM ranges WHERE name=?',[range_name]);
+  if(existing) return existing.id;
+  db.run(`INSERT INTO ranges (name,prefix,test_number,currency) VALUES (?,?,?,?)`,[range_name,prefix||'', '', 'USD']);
+  return db.get('SELECT id FROM ranges WHERE name=? ORDER BY id DESC LIMIT 1',[range_name]).id;
+}
+async function processNumberImportJob(jobId, payload, user){
+  const job=importJobs.get(jobId);
+  if(!job) return;
+  try{
+    const { range_id, range_name, prefix, numbers, payterm, payout, file_name } = payload;
+    const rid=getOrCreateRange(range_id, range_name, prefix, numbers[0]);
+    const range=db.get('SELECT name FROM ranges WHERE id=?',[rid]);
+    db.run(`INSERT INTO number_import_batches (batch_id,range_id,range_name,file_name,total,status,created_by) VALUES (?,?,?,?,?,?,?)`,
+      [jobId,rid,range?range.name:(range_name||''),file_name||'',numbers.length,'processing',user.id]);
+    const existing=new Set(db.all('SELECT number FROM numbers').map(x=>normalizeNumberForImport(x.number)));
+    const batchSize=parseInt(process.env.IMPORT_BATCH_SIZE||'1000',10);
+    let inserted=0, skipped=0, processed=0;
+    for(let i=0;i<numbers.length;i+=batchSize){
+      const chunk=numbers.slice(i,i+batchSize);
+      db.execNoSave('BEGIN TRANSACTION');
+      try{
+        for(const raw of chunk){
+          const number=normalizeNumberForImport(raw);
+          processed++;
+          if(!number || existing.has(number)){skipped++; continue;}
+          existing.add(number);
+          db.runNoSave(`INSERT INTO numbers (range_id,number,prefix,payterm,payout,import_batch_id,import_source,imported_by,imported_at) VALUES (?,?,?,?,?,?,?,?,datetime('now'))`,
+            [rid,number,prefix||'',payterm||'Weekly',payout||'0',jobId,'file',user.id]);
+          inserted++;
+        }
+        db.execNoSave('COMMIT');
+        db.save();
+      }catch(e){
+        try{db.execNoSave('ROLLBACK');}catch(_){}
+        throw e;
+      }
+      job.processed=processed; job.inserted=inserted; job.skipped=skipped; job.progress=Math.round((processed/numbers.length)*100);
+      db.run(`UPDATE number_import_batches SET inserted=?, skipped=? WHERE batch_id=?`,[inserted,skipped,jobId]);
+      await new Promise(r=>setTimeout(r,0));
     }
+    job.status='done'; job.progress=100; job.completed_at=new Date().toISOString();
+    db.run(`UPDATE number_import_batches SET inserted=?, skipped=?, status='done', completed_at=datetime('now') WHERE batch_id=?`,[inserted,skipped,jobId]);
+    logAction({user},'import_numbers_background','numbers',{jobId,inserted,skipped,range_id:rid});
+  }catch(e){
+    job.status='failed'; job.error=e.message;
+    db.run(`UPDATE number_import_batches SET status='failed', error=?, completed_at=datetime('now') WHERE batch_id=?`,[e.message,jobId]);
   }
-  let inserted = 0, skipped = 0;
-  for (const raw of numbers) {
-    const number = String(raw || '').trim();
-    if (!number) { skipped++; continue; }
-    const exists = db.get('SELECT id FROM numbers WHERE number=?', [number]);
-    if (exists) { skipped++; continue; }
-    const ins = db.run(`INSERT INTO numbers (range_id,number,prefix,payterm,payout) VALUES (?,?,?,?,?)`,
-      [rid, number, prefix || '', payterm || 'Weekly', payout || '0']);
-    logNumberHistory(req,{id:ins.lastInsertRowid,number},'imported','','available',{range_id:rid});
-    inserted++;
-  }
-  logAction(req,'import_numbers','numbers',{inserted,skipped,range_id:rid});
-  res.json({ ok: true, inserted, skipped, range_id: rid });
+}
+app.post('/api/numbers/import', authRequired, requireRole('admin'), (req, res) => {
+  const { range_id, range_name, prefix, numbers, payterm, payout, file_name } = req.body || {};
+  if (!Array.isArray(numbers) || numbers.length === 0) return res.status(400).json({ error: 'numbers[] required' });
+  const jobId=makeImportJobId();
+  const job={job_id:jobId,status:'queued',total:numbers.length,processed:0,inserted:0,skipped:0,progress:0,error:'',created_at:new Date().toISOString()};
+  importJobs.set(jobId,job);
+  setImmediate(()=>processNumberImportJob(jobId,{range_id,range_name,prefix,numbers,payterm,payout,file_name},req.user));
+  res.json({ok:true,background:true,job});
+});
+app.get('/api/numbers/import-jobs/:jobId', authRequired, requireRole('admin'), (req,res)=>{
+  const job=importJobs.get(req.params.jobId);
+  if(job) return res.json(job);
+  const b=db.get('SELECT * FROM number_import_batches WHERE batch_id=?',[req.params.jobId]);
+  if(!b) return res.status(404).json({error:'Import job not found'});
+  res.json({job_id:b.batch_id,status:b.status,total:b.total,processed:b.inserted+b.skipped,inserted:b.inserted,skipped:b.skipped,progress:b.status==='done'?100:0,error:b.error,created_at:b.created_at,completed_at:b.completed_at});
+});
+app.get('/api/number-import-batches', authRequired, requireRole('admin'), (req,res)=>{
+  res.json(db.all(`SELECT * FROM number_import_batches ORDER BY id DESC LIMIT 200`));
+});
+app.delete('/api/number-import-batches/:batchId', authRequired, requireRole('admin'), (req,res)=>{
+  const batchId=req.params.batchId;
+  const count=db.get('SELECT COUNT(*) c FROM numbers WHERE import_batch_id=?',[batchId])?.c||0;
+  db.run('DELETE FROM numbers WHERE import_batch_id=?',[batchId]);
+  db.run(`UPDATE number_import_batches SET status='deleted', deleted_at=datetime('now') WHERE batch_id=?`,[batchId]);
+  db.vacuum();
+  logAction(req,'delete_import_batch','numbers',{batchId,count});
+  res.json({ok:true,deleted:count,vacuum:true});
+});
+app.delete('/api/numbers/imported-all', authRequired, requireRole('admin'), (req,res)=>{
+  const count=db.get(`SELECT COUNT(*) c FROM numbers WHERE import_source='file' OR import_batch_id<>''`)?.c||0;
+  db.run(`DELETE FROM numbers WHERE import_source='file' OR import_batch_id<>''`);
+  db.run(`UPDATE number_import_batches SET status='deleted', deleted_at=datetime('now') WHERE status<>'deleted'`);
+  db.vacuum();
+  logAction(req,'delete_all_imported_numbers','numbers',{count});
+  res.json({ok:true,deleted:count,vacuum:true});
 });
 
 /* ============ PAYMENTS ============ */
@@ -994,11 +1057,12 @@ app.get('/api/carrier-settings', authRequired, requireRole('admin'), (req,res)=>
 app.put('/api/carrier-settings', authRequired, requireRole('admin'), (req,res)=>{
   const b=req.body||{};
   const c=getCarrierSettings();
-  db.run(`UPDATE carrier_settings SET integration_status=?,carrier_ip=?,http_callback_url=?,api_key=?,auth_token=?,smpp_host=?,smpp_port=?,smpp_system_id=?,smpp_password=?,smpp_bind_type=?,notes=?,retention_days=?,updated_at=datetime('now') WHERE id=?`,
-    [b.integration_status==='enabled'?'enabled':'disabled', b.carrier_ip||'', b.http_callback_url||'/api/incoming-sms', b.api_key||'', b.auth_token||'', b.smpp_host||'', b.smpp_port||'', b.smpp_system_id||'', b.smpp_password||'', ['receiver','transmitter','transceiver'].includes(String(b.smpp_bind_type||'').toLowerCase()) ? String(b.smpp_bind_type).toLowerCase() : 'transceiver', b.notes||'', parseInt(b.retention_days||30), c.id]);
+  db.run(`UPDATE carrier_settings SET integration_status=?,carrier_ip=?,http_callback_url=?,api_key=?,auth_token=?,smpp_host=?,smpp_port=?,smpp_system_id=?,smpp_password=?,smpp_bind_type=?,smpp_enabled=?,notes=?,retention_days=?,updated_at=datetime('now') WHERE id=?`,
+    [b.integration_status==='enabled'?'enabled':'disabled', b.carrier_ip||'', b.http_callback_url||'/api/incoming-sms', b.api_key||'', b.auth_token||'', b.smpp_host||'', b.smpp_port||'', b.smpp_system_id||'', b.smpp_password||'', ['receiver','transmitter','transceiver'].includes(String(b.smpp_bind_type||'').toLowerCase()) ? String(b.smpp_bind_type).toLowerCase() : 'transceiver', b.smpp_enabled?1:0, b.notes||'', parseInt(b.retention_days||30), c.id]);
   cleanupWebhookLogs(b.retention_days||30);
-  logAction(req,'update_carrier_settings','carrier_integration',{carrier_ip:b.carrier_ip,status:b.integration_status,smpp_host:b.smpp_host});
-  smppClient.restart().catch(e => console.error('[SMPP] restart error:', e.message));
+  logAction(req,'update_carrier_settings','carrier_integration',{carrier_ip:b.carrier_ip,status:b.integration_status,smpp_host:b.smpp_host,smpp_enabled:!!b.smpp_enabled});
+  if (b.smpp_enabled) smppClient.restart().catch(e => console.error('[SMPP] restart error:', e.message));
+  else smppClient.stop();
   res.json({ ok:true, settings:{...getCarrierSettings(),...carrierRuntimeStatus(), smpp_status: smppClient.getStatus()}, generated_callback_url: publicCallbackUrl(req) });
 });
 
