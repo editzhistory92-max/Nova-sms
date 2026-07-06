@@ -1890,6 +1890,13 @@ function carrierStatusTag(status){
   if(st.includes('INVALID')) return '<span class="tag tag-red">INVALID PAYLOAD</span>';
   return `<span class="tag tag-gray">${miniEsc(st||'NO REQUESTS')}</span>`;
 }
+async function loadSmppStatus(){
+  try{
+    const st=await API.get('/smpp/status');
+    if(document.getElementById('ciSmppStatus')){ciSmppStatus.textContent=st.state||'DISCONNECTED';ciSmppStatus.className='tag '+(st.state==='CONNECTED'?'tag-green':(st.state==='CONNECTING'||st.state==='RECONNECTING'?'tag-amber':'tag-red'));}
+    if(document.getElementById('ciSmppInfo')) ciSmppInfo.textContent=`Host: ${st.host||'—'}:${st.port||'—'} · Attempts: ${st.reconnect_attempts||0} · Last bind: ${st.last_bind_status||'—'} · Last error: ${st.last_error||'—'}`;
+  }catch(e){console.warn(e)}
+}
 async function loadCarrierSettings(){
   try{
     const c=await API.get('/carrier-settings');
@@ -1917,6 +1924,7 @@ async function loadCarrierSettings(){
     }
     ciInfo.innerHTML=`Endpoint path: <b>${c.endpoint_path||'/api/incoming-sms'}</b> · Current generated URL: <b>${c.generated_callback_url||''}</b>`;
     await loadCarrierWebhookLogs();
+    await loadSmppStatus();
   }catch(e){console.warn(e)}
 }
 async function saveCarrierSettings(){
@@ -2106,7 +2114,7 @@ renderAlloc();                     // range allocation live counts
 buildSmsReport();buildSmsDetail();
 buildEntityStats('client');buildEntityStats('agent');buildEntityStats('manager');
 buildDrillStats('range');buildDrillStats('number');
-loadPayments();loadAdminPayout();loadPaymentConfig();loadCarrierSettings();loadIntegrations();loadNotificationRules();loadSystemLogs();loadTestGeneratorSettings();loadBackups();renderTest();
+loadPayments();loadAdminPayout();loadPaymentConfig();loadCarrierSettings();setInterval(loadSmppStatus,10000);loadIntegrations();loadNotificationRules();loadSystemLogs();loadTestGeneratorSettings();loadBackups();renderTest();
 /* System Master selects + render (API) */
 fillSelect('climCli',cliPool,false);
 loadNews();
@@ -2118,5 +2126,5 @@ loadNews();
 })();
 </script>
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a16e96fecabdb9d8',t:'MTc4MzM0MDcwMg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</body>
 </html>

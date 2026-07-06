@@ -998,7 +998,7 @@ app.put('/api/carrier-settings', authRequired, requireRole('admin'), (req,res)=>
     [b.integration_status==='enabled'?'enabled':'disabled', b.carrier_ip||'', b.http_callback_url||'/api/incoming-sms', b.api_key||'', b.auth_token||'', b.smpp_host||'', b.smpp_port||'', b.smpp_system_id||'', b.smpp_password||'', b.notes||'', parseInt(b.retention_days||30), c.id]);
   cleanupWebhookLogs(b.retention_days||30);
   logAction(req,'update_carrier_settings','carrier_integration',{carrier_ip:b.carrier_ip,status:b.integration_status,smpp_host:b.smpp_host});
-  smppClient.restart().catch(()=>{});
+  smppClient.restart().catch(e => console.error('[SMPP] restart error:', e.message));
   res.json({ ok:true, settings:{...getCarrierSettings(),...carrierRuntimeStatus(), smpp_status: smppClient.getStatus()}, generated_callback_url: publicCallbackUrl(req) });
 });
 
@@ -1424,7 +1424,8 @@ const PORT = process.env.PORT || 4000;
   if (backup && backup.startAutomaticBackups) backup.startAutomaticBackups(db, console);
   smppClient.init({
     getSettings: getCarrierSettings,
-    onIncomingSms: (payload, sourceIp) => processIncomingSmsPayload(null, payload, sourceIp || 'SMPP', { source: 'smpp' })
-  }).catch(e => console.error('SMPP init error:', e.message));
+    onIncomingSms: (payload, sourceIp) => processIncomingSmsPayload(null, payload, sourceIp || 'SMPP', { source: 'smpp' }),
+    logger: console
+  }).catch(e => console.error('[SMPP] init error:', e.message));
   app.listen(PORT, () => console.log(`\n✅ Mufasa SMS backend running: http://localhost:${PORT}\n`));
 })();
