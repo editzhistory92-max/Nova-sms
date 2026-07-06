@@ -5,7 +5,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <link rel="icon" type="image/png" href="assets/mufasa-favicon.png" />
 <title>Mufasa SMS — Admin Panel</title>
-<style id="route-auth-hide">html{visibility:hidden}</style>
+<style id="route-auth-hide">html{visibility:hidden}
+
+  /* ===== Section separators for clearer layout ===== */
+  .page-head{border-bottom:1px solid #E2E8F0!important;padding-bottom:14px!important}
+  .page > .toolbar,.page > .table-wrap,.page > .card,.page > .grid2{position:relative!important}
+  .page > .toolbar:not(:first-child)::before,.page > .table-wrap:not(:first-child)::before,.page > .card:not(:first-child)::before,.page > .grid2:not(:first-child)::before{content:"";position:absolute;left:0;right:0;top:-10px;height:1px;background:#E2E8F0;opacity:.95}
+  .table-wrap + .table-wrap{margin-top:18px!important}
+  .toolbar + .table-wrap,.card + .table-wrap,.stats-grid + .toolbar,.stats-grid + .grid2{margin-top:18px!important}
+  body.ms-dark-mode .page-head{border-bottom-color:#334155!important}
+  body.ms-dark-mode .page > .toolbar:not(:first-child)::before,body.ms-dark-mode .page > .table-wrap:not(:first-child)::before,body.ms-dark-mode .page > .card:not(:first-child)::before,body.ms-dark-mode .page > .grid2:not(:first-child)::before{background:#334155!important}
+
+</style>
 <script>
 (function(){
   var expected='admin';
@@ -347,6 +358,17 @@
   .appbar{background:linear-gradient(180deg,#050505,#0B0B0B)!important;border-bottom:1px solid rgba(212,175,55,.22)!important}.appbar .brand h1{color:#F8FAFC!important}.appbar .brand small{color:#CBD5E1!important}.appbar .clock{background:#111827!important;color:#CBD5E1!important;border-color:#334155!important}.appbar .tb-btn{color:#CBD5E1!important}.appbar .tb-btn:hover{background:#1A1A1A!important;color:#FDE68A!important}.appbar .navtab{color:#CBD5E1!important}.appbar .navtab:hover{background:#1A1A1A!important;color:#FDE68A!important}.appbar .navtab.active{color:#FDE68A!important;border-bottom-color:#D4AF37!important;background:rgba(212,175,55,.08)!important}.appbar .dropmenu{background:#0B0B0B!important;border-color:#2A2A2A!important}.appbar .dropitem{color:#CBD5E1!important}.appbar .dropitem:hover,.appbar .dropitem.active{background:#1A1A1A!important;color:#FDE68A!important}
   .sb-logo,.brand .logo,.rail .logo,.sb-brand .logo{border:1px solid rgba(212,175,55,.45)!important;box-shadow:0 10px 24px rgba(212,175,55,.18)!important}
   .main,.content{background:#F8FAFC!important}.topbar,.tb1{background:#F8FAFC!important;border-bottom:1px solid #E2E8F0!important}.topbar .tb-btn,.tb1 .tb-btn,.hamburger{color:#64748B!important}.topbar .tb-btn:hover,.tb1 .tb-btn:hover,.hamburger:hover{background:#FEF3C7!important;color:#92400E!important}
+
+
+
+  /* ===== Section separators for clearer layout ===== */
+  .page-head{border-bottom:1px solid #E2E8F0!important;padding-bottom:14px!important}
+  .page > .toolbar,.page > .table-wrap,.page > .card,.page > .grid2{position:relative!important}
+  .page > .toolbar:not(:first-child)::before,.page > .table-wrap:not(:first-child)::before,.page > .card:not(:first-child)::before,.page > .grid2:not(:first-child)::before{content:"";position:absolute;left:0;right:0;top:-10px;height:1px;background:#E2E8F0;opacity:.95}
+  .table-wrap + .table-wrap{margin-top:18px!important}
+  .toolbar + .table-wrap,.card + .table-wrap,.stats-grid + .toolbar,.stats-grid + .grid2{margin-top:18px!important}
+  body.ms-dark-mode .page-head{border-bottom-color:#334155!important}
+  body.ms-dark-mode .page > .toolbar:not(:first-child)::before,body.ms-dark-mode .page > .table-wrap:not(:first-child)::before,body.ms-dark-mode .page > .card:not(:first-child)::before,body.ms-dark-mode .page > .grid2:not(:first-child)::before{background:#334155!important}
 
 </style>
 </head>
@@ -1043,6 +1065,7 @@ function toggleSub(subId,parentId){ document.getElementById(subId).classList.tog
 function openSidebar(){ document.getElementById('sidebar').classList.add('show'); document.getElementById('overlay').classList.add('show'); }
 function closeSidebar(){ document.getElementById('sidebar').classList.remove('show'); document.getElementById('overlay').classList.remove('show'); }
 function toggleFull(){ if(!document.fullscreenElement){document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen();}else{document.exitFullscreen&&document.exitFullscreen();} }
+function closeModal(id){const el=document.getElementById(id);if(el)el.classList.remove('show');}
 function logout(){ if(confirm('Do you want to logout?')){ if(window.API&&API.logout){API.logout();}else{try{localStorage.clear();}catch(e){} window.location.href='/login';} } }
 function tick(){const d=new Date();const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];const p=n=>String(n).padStart(2,'0');
   document.getElementById('clock').textContent=days[d.getDay()]+', '+d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());}
@@ -2081,6 +2104,6 @@ loadNews();
   loadCliLimits();
 })();
 </script>
-<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a16cdbae8ee2de71',t:'MTc4MzMyMjU0NA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 </html>

@@ -5,7 +5,26 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <link rel="icon" type="image/png" href="assets/mufasa-favicon.png" />
 <title>Mufasa SMS — Agent Panel</title>
-<style id="route-auth-hide">html{visibility:hidden}</style>
+<style id="route-auth-hide">html{visibility:hidden}
+
+  /* ===== Agent rail layout fix ===== */
+  .rail{width:76px!important}
+  .rail:hover{width:238px!important}
+  .main{margin-left:76px!important}
+  @media(max-width:900px){.main{margin-left:0!important}.rail{transform:translateX(-100%)}.rail.show{transform:translateX(0)}}
+
+
+
+  /* ===== Section separators for clearer layout ===== */
+  .page-head{border-bottom:1px solid #E2E8F0!important;padding-bottom:14px!important}
+  .page > .toolbar,.page > .table-wrap,.page > .card,.page > .grid2{position:relative!important}
+  .page > .toolbar:not(:first-child)::before,.page > .table-wrap:not(:first-child)::before,.page > .card:not(:first-child)::before,.page > .grid2:not(:first-child)::before{content:"";position:absolute;left:0;right:0;top:-10px;height:1px;background:#E2E8F0;opacity:.95}
+  .table-wrap + .table-wrap{margin-top:18px!important}
+  .toolbar + .table-wrap,.card + .table-wrap,.stats-grid + .toolbar,.stats-grid + .grid2{margin-top:18px!important}
+  body.ms-dark-mode .page-head{border-bottom-color:#334155!important}
+  body.ms-dark-mode .page > .toolbar:not(:first-child)::before,body.ms-dark-mode .page > .table-wrap:not(:first-child)::before,body.ms-dark-mode .page > .card:not(:first-child)::before,body.ms-dark-mode .page > .grid2:not(:first-child)::before{background:#334155!important}
+
+</style>
 <script>
 (function(){
   var expected='agent';
@@ -338,6 +357,25 @@
   .sb-logo,.brand .logo,.rail .logo,.sb-brand .logo{border:1px solid rgba(212,175,55,.45)!important;box-shadow:0 10px 24px rgba(212,175,55,.18)!important}
   .main,.content{background:#F8FAFC!important}.topbar,.tb1{background:#F8FAFC!important;border-bottom:1px solid #E2E8F0!important}.topbar .tb-btn,.tb1 .tb-btn,.hamburger{color:#64748B!important}.topbar .tb-btn:hover,.tb1 .tb-btn:hover,.hamburger:hover{background:#FEF3C7!important;color:#92400E!important}
 
+
+
+  /* ===== Agent rail layout fix ===== */
+  .rail{width:76px!important}
+  .rail:hover{width:238px!important}
+  .main{margin-left:76px!important}
+  @media(max-width:900px){.main{margin-left:0!important}.rail{transform:translateX(-100%)}.rail.show{transform:translateX(0)}}
+
+
+
+  /* ===== Section separators for clearer layout ===== */
+  .page-head{border-bottom:1px solid #E2E8F0!important;padding-bottom:14px!important}
+  .page > .toolbar,.page > .table-wrap,.page > .card,.page > .grid2{position:relative!important}
+  .page > .toolbar:not(:first-child)::before,.page > .table-wrap:not(:first-child)::before,.page > .card:not(:first-child)::before,.page > .grid2:not(:first-child)::before{content:"";position:absolute;left:0;right:0;top:-10px;height:1px;background:#E2E8F0;opacity:.95}
+  .table-wrap + .table-wrap{margin-top:18px!important}
+  .toolbar + .table-wrap,.card + .table-wrap,.stats-grid + .toolbar,.stats-grid + .grid2{margin-top:18px!important}
+  body.ms-dark-mode .page-head{border-bottom-color:#334155!important}
+  body.ms-dark-mode .page > .toolbar:not(:first-child)::before,body.ms-dark-mode .page > .table-wrap:not(:first-child)::before,body.ms-dark-mode .page > .card:not(:first-child)::before,body.ms-dark-mode .page > .grid2:not(:first-child)::before{background:#334155!important}
+
 </style>
 </head>
 <body>
@@ -621,7 +659,7 @@ fillSel('numRange',rangeNames);fillSel('baRange',rangeNames);fillSel('testRange'
 function fr(v){return v==='NA'||!v?'<span class="muted">NA</span>':'<span class="cell-money">$ '+v+'</span>';}
 async function loadRateCard(){ try{ rateCard=(await API.get('/ranges')).map(r=>({range:r.name,cur:r.currency,r1:r.rate_1_1,r2:r.rate_7_1,r3:r.rate_7_7,r4:r.rate_30_45})); }catch(e){ rateCard=[]; } renderRateCard(); }
 function renderRateCard(){const len=document.getElementById('rcLen').value,q=(document.getElementById('rcSearch').value||'').toLowerCase();
-  let rows=rateCard.filter(r=>r.range.toLowerCase().includes(q));const t=rows.length;if(len!=='All')rows=rows.slice(0,parseInt(len));
+  let rows=rateCard.filter(r=>r.range.toLowerCase().includes(q));const pag=API.paginateRows('agtRateCard',rows,len,'rcInfo',renderRateCard);const t=pag.total;rows=pag.rows;
   document.getElementById('rcBody').innerHTML=rows.map(r=>`<tr><td><b>${r.range}</b></td><td><span class="tag tag-green">${r.cur}</span></td><td>${fr(r.r1)}</td><td>${fr(r.r2)}</td><td>${fr(r.r3)}</td><td>${fr(r.r4)}</td></tr>`).join('');
   document.getElementById('rcInfo').textContent=`Showing ${rows.length} of ${t} ranges`;}
 
@@ -637,7 +675,7 @@ function renderNumbers(){rangeF=document.getElementById('numRange').value;client
   if(rangeF)rows=rows.filter(r=>r.range===rangeF);if(clientF)rows=rows.filter(r=>r.client===clientF);
   if(cliF===1)rows=rows.filter(r=>!r.client);else if(cliF===2)rows=rows.filter(r=>!!r.client);
   if(nSort.k)rows.sort((a,b)=>((a[nSort.k]||'')+'').localeCompare((b[nSort.k]||'')+'',undefined,{numeric:true})*nSort.d);
-  const t=rows.length;if(len!=='All')rows=rows.slice(0,parseInt(len));
+  const pag=API.paginateRows('agtNumbers',rows,len,'numInfo',renderNumbers);const t=pag.total;rows=pag.rows;
   document.getElementById('numBody').innerHTML=rows.map(r=>`<tr><td><input type="checkbox" class="rc" data-id="${r.id}" onchange="updSel()"/></td>
     <td>${r.range}</td><td><b>${r.number}</b></td><td class="cell-money">${r.rate}</td>
     <td>${r.client?`<span class="tag tag-cli">${r.client}</span>`:'<span class="tag tag-gray">Unallocated</span>'}</td>
@@ -692,7 +730,7 @@ async function loadClients(){ try{ clientsData=await API.get('/users/client'); m
 function findClient(id){return (clientsData||[]).find(x=>x.id===id);}
 function renderClients(){const len=document.getElementById('clLen').value,q=(document.getElementById('clSearch').value||'').toLowerCase();
   let rows=(clientsData||[]).filter(r=>r.username.toLowerCase().includes(q)||(r.name||'').toLowerCase().includes(q));
-  const t=rows.length;if(len!=='All')rows=rows.slice(0,parseInt(len));
+  const pag=API.paginateRows('agtClients',rows,len,'clInfo',renderClients);const t=pag.total;rows=pag.rows;
   document.getElementById('clBody').innerHTML=rows.map(r=>{const nums=(numData||[]).filter(n=>n.client===r.username).length;
     return `<tr><td><span class="tag tag-cli">${r.username}</span></td><td>${r.name||'<span class="muted">—</span>'}</td><td>${r.email||'<span class="muted">—</span>'}</td><td>${r.contact||'<span class="muted">—</span>'}</td><td><span class="tag tag-blue">${nums}</span></td>
     <td>${r.active?'<span class="check-ok">✔</span>':'<span class="tag tag-red">Disabled</span>'}</td>
@@ -731,7 +769,7 @@ async function loadSms(){ try{ smsRecords=await API.get('/sms'); }catch(e){ smsR
   if(b)b.innerHTML=Object.keys(byCli).map(c=>`<tr><td><span class="tag tag-cli">${c}</span></td><td class="cell-money">${byCli[c]}</td><td class="cell-money" style="color:#86efac">$ ${sumPay((smsRecords||[]).filter(r=>r.client_name===c))}</td></tr>`).join('')||`<tr><td colspan="3" class="muted" style="text-align:center;padding:16px">No records found</td></tr>`;
   renderSmsReport();if(document.getElementById('sdBody'))renderSmsDetail();if(typeof renderClientStats==='function'&&document.getElementById('csBody'))renderClientStats();}
 function renderSmsReport(){const len=document.getElementById('srLen').value,q=(document.getElementById('srSearch').value||'').toLowerCase();
-  let rows=(smsRecords||[]).filter(r=>[r.client_name,r.range_name,r.cli,r.message].join(' ').toLowerCase().includes(q));const t=rows.length;if(len!=='All')rows=rows.slice(0,parseInt(len));
+  let rows=(smsRecords||[]).filter(r=>[r.client_name,r.range_name,r.cli,r.message].join(' ').toLowerCase().includes(q));const pag=API.paginateRows('agtSmsReport',rows,len,'srInfo',renderSmsReport);const t=pag.total;rows=pag.rows;
   document.getElementById('srBody').innerHTML=rows.map(r=>`<tr><td class="muted">${(r.received_at||'').slice(0,16)}</td><td><span class="tag tag-cli">${r.client_name||'—'}</span></td><td>${r.range_name||'—'}</td><td class="mono">${r.cli||''}</td><td class="msg-body">${r.message||''}</td></tr>`).join('')||`<tr><td colspan="5" class="muted" style="text-align:center;padding:24px">No records found</td></tr>`;
   document.getElementById('srInfo').textContent=`Showing ${rows.length} of ${t} records`;}
 
@@ -754,7 +792,7 @@ function toggleDetailFilters(){document.getElementById('sdRange').disabled=!docu
 function populateSmsDetailFilterLists(base){const rs=document.getElementById('sdRange'),us=document.getElementById('sdUser');if(!rs||!us)return;const cr=rs.value,cu=us.value;const ranges=uniqueVals(base.map(r=>r.range_name)).sort();const users=uniqueVals(base.map(r=>r.client_name)).sort();rs.innerHTML='<option value="">All Ranges</option>'+ranges.map(v=>`<option value="${v}">${v}</option>`).join('');us.innerHTML='<option value="">All</option>'+users.map(v=>`<option value="${v}">${v}</option>`).join('');if(ranges.includes(cr))rs.value=cr;if(users.includes(cu))us.value=cu;}
 function sdReset(){sdUseDate.checked=true;sdDate.value=todayStr();sdUseRange.checked=false;sdUseNumber.checked=false;sdUseUser.checked=false;sdSearch.value='';toggleDetailFilters();}
 function groupRows(rows,key,label){const map={};rows.forEach(r=>{const k=r[key]||'—';if(!map[k])map[k]={name:k,sms:0,pay:'0'};map[k].sms++;map[k].pay=decAdd(map[k].pay,r.payout_amount||r.payout_rate||0);});const arr=Object.values(map);return {head:`<tr><th>${label}</th><th>Total OTPs</th><th>Total Payout</th></tr>`,rows:arr.map(x=>`<tr><td><span class="tag tag-cli">${x.name}</span></td><td class="cell-money">${x.sms}</td><td class="cell-money">${money(x.pay)}</td></tr>`)};}
-function renderSmsDetail(){const dateVal=(document.getElementById('sdDate')?.value)||todayStr();let base=(smsRecords||[]).filter(r=>!sdUseDate.checked||String(r.received_at||'').slice(0,10)===dateVal);populateSmsDetailFilterLists(base);const rangeVal=sdRange.value,userVal=sdUser.value,q=(sdSearch.value||'').toLowerCase();let filtered=base.filter(r=>(!sdUseRange.checked||!rangeVal||r.range_name===rangeVal)&&(!sdUseUser.checked||!userVal||r.client_name===userVal)&&[r.client_name,r.range_name,r.number,r.cli,r.message,r.payout_rate].join(' ').toLowerCase().includes(q));let head='',body=[];if(sdUseNumber.checked){const g=groupRows(filtered,'number','Number');head=g.head;body=g.rows;}else if(sdUseRange.checked){const g=groupRows(filtered,'range_name','Range Name');head=g.head;body=g.rows;}else if(sdUseUser.checked){const g=groupRows(filtered,'client_name','Client');head=g.head;body=g.rows;}else{head='<tr><th>Date</th><th>Client</th><th>Range</th><th>Number</th><th>CLI</th><th>Payout Rate</th><th>SMS (Message Body)</th></tr>';body=filtered.map(r=>`<tr><td class="muted">${(r.received_at||'').slice(0,16)}</td><td><span class="tag tag-cli">${r.client_name||'—'}</span></td><td><b>${r.range_name||'—'}</b></td><td class="mono">${r.number}</td><td class="mono">${r.cli||''}</td><td class="cell-money">${cleanDec(r.payout_rate||0)}</td><td class="msg-body">${r.message||''}</td></tr>`);}const total=body.length,len=sdLen.value;if(len!=='All')body=body.slice(0,parseInt(len));sdHead.innerHTML=head;sdBody.innerHTML=body.join('')||`<tr><td colspan="7" class="muted" style="text-align:center;padding:24px">No records found</td></tr>`;sdInfo.textContent=`Showing ${body.length} of ${total} rows`;sdPayoutInfo.textContent=`Filtered total payout: ${money(sumPay(filtered))}`;}
+function renderSmsDetail(){const dateVal=(document.getElementById('sdDate')?.value)||todayStr();let base=(smsRecords||[]).filter(r=>!sdUseDate.checked||String(r.received_at||'').slice(0,10)===dateVal);populateSmsDetailFilterLists(base);const rangeVal=sdRange.value,userVal=sdUser.value,q=(sdSearch.value||'').toLowerCase();let filtered=base.filter(r=>(!sdUseRange.checked||!rangeVal||r.range_name===rangeVal)&&(!sdUseUser.checked||!userVal||r.client_name===userVal)&&[r.client_name,r.range_name,r.number,r.cli,r.message,r.payout_rate].join(' ').toLowerCase().includes(q));let head='',body=[];if(sdUseNumber.checked){const g=groupRows(filtered,'number','Number');head=g.head;body=g.rows;}else if(sdUseRange.checked){const g=groupRows(filtered,'range_name','Range Name');head=g.head;body=g.rows;}else if(sdUseUser.checked){const g=groupRows(filtered,'client_name','Client');head=g.head;body=g.rows;}else{head='<tr><th>Date</th><th>Client</th><th>Range</th><th>Number</th><th>CLI</th><th>Payout Rate</th><th>SMS (Message Body)</th></tr>';body=filtered.map(r=>`<tr><td class="muted">${(r.received_at||'').slice(0,16)}</td><td><span class="tag tag-cli">${r.client_name||'—'}</span></td><td><b>${r.range_name||'—'}</b></td><td class="mono">${r.number}</td><td class="mono">${r.cli||''}</td><td class="cell-money">${cleanDec(r.payout_rate||0)}</td><td class="msg-body">${r.message||''}</td></tr>`);}const len=sdLen.value;const pag=API.paginateRows('agtSmsDetail',body,len,'sdInfo',renderSmsDetail);const total=pag.total;body=pag.rows;sdHead.innerHTML=head;sdBody.innerHTML=body.join('')||`<tr><td colspan="7" class="muted" style="text-align:center;padding:24px">No records found</td></tr>`;sdInfo.textContent=`Showing ${body.length} of ${total} rows`;sdPayoutInfo.textContent=`Filtered total payout: ${money(sumPay(filtered))}`;}
 
 /* CLIENT STATS */
 function buildClientStats(){document.getElementById('page-clientStats').innerHTML=`
@@ -773,7 +811,7 @@ function buildClientStats(){document.getElementById('page-clientStats').innerHTM
     <div class="stat-card v5">${tIcon('gr','<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>')}<div class="stat-info"><h3>$ ${cleanDec(totPay)}</h3><p>Total Payment (all)</p></div></div>`;
   renderClientStats();}
 function renderClientStats(){const len=document.getElementById('csLen').value,q=(document.getElementById('csSearch').value||'').toLowerCase();
-  let list=myClients.filter(c=>c.toLowerCase().includes(q));const t=list.length;if(len!=='All')list=list.slice(0,parseInt(len));
+  let list=myClients.filter(c=>c.toLowerCase().includes(q));const pag=API.paginateRows('agtClientStats',list,len,'csInfo',renderClientStats);const t=pag.total;list=pag.rows;
   document.getElementById('csBody').innerHTML=list.map(c=>{const recs=cdr.filter(r=>r.client===c);const sms=recs.reduce((s,r)=>s+r.sms,0),pay=sumPay(recs);const nums=numData.filter(n=>n.client===c).length;
     return `<tr><td><span class="tag tag-cli">${c}</span></td><td><span class="tag tag-blue">${nums}</span></td><td class="cell-money">${sms.toLocaleString()}</td><td class="cell-money" style="color:#86efac">$ ${cleanDec(pay)}</td></tr>`;}).join('')||`<tr><td colspan="4" class="muted" style="text-align:center;padding:24px">No clients found</td></tr>`;
   document.getElementById('csInfo').textContent=`Showing ${list.length} of ${t} clients`;}
@@ -802,7 +840,7 @@ function buildDrill(kind){const title=kind==='range'?'Range Stats':'Number Stats
 function renderDrill(kind){const len=document.getElementById(kind+'Len').value,q=(document.getElementById(kind+'Search').value||'').toLowerCase(),c=document.getElementById(kind+'FCli').value;
   const key=kind==='range'?'range':'number';let recs=cdr.filter(r=>(!c||r.client===c));
   const map={};recs.forEach(r=>{const gk=r[key]+'|'+r.client;if(!map[gk])map[gk]={val:r[key],client:r.client,sms:0,pay:'0'};map[gk].sms+=r.sms;map[gk].pay=decAdd(map[gk].pay,r.pay);});
-  let rows=Object.values(map).filter(x=>[x.val,x.client].join(' ').toLowerCase().includes(q));const t=rows.length;if(len!=='All')rows=rows.slice(0,parseInt(len));
+  let rows=Object.values(map).filter(x=>[x.val,x.client].join(' ').toLowerCase().includes(q));const pag=API.paginateRows('agtDrill'+kind,rows,len,kind+'Info',()=>renderDrill(kind));const t=pag.total;rows=pag.rows;
   document.getElementById(kind+'Body').innerHTML=rows.map(x=>`<tr><td><b>${kind==='number'?'<span class="mono">'+x.val+'</span>':x.val}</b></td><td><span class="tag tag-cli">${x.client}</span></td><td class="cell-money">${x.sms.toLocaleString()}</td><td class="cell-money" style="color:#86efac">$ ${cleanDec(x.pay)}</td></tr>`).join('')||`<tr><td colspan="4" class="muted" style="text-align:center;padding:24px">No records found</td></tr>`;
   document.getElementById(kind+'Info').textContent=`Showing ${rows.length} of ${t} rows`;}
 
@@ -814,7 +852,7 @@ function renderTest(){const rf=document.getElementById('testRange').value,cf=(do
 
 /* PAYMENT */
 function renderPay(){const len=document.getElementById('payLen').value,q=(document.getElementById('paySearch').value||'').toLowerCase();
-  let rows=payData.filter(r=>[r.wk,r.period].join(' ').toLowerCase().includes(q));const t=rows.length;if(len!=='All')rows=rows.slice(0,parseInt(len));
+  let rows=payData.filter(r=>[r.wk,r.period].join(' ').toLowerCase().includes(q));const pag=API.paginateRows('agtPay',rows,len,'payInfo',renderPay);const t=pag.total;rows=pag.rows;
   document.getElementById('payBody').innerHTML=rows.map(r=>`<tr><td><b>${r.wk}</b></td><td class="muted">${r.period}</td><td>${r.sms.toLocaleString()}</td><td>${r.rate}</td><td class="cell-money" style="color:#86efac">$ ${r.earn}</td>
     <td>${r.st==='Paid'?'<span class="tag tag-green">Paid</span>':'<span class="tag tag-amber">Pending</span>'}</td></tr>`).join('');
   document.getElementById('payInfo').textContent=`Showing ${rows.length} of ${t} weeks`;}
@@ -868,6 +906,6 @@ buildDrill('range');buildDrill('number');
 renderTest();renderPay();loadAgentPayout();loadNews();
 </script>
 
-<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a16cdbb6a89ede71',t:'MTc4MzMyMjU0NQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 </html>
