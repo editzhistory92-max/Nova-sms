@@ -4,6 +4,7 @@
  */
 const express = require('express');
 const cors = require('cors');
+const multer = require('multer');
 const path = require('path');
 try { require('dotenv').config({ path: path.join(__dirname, '..', '.env') }); require('dotenv').config({ path: path.join(__dirname, '.env') }); } catch (_) {}
 const bcrypt = require('bcryptjs');
@@ -12,11 +13,15 @@ const { createTables } = require('./schema');
 const { seed } = require('./seed');
 const { sign, authRequired, requireRole, descendantIds } = require('./auth');
 const backup = require('./backup');
+const smppClient = require('./smppClient');
 
 const app = express();
 app.set('trust proxy', true);
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '2mb' }));
+app.use(express.urlencoded({ extended: true, limit: '2mb' }));
+app.use(express.text({ type: ['text/plain', 'text/*', 'application/xml', 'application/octet-stream'], limit: '2mb' }));
+const upload = multer();
 
 // Clean URL routes (must be before static so /admin.html can redirect to /admin)
 const FRONTEND_ROOT = path.join(__dirname, '..');
@@ -984,7 +989,7 @@ function carrierRuntimeStatus(){
 }
 app.get('/api/carrier-settings', authRequired, requireRole('admin'), (req,res)=>{
   const c=getCarrierSettings();
-  res.json({ ...c, ...carrierRuntimeStatus(), generated_callback_url: publicCallbackUrl(req), endpoint_path:'/api/incoming-sms' });
+  res.json({ ...c, ...carrierRuntimeStatus(), integration_mode: 'HTTP+SMPP', smpp_status: smppClient.getStatus(), generated_callback_url: publicCallbackUrl(req), endpoint_path:'/api/incoming-sms' });
 });
 app.put('/api/carrier-settings', authRequired, requireRole('admin'), (req,res)=>{
   const b=req.body||{};
@@ -992,8 +997,9 @@ app.put('/api/carrier-settings', authRequired, requireRole('admin'), (req,res)=>
   db.run(`UPDATE carrier_settings SET integration_status=?,carrier_ip=?,http_callback_url=?,api_key=?,auth_token=?,smpp_host=?,smpp_port=?,smpp_system_id=?,smpp_password=?,notes=?,retention_days=?,updated_at=datetime('now') WHERE id=?`,
     [b.integration_status==='enabled'?'enabled':'disabled', b.carrier_ip||'', b.http_callback_url||'/api/incoming-sms', b.api_key||'', b.auth_token||'', b.smpp_host||'', b.smpp_port||'', b.smpp_system_id||'', b.smpp_password||'', b.notes||'', parseInt(b.retention_days||30), c.id]);
   cleanupWebhookLogs(b.retention_days||30);
-  logAction(req,'update_carrier_settings','carrier_integration',{carrier_ip:b.carrier_ip,status:b.integration_status});
-  res.json({ ok:true, settings:{...getCarrierSettings(),...carrierRuntimeStatus()}, generated_callback_url: publicCallbackUrl(req) });
+  logAction(req,'update_carrier_settings','carrier_integration',{carrier_ip:b.carrier_ip,status:b.integration_status,smpp_host:b.smpp_host});
+  smppClient.restart().catch(()=>{});
+  res.json({ ok:true, settings:{...getCarrierSettings(),...carrierRuntimeStatus(), smpp_status: smppClient.getStatus()}, generated_callback_url: publicCallbackUrl(req) });
 });
 
 
@@ -1004,6 +1010,16 @@ app.post('/api/carrier-test', authRequired, requireRole('admin'), (req,res)=>{
   const callback = publicCallbackUrl(req);
   logAction(req,'test_carrier_endpoint','carrier_integration',{callback,status:c.integration_status,carrier_ip:c.carrier_ip});
   res.json({ ok:true, reachable:true, endpoint:callback, integration_status:c.integration_status, allowed_ips:String(c.carrier_ip||'').split(/[\s,;]+/).filter(Boolean), note:'Endpoint is available. Carrier requests will still be IP-checked at /api/incoming-sms.' });
+});
+
+
+app.get('/api/smpp/status', authRequired, requireRole('admin'), (req,res)=>{
+  res.json(smppClient.getStatus());
+});
+app.post('/api/smpp/reconnect', authRequired, requireRole('admin'), async (req,res)=>{
+  const st = await smppClient.restart();
+  logAction(req,'smpp_reconnect','carrier_integration',st);
+  res.json({ ok:true, status: smppClient.getStatus() });
 });
 
 app.get('/api/carrier-webhook-logs', authRequired, requireRole('admin'), (req,res)=>{
@@ -1158,6 +1174,26 @@ function firstVal(obj, keys) {
   for (const k of keys) if (obj[k] !== undefined && obj[k] !== null && String(obj[k]).trim() !== '') return obj[k];
   return '';
 }
+
+function normalizeIncomingPayload(req) {
+  let body = req.body || {};
+  if (typeof body === 'string') {
+    const raw = body.trim();
+    if (!raw) body = {};
+    else {
+      try { body = JSON.parse(raw); }
+      catch (_) {
+        body = {};
+        raw.split('&').forEach(part => {
+          const [k, ...rest] = part.split('=');
+          if (!k) return;
+          body[decodeURIComponent(k)] = decodeURIComponent(rest.join('=') || '');
+        });
+      }
+    }
+  }
+  return { ...(req.query || {}), ...(body || {}) };
+}
 function cleanPhone(v) { return String(v || '').trim().replace(/[^0-9]/g, ''); }
 function findNumber(rawNumber) {
   const exact = String(rawNumber || '').trim();
@@ -1205,26 +1241,42 @@ function processIncomingSmsPayload(req, payload, sourceIp='', opts={}) {
 }
 
 // Internal/testing webhook. This stays open for local panel testing.
-app.post('/api/webhook/sms', (req, res) => {
-  const result = processIncomingSmsPayload(req, req.body || {}, getClientIp(req));
+app.post('/api/webhook/sms', upload.none(), (req, res) => {
+  const payload = normalizeIncomingPayload(req);
+  const result = processIncomingSmsPayload(req, payload, getClientIp(req));
   res.status(result.status).json(result.body);
 });
 
-// Carrier HTTP callback endpoint. This is IP-restricted using Admin carrier settings.
-app.post('/api/incoming-sms', (req, res) => {
+function handleCarrierIncoming(req, res, payload) {
   const settings = getCarrierSettings();
   const clientIp = getClientIp(req);
   if ((settings.integration_status || 'disabled') !== 'enabled') {
-    logWebhook('failed', req.body || {}, '', '', '', '', 'Carrier integration disabled', clientIp);
+    logWebhook('failed', payload || {}, '', '', '', '', 'Carrier integration disabled', clientIp);
     return res.status(403).json({ error: 'Carrier integration is disabled' });
   }
   if (!settings.carrier_ip || !carrierIpAllowed(settings, clientIp)) {
-    logWebhook('failed', req.body || {}, '', '', '', '', `IP not allowed: ${clientIp}`, clientIp);
+    logWebhook('failed', payload || {}, '', '', '', '', `IP not allowed: ${clientIp}`, clientIp);
     return res.status(403).json({ error: 'IP not allowed', ip: clientIp });
   }
-  const result = processIncomingSmsPayload(req, req.body || {}, clientIp);
+  const result = processIncomingSmsPayload(req, payload || {}, clientIp);
   cleanupWebhookLogs(settings.retention_days||30);
-  res.status(result.status).json(result.body);
+  return res.status(result.status).json(result.body);
+}
+
+// Carrier HTTP callback endpoint. Main production method: POST /api/incoming-sms
+app.post('/api/incoming-sms', upload.none(), (req, res) => {
+  const payload = normalizeIncomingPayload(req);
+  return handleCarrierIncoming(req, res, payload);
+});
+
+// Optional GET support for carrier/browser diagnostics and carriers that test URLs via GET.
+app.get('/api/incoming-sms', (req, res) => {
+  const hasPayload = Object.keys(req.query || {}).some(k => ['number','to','To','recipient','destination','msisdn','receiver','called','message','text','body','Body','sms','content','msg'].includes(k));
+  if (!hasPayload) {
+    const settings = getCarrierSettings();
+    return res.json({ ok: true, service: 'Mufasa SMS incoming SMS endpoint', method: 'POST preferred', path: '/api/incoming-sms', integration_status: settings.integration_status, accepted_content_types: ['application/json','application/x-www-form-urlencoded','multipart/form-data'] });
+  }
+  return handleCarrierIncoming(req, res, normalizeIncomingPayload(req));
 });
 
 
@@ -1369,5 +1421,10 @@ const PORT = process.env.PORT || 4000;
   await db.init();
   createTables();
   seed();
+  if (backup && backup.startAutomaticBackups) backup.startAutomaticBackups(db, console);
+  smppClient.init({
+    getSettings: getCarrierSettings,
+    onIncomingSms: (payload, sourceIp) => processIncomingSmsPayload(null, payload, sourceIp || 'SMPP', { source: 'smpp' })
+  }).catch(e => console.error('SMPP init error:', e.message));
   app.listen(PORT, () => console.log(`\n✅ Mufasa SMS backend running: http://localhost:${PORT}\n`));
 })();
