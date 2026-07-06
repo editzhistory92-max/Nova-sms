@@ -92,6 +92,18 @@ function commandStatusName(code) {
   return names[code] || `UNKNOWN_STATUS_${code}`;
 }
 
+function normalizeBindType(value) {
+  const v = String(value || 'transceiver').toLowerCase().trim();
+  if (['receiver', 'transmitter', 'transceiver'].includes(v)) return v;
+  return 'transceiver';
+}
+
+function bindSession(sess, bindType, params, cb) {
+  if (bindType === 'receiver') return sess.bind_receiver(params, cb);
+  if (bindType === 'transmitter') return sess.bind_transmitter(params, cb);
+  return sess.bind_transceiver(params, cb);
+}
+
 function decodeShortMessage(sm) {
   if (!sm) return '';
   if (typeof sm === 'string') return sm;
@@ -135,6 +147,7 @@ function credentialsSummary(cfg) {
     port: cfg.smpp_port || '2775',
     system_id_present: !!cfg.smpp_system_id,
     password_present: !!cfg.smpp_password,
+    bind_type: normalizeBindType(cfg.smpp_bind_type || cfg.bind_type || 'transceiver'),
   };
 }
 
@@ -152,11 +165,12 @@ async function connect() {
   const port = String(cfg.smpp_port || '').trim() || '2775';
   const systemId = String(cfg.smpp_system_id || '').trim();
   const password = String(cfg.smpp_password || '');
+  const bindType = normalizeBindType(cfg.smpp_bind_type || cfg.bind_type || 'transceiver');
 
   status.enabled = enabled;
   status.host = host;
   status.port = port;
-  status.bind_type = 'transceiver';
+  status.bind_type = bindType;
   status.system_id_present = !!systemId;
 
   log('connect() called with settings:', credentialsSummary(cfg));
@@ -226,7 +240,7 @@ async function connect() {
         url,
         auto_enquire_link_period: enquireMs,
       }, () => {
-        log('TCP connected, sending bind_transceiver');
+        log(`TCP connected, sending bind_${bindType}`);
         if (!session) {
           status.state = 'ERROR';
           status.last_error = 'SMPP session missing after TCP connect';
@@ -236,7 +250,7 @@ async function connect() {
           return;
         }
         bindStarted = true;
-        session.bind_transceiver({
+        bindSession(session, bindType, {
           system_id: systemId,
           password,
         }, (pdu) => {
@@ -248,12 +262,12 @@ async function connect() {
             status.connected = true;
             status.last_connected_at = now();
             status.last_error = '';
-            log('bind_transceiver success:', status.last_bind_status);
+            log(`bind_${bindType} success:`, status.last_bind_status);
             finish();
           } else {
             status.state = 'ERROR';
             status.connected = false;
-            status.last_error = `bind_transceiver failed: ${status.last_bind_status}`;
+            status.last_error = `bind_${bindType} failed: ${status.last_bind_status}`;
             error(status.last_error);
             scheduleReconnect(15000);
             finish();

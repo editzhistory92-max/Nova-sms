@@ -292,6 +292,7 @@ function createTables() {
     smpp_port TEXT DEFAULT '',
     smpp_system_id TEXT DEFAULT '',
     smpp_password TEXT DEFAULT '',
+    smpp_bind_type TEXT DEFAULT 'transceiver',
     notes TEXT DEFAULT '',
     retention_days INTEGER DEFAULT 30,
     updated_at TEXT DEFAULT (datetime('now'))
@@ -299,6 +300,7 @@ function createTables() {
 
   ensureColumn('webhook_logs', 'source_ip', "TEXT DEFAULT ''");
   ensureColumn('carrier_settings', 'retention_days', 'INTEGER DEFAULT 30');
+  ensureColumn('carrier_settings', 'smpp_bind_type', "TEXT DEFAULT 'transceiver'");
   ensureColumn('sms_records', 'is_test', 'INTEGER DEFAULT 0');
   ensureColumn('sms_records', 'test_batch_id', "TEXT DEFAULT ''");
   ensureColumn('sms_records', 'source', "TEXT DEFAULT 'carrier'");

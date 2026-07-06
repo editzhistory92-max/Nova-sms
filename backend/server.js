@@ -994,8 +994,8 @@ app.get('/api/carrier-settings', authRequired, requireRole('admin'), (req,res)=>
 app.put('/api/carrier-settings', authRequired, requireRole('admin'), (req,res)=>{
   const b=req.body||{};
   const c=getCarrierSettings();
-  db.run(`UPDATE carrier_settings SET integration_status=?,carrier_ip=?,http_callback_url=?,api_key=?,auth_token=?,smpp_host=?,smpp_port=?,smpp_system_id=?,smpp_password=?,notes=?,retention_days=?,updated_at=datetime('now') WHERE id=?`,
-    [b.integration_status==='enabled'?'enabled':'disabled', b.carrier_ip||'', b.http_callback_url||'/api/incoming-sms', b.api_key||'', b.auth_token||'', b.smpp_host||'', b.smpp_port||'', b.smpp_system_id||'', b.smpp_password||'', b.notes||'', parseInt(b.retention_days||30), c.id]);
+  db.run(`UPDATE carrier_settings SET integration_status=?,carrier_ip=?,http_callback_url=?,api_key=?,auth_token=?,smpp_host=?,smpp_port=?,smpp_system_id=?,smpp_password=?,smpp_bind_type=?,notes=?,retention_days=?,updated_at=datetime('now') WHERE id=?`,
+    [b.integration_status==='enabled'?'enabled':'disabled', b.carrier_ip||'', b.http_callback_url||'/api/incoming-sms', b.api_key||'', b.auth_token||'', b.smpp_host||'', b.smpp_port||'', b.smpp_system_id||'', b.smpp_password||'', ['receiver','transmitter','transceiver'].includes(String(b.smpp_bind_type||'').toLowerCase()) ? String(b.smpp_bind_type).toLowerCase() : 'transceiver', b.notes||'', parseInt(b.retention_days||30), c.id]);
   cleanupWebhookLogs(b.retention_days||30);
   logAction(req,'update_carrier_settings','carrier_integration',{carrier_ip:b.carrier_ip,status:b.integration_status,smpp_host:b.smpp_host});
   smppClient.restart().catch(e => console.error('[SMPP] restart error:', e.message));
