@@ -761,7 +761,7 @@
             <div class="form-group"><label>Future Auth Token</label><input id="ciToken" placeholder="Optional / future" /></div>
           </div>
           <div class="card" style="margin:10px 0 14px;padding:14px;background:#F8FAFC!important">
-            <div class="card-head" style="margin-bottom:8px"><div><h3 style="font-size:14px">HTTP + SMPP Integration</h3><div class="sub">HTTP endpoint remains available, and SMPP is now active when credentials are configured.</div></div><button class="btn btn-blue btn-sm" onclick="reconnectSmpp()" type="button">Reconnect SMPP</button></div>
+            <div class="card-head" style="margin-bottom:8px"><div><h3 style="font-size:14px">HTTP + SMPP Integration</h3><div class="sub">HTTP endpoint remains available, and SMPP is now active when credentials are configured.</div></div><button class="btn btn-blue btn-sm" onclick="reconnectSmpp()" type="button">Reconnect SMPP</button><button class="btn btn-amber btn-sm" onclick="testSmppBindModes()" type="button">Test Bind Modes</button></div>
             <div class="form-grid" style="grid-template-columns:1fr .55fr .9fr 1fr 1fr;gap:14px">
               <div class="form-group"><label>SMPP Host</label><input id="ciSmppHost" placeholder="51.77.64.61" /></div>
               <div class="form-group"><label>SMPP Port</label><input id="ciSmppPort" placeholder="2775" /></div>
@@ -1950,6 +1950,19 @@ async function testCarrierConnection(){
 }
 async function reconnectSmpp(){
   try{const r=await API.post('/smpp/reconnect',{});alert('SMPP reconnect triggered. Status: '+(r.status&&r.status.state?r.status.state:'UNKNOWN'));loadCarrierSettings();}catch(e){alert('❌ '+e.message)}
+}
+async function testSmppBindModes(){
+  try{
+    const r=await API.post('/smpp/test-bind-modes',{});
+    const lines=(r.results||[]).map(x=>`bind_${x.bind_type}: ${x.success?'SUCCESS':'FAILED'} ${x.command_status!==null?'('+x.command_status+' '+x.status_name+')':''} ${x.error||''}`);
+    alert('SMPP Bind Mode Test Results:\n\n'+lines.join('\n')+'\n\nRecommended: '+(r.recommended||'none'));
+    if(r.recommended && confirm('Apply recommended bind type: '+r.recommended+' ?')){
+      await API.post('/smpp/apply-bind-type',{bind_type:r.recommended});
+      if(document.getElementById('ciSmppBindType')) ciSmppBindType.value=r.recommended;
+      alert('✅ Applied bind type: '+r.recommended);
+    }
+    loadCarrierSettings();
+  }catch(e){alert('❌ '+e.message)}
 }
 async function loadCarrierWebhookLogs(){
   try{

@@ -322,6 +322,90 @@ async function connect() {
   });
 }
 
+
+function testSingleBind(bindType, cfg, timeoutMs = 12000) {
+  return new Promise((resolve) => {
+    const started = Date.now();
+    bindType = normalizeBindType(bindType);
+    const host = String(cfg.smpp_host || '').trim();
+    const port = String(cfg.smpp_port || '').trim() || '2775';
+    const systemId = String(cfg.smpp_system_id || '').trim();
+    const password = String(cfg.smpp_password || '');
+    const result = {
+      bind_type: bindType,
+      success: false,
+      command_status: null,
+      status_name: '',
+      error: '',
+      duration_ms: 0,
+    };
+    if (!host || !systemId) {
+      result.error = !host ? 'SMPP host is missing' : 'SMPP system_id is missing';
+      return resolve(result);
+    }
+    let temp = null;
+    let finished = false;
+    function done(extra = {}) {
+      if (finished) return;
+      finished = true;
+      clearTimeout(timer);
+      Object.assign(result, extra);
+      result.duration_ms = Date.now() - started;
+      try { if (temp) temp.removeAllListeners(); } catch (_) {}
+      try { if (temp) temp.unbind(); } catch (_) {}
+      try { if (temp) temp.close(); } catch (_) {}
+      resolve(result);
+    }
+    const timer = setTimeout(() => done({ error: `Timeout after ${timeoutMs}ms` }), timeoutMs);
+    if (timer.unref) timer.unref();
+    const url = `smpp://${host}:${port}`;
+    log(`Testing bind_${bindType} on ${url}`);
+    try {
+      temp = smpp.connect({ url, auto_enquire_link_period: parseInt(process.env.SMPP_ENQUIRE_LINK_MS || '30000', 10) }, () => {
+        try {
+          bindSession(temp, bindType, { system_id: systemId, password }, (pdu) => {
+            const code = pdu && pdu.command_status !== undefined ? pdu.command_status : -1;
+            done({
+              success: code === 0,
+              command_status: code,
+              status_name: commandStatusName(code),
+              error: code === 0 ? '' : `bind_${bindType} failed: ${code} ${commandStatusName(code)}`,
+            });
+          });
+        } catch (e) {
+          done({ error: e.message });
+        }
+      });
+      temp.on('error', (err) => done({ error: err && err.message ? err.message : String(err || 'SMPP error') }));
+      temp.on('close', () => {
+        if (!finished) done({ error: 'Session closed before successful bind' });
+      });
+    } catch (e) {
+      done({ error: e.message });
+    }
+  });
+}
+
+async function testBindModes() {
+  const cfg = getSettings ? (getSettings() || {}) : {};
+  clearReconnect();
+  closeSession('testing all bind modes');
+  const modes = ['transceiver', 'transmitter', 'receiver'];
+  const results = [];
+  for (const mode of modes) {
+    // eslint-disable-next-line no-await-in-loop
+    const r = await testSingleBind(mode, cfg, parseInt(process.env.SMPP_BIND_TEST_TIMEOUT_MS || '12000', 10));
+    results.push(r);
+    log(`Bind mode test result: bind_${mode}`, r);
+  }
+  const recommended = (results.find(r => r.success) || {}).bind_type || '';
+  if (recommended) log('Recommended SMPP bind type:', recommended);
+  else error('No SMPP bind mode succeeded');
+  // Reconnect the normal configured session after a short delay.
+  scheduleReconnect(3000);
+  return { results, recommended, tested_at: now() };
+}
+
 function init(options) {
   getSettings = options.getSettings;
   onIncomingSms = options.onIncomingSms;
@@ -349,4 +433,5 @@ module.exports = {
   restart,
   stop,
   getStatus: cloneStatus,
+  testBindModes,
 };

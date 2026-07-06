@@ -1022,6 +1022,26 @@ app.post('/api/smpp/reconnect', authRequired, requireRole('admin'), async (req,r
   res.json({ ok:true, status: smppClient.getStatus() });
 });
 
+app.post('/api/smpp/test-bind-modes', authRequired, requireRole('admin'), async (req,res)=>{
+  try {
+    const result = await smppClient.testBindModes();
+    logAction(req,'smpp_test_bind_modes','carrier_integration',result);
+    res.json({ ok:true, ...result });
+  } catch (e) {
+    console.error('[SMPP] bind mode test endpoint error:', e.message);
+    res.status(500).json({ error:e.message });
+  }
+});
+app.post('/api/smpp/apply-bind-type', authRequired, requireRole('admin'), async (req,res)=>{
+  const type=String((req.body||{}).bind_type||'').toLowerCase();
+  if(!['transceiver','transmitter','receiver'].includes(type)) return res.status(400).json({error:'Invalid bind_type'});
+  const c=getCarrierSettings();
+  db.run('UPDATE carrier_settings SET smpp_bind_type=?, updated_at=datetime(\'now\') WHERE id=?',[type,c.id]);
+  const st=await smppClient.restart();
+  logAction(req,'smpp_apply_bind_type','carrier_integration',{bind_type:type,status:st});
+  res.json({ok:true, bind_type:type, status:smppClient.getStatus()});
+});
+
 app.get('/api/carrier-webhook-logs', authRequired, requireRole('admin'), (req,res)=>{
   const limit = Math.min(1000, parseInt(req.query.limit || '500'));
   res.json(db.all(`SELECT * FROM webhook_logs ORDER BY id DESC LIMIT ${limit}`));
