@@ -165,13 +165,12 @@
   }
 
   function enhancePageSizeOptions(){
-    const standard=['10','25','50','100','500','1000','10000','All'];
-    const serverNumbers=['10','25','50','100','250','500','1000']; // Admin Numbers uses DB LIMIT/OFFSET; no huge "All" load.
+    // Same dropdown everywhere, as requested: 25 / 50 / 100 / 500 / 1000 / 5000 / All
+    const wanted=['25','50','100','500','1000','5000','All'];
     document.querySelectorAll('select').forEach(sel=>{
       const id=(sel.id||'').toLowerCase();
       if(!(id.includes('len') || id.includes('slen'))) return;
-      const wanted = id === 'numlen' ? serverNumbers : standard;
-      const current = wanted.includes(sel.value) ? sel.value : (id === 'numlen' ? '1000' : (sel.value || '25'));
+      const current = wanted.includes(sel.value) ? sel.value : '25';
       sel.innerHTML=wanted.map(v=>`<option value="${v}" ${v===current?'selected':''}>${v}</option>`).join('');
     });
   }
@@ -283,6 +282,102 @@
       document.documentElement.style.visibility='visible';
     }, 180);
   }
+  function tableToMatrix(table){
+    const rows=[];
+    table.querySelectorAll('tr').forEach(tr=>{
+      const cells=[...tr.children].filter(c=>!c.querySelector('input[type="checkbox"]'));
+      const vals=cells.map(c=>String(c.innerText||c.textContent||'').replace(/\s+/g,' ').trim());
+      if(vals.some(Boolean)) rows.push(vals);
+    });
+    return rows;
+  }
+  function csvEscape(v){ v=String(v??''); return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; }
+  function downloadText(filename, text, type){
+    const blob=new Blob([text],{type:type||'text/plain;charset=utf-8'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=filename; document.body.appendChild(a); a.click();
+    setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},500);
+  }
+  function findExportTable(btn){
+    const page=btn.closest('.page') || document;
+    let wrap=btn.closest('.table-wrap');
+    if(wrap){
+      let n=wrap.nextElementSibling;
+      while(n){ const t=n.querySelector&&n.querySelector('table'); if(t) return t; n=n.nextElementSibling; }
+      const t=wrap.querySelector('table'); if(t) return t;
+    }
+    const tables=[...page.querySelectorAll('table')].filter(t=>t.offsetParent!==null && t.querySelector('tbody'));
+    return tables[0] || page.querySelector('table');
+  }
+  function exportTable(btn, mode){
+    const table=findExportTable(btn); if(!table){ alert('No table found to export.'); return; }
+    const data=tableToMatrix(table); if(!data.length){ alert('No rows to export.'); return; }
+    const title=(document.querySelector('.page.active h2')?.textContent||document.title||'mufasa-export').trim().replace(/[^a-z0-9_-]+/gi,'-').replace(/^-|-$/g,'') || 'mufasa-export';
+    const csv=data.map(r=>r.map(csvEscape).join(',')).join('\n');
+    if(mode==='copy'){
+      navigator.clipboard?.writeText(csv).then(()=>alert('Copied table data.')).catch(()=>{ const ta=document.createElement('textarea'); ta.value=csv; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); alert('Copied table data.'); });
+      return;
+    }
+    if(mode==='csv') return downloadText(title+'.csv', csv, 'text/csv;charset=utf-8');
+    if(mode==='excel'){
+      const html='<html><head><meta charset="utf-8"></head><body><table border="1">'+data.map(r=>'<tr>'+r.map(c=>'<td>'+String(c).replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]))+'</td>').join('')+'</tr>').join('')+'</table></body></html>';
+      return downloadText(title+'.xls', html, 'application/vnd.ms-excel;charset=utf-8');
+    }
+    const w=window.open('','_blank');
+    if(!w){ alert('Popup blocked. Please allow popups for print/PDF.'); return; }
+    const safeTitle=title.replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
+    w.document.write('<!doctype html><html><head><title>'+safeTitle+'</title><style>body{font-family:Arial,sans-serif;padding:20px;color:#111}h2{margin:0 0 14px}table{border-collapse:collapse;width:100%;font-size:12px}th,td{border:1px solid #ccc;padding:7px;text-align:left;vertical-align:top}th{background:#f1f5f9}</style></head><body><h2>'+safeTitle+'</h2>'+table.outerHTML+'</body></html>');
+    w.document.close(); w.focus(); setTimeout(()=>w.print(),300);
+  }
+  function initExportButtons(){
+    document.addEventListener('click',(e)=>{
+      const btn=e.target.closest('.exp-btns button'); if(!btn) return;
+      e.preventDefault(); e.stopPropagation();
+      const label=(btn.textContent||'').toLowerCase();
+      if(label.includes('copy')) exportTable(btn,'copy');
+      else if(label.includes('csv')) exportTable(btn,'csv');
+      else if(label.includes('excel')) exportTable(btn,'excel');
+      else if(label.includes('pdf')) exportTable(btn,'pdf');
+      else if(label.includes('print')) exportTable(btn,'print');
+    }, true);
+  }
+
+  function activatePageFromHistory(page){
+    if(!page) page='dashboard';
+    try{ localStorage.setItem('ms_last_page_'+(ROLE()||''), page); }catch(e){}
+    if(typeof window.showPageByName==='function') { window.showPageByName(page); return; }
+    const safePage=String(page).replace(/"/g,'\\"');
+    const el=document.querySelector(`[data-page="${safePage}"]`);
+    if(el){ window.__msHistoryNav=1; el.click(); setTimeout(()=>{window.__msHistoryNav=0;},0); return; }
+    const target=document.getElementById('page-'+page);
+    if(target){ document.querySelectorAll('.page').forEach(p=>p.classList.remove('active')); target.classList.add('active'); }
+  }
+  function currentPageName(){
+    const active=document.querySelector('.page.active');
+    return active && active.id ? active.id.replace(/^page-/,'') : 'dashboard';
+  }
+  function initPanelHistory(){
+    if(!TOKEN() || location.pathname.includes('login')) return;
+    try{ history.replaceState({msPanel:true,page:currentPageName()},'',location.pathname); }catch(e){}
+    document.addEventListener('click',(e)=>{
+      const el=e.target.closest('[data-page]');
+      if(!el || window.__msHistoryNav) return;
+      const page=el.dataset.page; if(!page) return;
+      setTimeout(()=>{ try{ history.pushState({msPanel:true,page},'',location.pathname); }catch(_){ } },0);
+    }, true);
+    window.addEventListener('popstate',(e)=>{
+      if(e.state && e.state.msPanel){ activatePageFromHistory(e.state.page || 'dashboard'); }
+      else { try{ history.pushState({msPanel:true,page:'dashboard'},'',location.pathname); }catch(_){} activatePageFromHistory('dashboard'); }
+    });
+  }
+  function initIdleLogout(){
+    if(!TOKEN() || location.pathname.includes('login')) return;
+    const maxIdleMs = parseInt(localStorage.getItem('ms_idle_timeout_ms') || String(10*60*1000), 10);
+    let timer=null;
+    const reset=()=>{ clearTimeout(timer); timer=setTimeout(()=>{ try{alert('Session expired due to inactivity. Please login again.');}catch(e){} API.logout(); }, maxIdleMs); };
+    ['click','mousemove','keydown','scroll','touchstart'].forEach(ev=>document.addEventListener(ev, reset, {passive:true}));
+    reset();
+  }
+
   function initTopbarControls(){
     ensureThemeCSS();
     if(localStorage.getItem('ms_dark_mode')==='1') document.body.classList.add('ms-dark-mode');
@@ -310,5 +405,5 @@
     openProfileMenu,
     paginateRows,
   };
-  document.addEventListener('DOMContentLoaded', ()=>{ initNotifications(); initRoutePersistence(); enhancePageSizeOptions(); setInterval(enhancePageSizeOptions, 2000); });
+  document.addEventListener('DOMContentLoaded', ()=>{ initExportButtons(); initPanelHistory(); initIdleLogout(); initNotifications(); initRoutePersistence(); enhancePageSizeOptions(); setInterval(enhancePageSizeOptions, 2000); });
 })();

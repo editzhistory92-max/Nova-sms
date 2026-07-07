@@ -510,6 +510,7 @@
             <button class="btn btn-red" onclick="unallocateSelected()">↩ Unallocate Selected</button>
             <button class="btn btn-red" onclick="deleteSelectedNumbers()">🗑 Delete Selected</button>
             <button class="btn btn-red" onclick="deleteCurrentFilteredNumbers()">🧹 Delete Filtered</button>
+            <button class="btn btn-red" onclick="deleteAllNumbersFromDb()">🔥 Delete ALL Numbers</button>
             <button class="btn btn-purple" onclick="openSmart()">⚡ Smart Divide</button>
             <button class="btn btn-ghost" onclick="showPageByName('import')">⬆ Import Numbers</button>
           </div>
@@ -523,7 +524,7 @@
           </div>
           <div class="table-controls">
             <div class="tc-left"><label>Show Records:</label>
-              <select id="numLen" onchange="renderNumbers()"><option>10</option><option selected>25</option><option>50</option><option>100</option><option>250</option><option>500</option><option>1000</option></select>
+              <select id="numLen" onchange="renderNumbers()"><option selected>25</option><option>50</option><option>100</option><option>500</option><option>1000</option><option>5000</option><option value="All">All</option></select>
               <div class="exp-btns"><button class="btn btn-blue">Copy</button><button class="btn btn-blue">CSV</button><button class="btn btn-green">Excel</button><button class="btn btn-red">PDF</button><button class="btn btn-blue">Print</button></div>
             </div>
             <div class="tc-right"><label>Search:</label><input type="text" id="numSearch" oninput="renderNumbers()" placeholder="Search..." /></div>
@@ -534,6 +535,7 @@
             <button class="btn btn-red btn-sm" onclick="unallocateSelected()">Unallocate Selected</button>
             <button class="btn btn-red btn-sm" onclick="deleteSelectedNumbers()">Delete Selected</button>
             <button class="btn btn-red btn-sm" onclick="deleteCurrentFilteredNumbers()">Delete Filtered</button>
+            <button class="btn btn-red btn-sm" onclick="deleteAllNumbersFromDb()">Delete ALL</button>
           </div>
         </div>
         <div class="table-wrap">
@@ -766,6 +768,15 @@
 
       <section class="page" id="page-carrierIntegration">
         <div class="page-head"><div><h2>Carrier Integration</h2><div class="breadcrumb"><b>System Master</b> › Carrier HTTP Settings</div></div></div>
+        <div class="card" id="carrierLockCard" style="margin-bottom:16px;display:none;border:1px solid rgba(212,175,55,.35)">
+          <div class="card-head"><div><h3>Carrier Integration Locked</h3><div class="sub">Enter security password to view or change carrier settings.</div></div></div>
+          <div class="form-grid" style="grid-template-columns:1fr auto;gap:12px;align-items:end">
+            <div class="form-group"><label>Password</label><input id="carrierLockPassword" type="password" placeholder="Enter password" /></div>
+            <button class="btn btn-purple" onclick="unlockCarrierIntegration()">Unlock</button>
+          </div>
+          <div class="hint">Default password: configured by server. Current requested password is <b>Dawood</b>.</div>
+        </div>
+        <div id="carrierProtected">
         <div class="stats-grid">
           <div class="stat-card dash-metric d-blue"><div class="stat-info"><p>Last SMS Received</p><h3 id="ciLastSms">—</h3><span>Last successful carrier SMS</span></div><div class="dash-go">✓</div></div>
           <div class="stat-card dash-metric d-green"><div class="stat-info"><p>Last Carrier IP</p><h3 id="ciLastIp">—</h3><span>Last request source IP</span></div><div class="dash-go">IP</div></div>
@@ -807,6 +818,7 @@
 # or
 ngrok http 4000</pre>
           <div class="hint">After you receive the public URL, update the HTTP Callback URL above to: <b>https://public-url/api/incoming-sms</b></div>
+        </div>
         </div>
       </section>
 
@@ -1045,7 +1057,7 @@ ngrok http 4000</pre>
   <div class="modal-body">
     <div class="form-group"><label>Select Manager <span class="req">*</span></label><select id="aaClient"><option value="">Please Select</option></select></div>
     <div class="form-group"><label>Payterm</label><select id="aaPayterm"><option value="">Please Select</option><option>Weekly</option><option>Weekly7</option><option>Monthly</option><option>Daily</option></select></div>
-    <div class="form-group"><label>Payout ($)</label><input type="number" id="aaPayout" step="0.001" value="0" placeholder="0"/></div>
+    <div class="form-group" style="display:none"><label>Payout ($) Locked</label><input type="number" id="aaPayout" step="0.001" value="0" placeholder="0" disabled/></div>
     <div class="hint" id="aaCount"></div>
   </div>
   <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal('allocAllModal')">Cancel</button><button class="btn btn-blue" onclick="confirmAllocAll()">Allocate</button></div>
@@ -1245,7 +1257,7 @@ function renderNumbers(){
   const len=document.getElementById('numLen').value,q=(document.getElementById('numSearch').value||'').toLowerCase();
   let rows=(numbersData||[]).map(r=>({
     _id:r.id, range:r.range_name||'', prefix:r.prefix||'', number:r.number||'',
-    myPay:r.payterm||'Weekly', myVal:r.rate||'', client:r.manager_name||'',
+    myPay:r.payterm||'Weekly', myVal:r.effective_rate||r.rate||'', client:r.manager_name||'',
     payType:r.payterm||'Weekly', payVal:'$ '+(r.payout||'0'), sd:r.sd_limit||0, sw:r.sw_limit||0
   })).filter(r=>(r.number.includes(q)||r.client.toLowerCase().includes(q)||r.range.toLowerCase().includes(q)));
   if(numRangeFilter) rows=rows.filter(r=>r.range===numRangeFilter);
@@ -1272,9 +1284,7 @@ async function unassignOne(id){if(confirm('Unallocate this number?')){try{await 
 async function deleteSelectedNumbers(){
   const ids=getSelectedIds();
   if(!ids.length){alert('Please select numbers first.');return;}
-  const confirmText='DELETE NUMBERS';
-  const v=prompt(`This will permanently delete ${ids.length} selected number(s) and linked SMS records, so all counts/statistics refresh immediately.\nType ${confirmText} to continue:`);
-  if(v!==confirmText)return;
+  if(!confirm(`Delete ${ids.length} selected number(s)?\nLinked SMS records will also be removed.`))return;
   try{
     const r=await API.post('/numbers/delete',{ids});
     alert(`✅ Deleted ${r.deleted||0} numbers. Linked SMS removed: ${r.deleted_sms||0}. Database optimized.`);
@@ -1385,16 +1395,14 @@ function openUserModal(role,id){userCtx={role,id};const m=roleMeta[role];
   const r=id<0?{username:'',name:'',email:'',contact:'',skype:'',active:1,whatsapp:''}:findUser(role,id)||{};
   uUsername.value=r.username||'';uPassword.value='';uName.value=r.name||'';uEmail.value=r.email||'';uWhatsapp.value=r.whatsapp||'';uContact.value=r.contact||'';uSkype.value=r.skype||'';uActive.checked=!!r.active;
   uUsername.disabled = id>=0; // username cannot be edited
-  document.getElementById('emailReq').style.display=role==='manager'?'inline':'none';
-  document.getElementById('waReq').style.display=role==='agent'?'inline':'none';
-  document.getElementById('emailHint').textContent=role==='manager'?'Manager email is required.':'';
-  document.getElementById('waHint').textContent=role==='agent'?'Agent WhatsApp number is required.':'';
+  document.getElementById('emailReq').style.display='none';
+  document.getElementById('waReq').style.display='none';
+  document.getElementById('emailHint').textContent='Optional';
+  document.getElementById('waHint').textContent='Optional';
   document.getElementById('userModal').classList.add('show');}
 async function saveUser(){const role=userCtx.role,u=uUsername.value.trim(),p=uPassword.value;
   if(!u){alert('Username is required.');return;}
   if(userCtx.id<0&&!p){alert('Password is required.');return;}
-  if(role==='manager'&&!uEmail.value.trim()){alert('Manager email is required.');return;}
-  if(role==='agent'&&!uWhatsapp.value.trim()){alert('Agent WhatsApp number is required.');return;}
   const body={username:u,password:p,role,name:uName.value.trim(),email:uEmail.value.trim(),contact:uContact.value.trim(),skype:uSkype.value.trim(),whatsapp:uWhatsapp.value.trim(),active:uActive.checked};
   try{
     if(userCtx.id<0) await API.post('/users',body);
@@ -1921,9 +1929,26 @@ function carrierStatusTag(status){
   if(st.includes('INVALID')) return '<span class="tag tag-red">INVALID PAYLOAD</span>';
   return `<span class="tag tag-gray">${miniEsc(st||'NO REQUESTS')}</span>`;
 }
+function carrierLock(){ return localStorage.getItem('carrier_integration_lock') || ''; }
+function carrierUnlocked(){ return !!carrierLock(); }
+function updateCarrierLockView(){
+  const locked=!carrierUnlocked();
+  const lc=document.getElementById('carrierLockCard'), pr=document.getElementById('carrierProtected');
+  if(lc) lc.style.display=locked?'block':'none';
+  if(pr) pr.style.display=locked?'none':'block';
+}
+async function unlockCarrierIntegration(){
+  const p=(document.getElementById('carrierLockPassword')?.value||'').trim();
+  if(!p){alert('Enter carrier integration password.');return;}
+  localStorage.setItem('carrier_integration_lock',p);
+  updateCarrierLockView();
+  await loadCarrierSettings();
+}
 async function loadCarrierSettings(){
+  updateCarrierLockView();
+  if(!carrierUnlocked()) return;
   try{
-    const c=await API.get('/carrier-settings');
+    const c=await API.get('/carrier-settings?carrier_lock='+encodeURIComponent(carrierLock()));
     if(!document.getElementById('ciStatus')) return;
     ciStatus.value=c.integration_status||'disabled';
     ciIp.value=c.carrier_ip||'';
@@ -1939,11 +1964,11 @@ async function loadCarrierSettings(){
     ciRetentionCard.textContent=(c.retention_days||30)+' Days';
     ciInfo.innerHTML=`Endpoint path: <b>${c.endpoint_path||'/api/incoming-sms'}</b> · Current generated URL: <b>${c.generated_callback_url||''}</b>`;
     await loadCarrierWebhookLogs();
-  }catch(e){console.warn(e)}
+  }catch(e){ if(String(e.message||'').includes('locked')||String(e.message||'').includes('Locked')){localStorage.removeItem('carrier_integration_lock');updateCarrierLockView();alert('❌ Wrong carrier integration password.');} else console.warn(e); }
 }
 async function saveCarrierSettings(){
   try{
-    const body={integration_status:ciStatus.value,carrier_ip:ciIp.value.trim(),http_callback_url:ciCallback.value.trim(),api_key:ciApiKey.value.trim(),auth_token:ciToken.value.trim(),notes:ciNotes.value.trim(),retention_days:+ciRetention.value};
+    const body={integration_status:ciStatus.value,carrier_ip:ciIp.value.trim(),http_callback_url:ciCallback.value.trim(),api_key:ciApiKey.value.trim(),auth_token:ciToken.value.trim(),notes:ciNotes.value.trim(),retention_days:+ciRetention.value,carrier_lock_password:carrierLock()};
     await API.put('/carrier-settings',body);
     alert('✅ Carrier settings saved.');
     loadCarrierSettings();
@@ -1956,13 +1981,14 @@ function copyCarrierUrl(){
 }
 async function testCarrierConnection(){
   try{
-    const r=await API.post('/carrier-test',{});
+    const r=await API.post('/carrier-test',{carrier_lock_password:carrierLock()});
     alert(`✅ Endpoint reachable\nURL: ${r.endpoint}\nStatus: ${r.integration_status}\nAllowed IPs: ${(r.allowed_ips||[]).join(', ')||'none'}`);
   }catch(e){alert('❌ '+e.message)}
 }
 async function loadCarrierWebhookLogs(){
   try{
-    carrierWebhookLogs=await API.get('/carrier-webhook-logs?limit=500');
+    if(!carrierUnlocked()) return;
+    carrierWebhookLogs=await API.get('/carrier-webhook-logs?limit=500&carrier_lock='+encodeURIComponent(carrierLock()));
     const b=document.getElementById('ciLogBody'); if(!b)return;
     b.innerHTML=carrierWebhookLogs.map(r=>`<tr>
       <td>${(r.created_at||'').slice(0,19)}</td>
@@ -2169,18 +2195,14 @@ async function deleteNumbersByRange(){
   const rangeId=sel&&sel.value;
   if(!rangeId){alert('Please select a range first.');return;}
   const rangeName=sel.options[sel.selectedIndex]?.textContent||rangeId;
-  const confirmText='DELETE RANGE';
-  const v=prompt(`This will permanently delete ALL numbers in range: ${rangeName}\nLinked SMS records will also be removed.\nType ${confirmText} to continue:`);
-  if(v!==confirmText)return;
+  if(!confirm(`Delete ALL numbers in range: ${rangeName}?\nLinked SMS records will also be removed.`))return;
   try{const r=await API.del('/numbers/range/'+encodeURIComponent(rangeId));alert(`✅ Range deleted: ${r.deleted||0} numbers. Linked SMS removed: ${r.deleted_sms||0}.`);await afterNumberHardDelete();}catch(e){alert('❌ '+e.message)}
 }
 async function deleteAllNumbersFromDb(){
   const d=await API.get('/numbers?paged=1&page=1&limit=1').catch(()=>({total:0}));
   const total=Number(d.total||0);
   if(!total){alert('No numbers found in database.');return;}
-  const confirmText='DELETE ALL NUMBERS';
-  const v=prompt(`This will permanently delete ALL ${total.toLocaleString()} numbers from the database.\nLinked SMS records will also be removed and stats will reset accordingly.\nType ${confirmText} to continue:`);
-  if(v!==confirmText)return;
+  if(!confirm(`Delete ALL ${total.toLocaleString()} numbers from the database?\nLinked SMS records will also be removed and stats will reset accordingly.`))return;
   try{const r=await API.del('/numbers/all');alert(`✅ Deleted ${r.deleted||0} numbers. Linked SMS removed: ${r.deleted_sms||0}. Database optimized.`);await afterNumberHardDelete();}catch(e){alert('❌ '+e.message)}
 }
 async function deleteCurrentFilteredNumbers(){
@@ -2191,15 +2213,13 @@ async function deleteCurrentFilteredNumbers(){
   if(numClientFilter) body.owner=numClientFilter;
   if(clientFilterMode===1) body.allocation='unallocated';
   if(clientFilterMode===2) body.allocation='allocated';
-  if(!body.search&&!body.range&&!body.owner&&!body.allocation){alert('Apply Search / Range / Manager / Allocated filter first, or use Delete ALL Numbers from Import section.');return;}
+  if(!body.search&&!body.range&&!body.owner&&!body.allocation){alert('Apply Search / Range / Manager / Allocated filter first, or use Delete ALL Numbers.');return;}
   const params=new URLSearchParams({paged:'1',page:'1',limit:'1'});
   Object.keys(body).forEach(k=>params.set(k,body[k]));
   const d=await API.get('/numbers?'+params.toString()).catch(()=>({total:0}));
   const total=Number(d.total||0);
   if(!total){alert('No numbers match current filter.');return;}
-  const confirmText='DELETE FILTERED';
-  const v=prompt(`This will permanently delete ${total.toLocaleString()} number(s) matching current filters.\nOnly current page selection is NOT used; this deletes all matching DB records.\nType ${confirmText} to continue:`);
-  if(v!==confirmText)return;
+  if(!confirm(`Delete ${total.toLocaleString()} number(s) matching current filters?\nOnly current page selection is NOT used; this deletes all matching DB records.`))return;
   try{const r=await API.post('/numbers/delete-filtered',body);alert(`✅ Deleted ${r.deleted||0} filtered numbers. Linked SMS removed: ${r.deleted_sms||0}.`);await afterNumberHardDelete();}catch(e){alert('❌ '+e.message)}
 }
 
@@ -2260,7 +2280,7 @@ async function renderNumbers(){
   const pageLimit=Number(data.limit||25);
   const rows=(data.rows||[]).map(r=>({
     _id:r.id, range:r.range_name||'', prefix:r.prefix||'', number:r.number||'',
-    myPay:r.payterm||'Weekly', myVal:r.rate||'', client:r.manager_name||'',
+    myPay:r.payterm||'Weekly', myVal:r.effective_rate||r.rate||'', client:r.manager_name||'',
     payType:r.payterm||'Weekly', payVal:'$ '+(r.payout||'0'), sd:r.sd_limit||0, sw:r.sw_limit||0
   }));
   document.getElementById('numbersBody').innerHTML=rows.map(r=>`<tr>

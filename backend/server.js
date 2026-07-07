@@ -213,7 +213,7 @@ function checkSmsMilestoneNotifications(smsRow){
 app.post('/api/login', (req, res) => {
   const { username, password } = req.body || {};
   if (!username || !password) return res.status(400).json({ error: 'Username/password required' });
-  const u = db.get('SELECT * FROM users WHERE username=?', [username.toLowerCase().trim()]);
+  const u = db.get('SELECT * FROM users WHERE username=? COLLATE NOCASE', [String(username).trim()]);
   if (!u) return res.status(401).json({ error: 'Invalid username or password' });
   if (!u.active) return res.status(403).json({ error: 'Account is disabled' });
   if (!bcrypt.compareSync(password, u.password)) return res.status(401).json({ error: 'Invalid username or password' });
@@ -248,23 +248,33 @@ app.post('/api/users', authRequired, (req, res) => {
   const { username, password, role, name, email, whatsapp, contact, skype, active } = req.body || {};
   if (!username || !password || !role) return res.status(400).json({ error: 'username, password, role required' });
 
-  // permission: who can create what
-  const allowed = { admin: 'manager', manager: 'agent', agent: 'client' };
-  if (allowed[req.user.role] !== role)
+  // permission: Admin can create Manager/Agent/Client. Manager can create Agent/Client. Agent can create Client.
+  const allowed = {
+    admin: ['manager','agent','client'],
+    manager: ['agent','client'],
+    agent: ['client']
+  };
+  if (!(allowed[req.user.role] || []).includes(role))
     return res.status(403).json({ error: `You are not allowed to create this role` });
 
-  // role-specific required fields
-  if (role === 'manager' && !email) return res.status(400).json({ error: 'Manager email is required' });
-  if (role === 'agent' && !whatsapp) return res.status(400).json({ error: 'Agent WhatsApp number is required' });
-
-  const exists = db.get('SELECT id FROM users WHERE username=?', [username.toLowerCase().trim()]);
+  const cleanUsername = String(username || '').trim();
+  if (!cleanUsername) return res.status(400).json({ error: 'username required' });
+  const exists = db.get('SELECT id FROM users WHERE username=? COLLATE NOCASE', [cleanUsername]);
   if (exists) return res.status(409).json({ error: 'Username already taken' });
+
+  let parentId = req.body && req.body.parent_id ? parseInt(req.body.parent_id, 10) : req.user.id;
+  if (!Number.isFinite(parentId) || parentId <= 0) parentId = req.user.id;
+  // If a parent is provided, it must be in caller scope unless caller is admin.
+  if (parentId !== req.user.id && req.user.role !== 'admin') {
+    const ids = scopeIds(req.user);
+    if (!ids.includes(parentId)) return res.status(403).json({ error: 'Invalid parent user' });
+  }
 
   db.run(
     `INSERT INTO users (username,password,role,name,email,whatsapp,contact,skype,parent_id,active)
      VALUES (?,?,?,?,?,?,?,?,?,?)`,
-    [username.toLowerCase().trim(), bcrypt.hashSync(password, 10), role, name || '', email || '',
-     whatsapp || '', contact || '', skype || '', req.user.id, active === false ? 0 : 1]
+    [cleanUsername, bcrypt.hashSync(String(password), 10), role, name || '', email || '',
+     whatsapp || '', contact || '', skype || '', parentId, active === false ? 0 : 1]
   );
   logAction(req,'create_user','users',{username,role});
   res.json({ ok: true });
@@ -429,6 +439,7 @@ function buildNumberQuery(user, q) {
 }
 function numberSelectSql(where) {
   return `SELECT n.*, r.name AS range_name,
+            COALESCE(NULLIF(n.rate,''), NULLIF(r.rate_30_45,''), NULLIF(r.rate_7_1,''), NULLIF(r.rate_7_7,''), NULLIF(r.rate_1_1,''), '0') AS effective_rate,
             cu.username AS client_name, au.username AS agent_name, mu.username AS manager_name
      FROM numbers n
      LEFT JOIN ranges r ON r.id=n.range_id
@@ -454,7 +465,7 @@ app.get('/api/numbers/summary', authRequired, (req, res) => {
 
 // list numbers visible to caller (supports server-side pagination with ?paged=1)
 const NUMBER_PAGE_DEFAULT = 25;
-const NUMBER_PAGE_MAX = 1000; // keep large imports fast; never return 20k rows in one UI request
+const NUMBER_PAGE_MAX = 100000; // allows 5,000/All views while keeping a safety ceiling
 function parsePositiveInt(v, fallback) {
   const n = parseInt(v, 10);
   return Number.isFinite(n) && n > 0 ? n : fallback;
@@ -471,11 +482,10 @@ app.get('/api/numbers', authRequired, (req, res) => {
   const paged = req.query.paged || req.query.page || req.query.limit;
   if (paged) {
     const requestedLimitRaw = String(req.query.limit || NUMBER_PAGE_DEFAULT);
-    const requestedLimit = requestedLimitRaw.toLowerCase() === 'all'
-      ? NUMBER_PAGE_MAX
-      : parsePositiveInt(requestedLimitRaw, NUMBER_PAGE_DEFAULT);
-    const limit = Math.min(NUMBER_PAGE_MAX, Math.max(1, requestedLimit));
-    const totalPages = Math.max(1, Math.ceil(total / limit));
+    const isAll = requestedLimitRaw.toLowerCase() === 'all';
+    const requestedLimit = isAll ? Math.max(1, total) : parsePositiveInt(requestedLimitRaw, NUMBER_PAGE_DEFAULT);
+    const limit = isAll ? Math.max(1, total) : Math.min(NUMBER_PAGE_MAX, Math.max(1, requestedLimit));
+    const totalPages = isAll ? 1 : Math.max(1, Math.ceil(total / limit));
     const requestedPage = parsePositiveInt(req.query.page || '1', 1);
     const page = Math.min(Math.max(1, requestedPage), totalPages);
     const offset = (page - 1) * limit;
@@ -510,12 +520,12 @@ app.post('/api/numbers/allocate', authRequired, (req, res) => {
   let sets = '', vals = [];
   if (target.role === 'manager') {
     // Admin -> Manager: reset downstream ownership so old Agent/Client links do not remain.
-    sets = 'manager_id=?, agent_id=NULL, client_id=NULL';
+    sets = "manager_id=?, agent_id=NULL, client_id=NULL, payout='0', rate=''";
     vals = [target.id];
   } else if (target.role === 'agent') {
     // Manager -> Agent: keep manager chain and reset client ownership.
     const mgrId = target.parent_id;
-    sets = 'agent_id=?, manager_id=?, client_id=NULL';
+    sets = "agent_id=?, manager_id=?, client_id=NULL, payout='0', rate=''";
     vals = [target.id, mgrId];
   } else if (target.role === 'client') {
     // Agent -> Client: snapshot chain for future SMS.
@@ -525,7 +535,9 @@ app.post('/api/numbers/allocate', authRequired, (req, res) => {
     vals = [target.id, agentId, mgrId];
   }
   if (payterm) { sets += ', payterm=?'; vals.push(payterm); }
-  if (payout !== undefined && payout !== '') { sets += ', payout=?'; vals.push(String(payout)); }
+  // Rate lock rule: Admin->Manager and Manager->Agent must keep the existing/Admin rate.
+  // Only Agent->Client can set/change client payout.
+  if (req.user.role === 'agent' && payout !== undefined && payout !== '') { sets += ', payout=?'; vals.push(String(payout)); }
 
   db.run(`UPDATE numbers SET ${sets} WHERE id IN (${ph})`, [...vals, ...ids]);
   beforeRows.forEach(nr=>logNumberHistory(req,nr,'allocated','',target.username,{target_role:target.role}));
@@ -544,15 +556,15 @@ app.post('/api/numbers/unallocate', authRequired, (req, res) => {
   if (req.user.role === 'admin') {
     where = `id IN (${ph})`;
     params = ids;
-    updateSql = `UPDATE numbers SET manager_id=NULL, agent_id=NULL, client_id=NULL WHERE id IN (${ph})`;
+    updateSql = `UPDATE numbers SET manager_id=NULL, agent_id=NULL, client_id=NULL, payout='0', rate='' WHERE id IN (${ph})`;
   } else if (req.user.role === 'manager') {
     where = `id IN (${ph}) AND manager_id=?`;
     params = [...ids, req.user.id];
-    updateSql = `UPDATE numbers SET agent_id=NULL, client_id=NULL WHERE id IN (${ph}) AND manager_id=?`;
+    updateSql = `UPDATE numbers SET agent_id=NULL, client_id=NULL, payout='0', rate='' WHERE id IN (${ph}) AND manager_id=?`;
   } else if (req.user.role === 'agent') {
     where = `id IN (${ph}) AND agent_id=?`;
     params = [...ids, req.user.id];
-    updateSql = `UPDATE numbers SET client_id=NULL WHERE id IN (${ph}) AND agent_id=?`;
+    updateSql = `UPDATE numbers SET client_id=NULL, payout='0', rate='' WHERE id IN (${ph}) AND agent_id=?`;
   } else {
     return res.status(403).json({ error: 'Not allowed' });
   }
@@ -662,9 +674,9 @@ app.post('/api/numbers/unallocate-by-range', authRequired, (req, res) => {
   const ids = rows.map(r => r.id);
   const ph = ids.map(() => '?').join(',');
 
-  if (req.user.role === 'admin') db.run(`UPDATE numbers SET manager_id=NULL, agent_id=NULL, client_id=NULL WHERE id IN (${ph})`, ids);
-  else if (req.user.role === 'manager') db.run(`UPDATE numbers SET agent_id=NULL, client_id=NULL WHERE id IN (${ph}) AND manager_id=?`, [...ids, req.user.id]);
-  else if (req.user.role === 'agent') db.run(`UPDATE numbers SET client_id=NULL WHERE id IN (${ph}) AND agent_id=?`, [...ids, req.user.id]);
+  if (req.user.role === 'admin') db.run(`UPDATE numbers SET manager_id=NULL, agent_id=NULL, client_id=NULL, payout='0', rate='' WHERE id IN (${ph})`, ids);
+  else if (req.user.role === 'manager') db.run(`UPDATE numbers SET agent_id=NULL, client_id=NULL, payout='0', rate='' WHERE id IN (${ph}) AND manager_id=?`, [...ids, req.user.id]);
+  else if (req.user.role === 'agent') db.run(`UPDATE numbers SET client_id=NULL, payout='0', rate='' WHERE id IN (${ph}) AND agent_id=?`, [...ids, req.user.id]);
 
   rows.forEach(nr=>logNumberHistory(req,nr,'unallocated','','','Unallocate range quantity'));
   logAction(req,'unallocate_numbers_by_range','numbers',{rangeId,count:rows.length,role:req.user.role});
@@ -711,9 +723,9 @@ app.post('/api/numbers/smart-divide', authRequired, (req, res) => {
             [s.t, agt ? agt.parent_id : null, mgr ? mgr.parent_id : null, nid]);
         } else if (wantRole === 'agent') {
           const mgr = db.get('SELECT parent_id FROM users WHERE id=?', [s.t]);
-          db.run('UPDATE numbers SET agent_id=?, manager_id=?, client_id=NULL WHERE id=?', [s.t, mgr ? mgr.parent_id : null, nid]);
+          db.run("UPDATE numbers SET agent_id=?, manager_id=?, client_id=NULL, payout='0', rate='' WHERE id=?", [s.t, mgr ? mgr.parent_id : null, nid]);
         } else {
-          db.run('UPDATE numbers SET manager_id=?, agent_id=NULL, client_id=NULL WHERE id=?', [s.t, nid]);
+          db.run("UPDATE numbers SET manager_id=?, agent_id=NULL, client_id=NULL, payout='0', rate='' WHERE id=?", [s.t, nid]);
         }
       }
     }
@@ -1216,6 +1228,18 @@ function cleanupWebhookLogs(days){
   const d = Math.max(1, parseInt(days || 30));
   db.run(`DELETE FROM webhook_logs WHERE datetime(created_at) < datetime('now','-${d} days')`);
 }
+function carrierLockPassword(){ return process.env.CARRIER_LOCK_PASSWORD || 'Dawood'; }
+function carrierLockOk(req){
+  const q = req.query || {};
+  const b = req.body || {};
+  const provided = req.headers['x-carrier-lock'] || q.carrier_lock || q.carrier_lock_password || b.carrier_lock || b.carrier_lock_password || '';
+  return String(provided) === carrierLockPassword();
+}
+function requireCarrierLock(req, res){
+  if (carrierLockOk(req)) return true;
+  res.status(423).json({ error: 'Carrier Integration is locked', locked: true });
+  return false;
+}
 function carrierRuntimeStatus(){
   const lastSuccess = db.get(`SELECT created_at, source_ip FROM webhook_logs WHERE status='success' ORDER BY id DESC LIMIT 1`);
   const last = db.get(`SELECT * FROM webhook_logs ORDER BY id DESC LIMIT 1`);
@@ -1236,11 +1260,13 @@ function carrierRuntimeStatus(){
   };
 }
 app.get('/api/carrier-settings', authRequired, requireRole('admin'), (req,res)=>{
+  if (!requireCarrierLock(req, res)) return;
   const c=getCarrierSettings();
   // Runtime mode is HTTP only. SMPP fields may exist in old DBs, but are not used or enabled.
   res.json({ ...c, smpp_host:'', smpp_port:'', smpp_system_id:'', smpp_password:'', smpp_bind_type:'disabled', smpp_enabled:0, ...carrierRuntimeStatus(), integration_mode: 'HTTP', generated_callback_url: publicCallbackUrl(req), endpoint_path:'/api/incoming-sms' });
 });
 app.put('/api/carrier-settings', authRequired, requireRole('admin'), (req,res)=>{
+  if (!requireCarrierLock(req, res)) return;
   const b=req.body||{};
   const c=getCarrierSettings();
   // Force SMPP disabled at settings level too. No SMPP connect/reconnect loop exists in runtime.
@@ -1255,6 +1281,7 @@ app.put('/api/carrier-settings', authRequired, requireRole('admin'), (req,res)=>
 
 
 app.post('/api/carrier-test', authRequired, requireRole('admin'), (req,res)=>{
+  if (!requireCarrierLock(req, res)) return;
   const c=getCarrierSettings();
   const callback = publicCallbackUrl(req);
   logAction(req,'test_carrier_endpoint','carrier_integration',{callback,status:c.integration_status,carrier_ip:c.carrier_ip});
@@ -1263,6 +1290,7 @@ app.post('/api/carrier-test', authRequired, requireRole('admin'), (req,res)=>{
 
 
 app.get('/api/carrier-webhook-logs', authRequired, requireRole('admin'), (req,res)=>{
+  if (!requireCarrierLock(req, res)) return;
   const limit = Math.min(1000, parseInt(req.query.limit || '500'));
   res.json(db.all(`SELECT * FROM webhook_logs ORDER BY id DESC LIMIT ${limit}`));
 });
@@ -1592,9 +1620,9 @@ app.put('/api/profile', authRequired, (req, res) => {
   const current = db.get('SELECT * FROM users WHERE id=?', [req.user.id]);
   if (!current) return res.status(404).json({ error: 'User not found' });
 
-  const newUsername = String(b.username || current.username).trim().toLowerCase();
+  const newUsername = String(b.username || current.username).trim();
   if (!newUsername) return res.status(400).json({ error: 'Username is required' });
-  const exists = db.get('SELECT id FROM users WHERE username=? AND id<>?', [newUsername, req.user.id]);
+  const exists = db.get('SELECT id FROM users WHERE username=? COLLATE NOCASE AND id<>?', [newUsername, req.user.id]);
   if (exists) return res.status(409).json({ error: 'Username already exists' });
 
   const newPassword = String(b.new_password || '');

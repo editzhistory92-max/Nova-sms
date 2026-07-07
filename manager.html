@@ -16,6 +16,21 @@
   body.ms-dark-mode .page-head{border-bottom-color:#334155!important}
   body.ms-dark-mode .page > .toolbar:not(:first-child)::before,body.ms-dark-mode .page > .table-wrap:not(:first-child)::before,body.ms-dark-mode .page > .card:not(:first-child)::before,body.ms-dark-mode .page > .grid2:not(:first-child)::before{background:#334155!important}
 
+
+
+  /* ===== Manager sidebar navigation (same style as other panels) ===== */
+  @media(min-width:901px){
+    .appbar{position:fixed!important;left:0!important;top:0!important;bottom:0!important;width:260px!important;height:100vh!important;z-index:60!important;display:flex!important;flex-direction:column!important;overflow-y:auto!important;overflow-x:hidden!important;background:linear-gradient(180deg,#050505,#0B0B0B)!important;border-right:1px solid #1F2937!important;border-bottom:0!important;box-shadow:8px 0 28px rgba(15,23,42,.10)!important}
+    .appbar-top{display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:12px!important;padding:16px 14px!important;border-bottom:1px solid rgba(212,175,55,.20)!important}
+    .appbar-top .spacer,.appbar-top .clock{display:none!important}
+    .appbar-top .brand{width:100%!important}.appbar-top .brand h1{color:#F8FAFC!important}.appbar-top .brand small{color:#CBD5E1!important}
+    .appbar-top .who{width:100%!important;justify-content:flex-start!important;background:#111827!important;border-color:#334155!important;color:#CBD5E1!important}
+    .appbar-top .tb-btn{width:100%!important;height:36px!important;border-radius:10px!important;justify-content:flex-start!important;padding-left:12px!important;background:#111827!important;color:#CBD5E1!important}
+    .navtabs{display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:6px!important;padding:12px!important;overflow:visible!important;flex-wrap:nowrap!important}
+    .dropwrap{width:100%!important;position:static!important}.navtab{width:100%!important;border:0!important;border-radius:12px!important;padding:12px 13px!important;color:#CBD5E1!important;background:transparent!important;justify-content:flex-start!important}.navtab:hover{background:#1A1A1A!important;color:#FDE68A!important}.navtab.active{background:linear-gradient(135deg,#D4AF37,#F59E0B)!important;color:#0F172A!important;box-shadow:0 12px 26px rgba(212,175,55,.24)!important}.navtab.active svg{stroke:#0F172A!important}.navtab .chev{margin-left:auto!important}
+    .dropmenu{position:static!important;min-width:0!important;width:100%!important;box-shadow:none!important;border:0!important;background:transparent!important;padding:3px 0 3px 14px!important;margin:0!important;display:none!important}.dropmenu.show{display:block!important;animation:none!important}.dropitem{border-radius:10px!important;color:#CBD5E1!important;padding:9px 12px!important}.dropitem:hover,.dropitem.active{background:rgba(212,175,55,.14)!important;color:#FDE68A!important}
+    .content{margin-left:260px!important;max-width:none!important;width:calc(100% - 260px)!important;padding:26px 22px!important}
+  }
 </style>
 <script>
 (function(){
@@ -597,7 +612,7 @@
   <div class="modal-body">
     <div class="form-group"><label>Select Agent <span class="req">*</span></label><select id="aaAgent"><option value="">Please Select</option></select></div>
     <div class="form-group"><label>Payterm</label><select id="aaPayterm"><option value="">Please Select</option><option>Weekly</option><option>Weekly7</option><option>Monthly</option></select></div>
-    <div class="form-group"><label>Payout ($)</label><input type="number" id="aaPayout" step="0.001" value="0" placeholder="0"/></div>
+    <div class="form-group" style="display:none"><label>Payout ($) Locked</label><input type="number" id="aaPayout" step="0.001" value="0" placeholder="0" disabled/></div>
     <div class="hint" id="aaCount"></div>
   </div>
   <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal('allocAllModal')">Cancel</button><button class="btn btn-teal" onclick="confirmAllocAll()">Allocate</button></div>
@@ -625,7 +640,7 @@
     <div class="form-group"><label>Username <span class="req">*</span></label><input type="text" id="aU" placeholder="Enter username"/></div>
     <div class="form-group"><label>Password <span class="req">*</span></label><input type="password" id="aP" placeholder="Enter password"/></div>
     <div class="form-group"><label>Full Name</label><input type="text" id="aN" placeholder="Optional"/></div>
-    <div class="form-group"><label>WhatsApp Number <span class="req">*</span></label><input type="text" id="aW" placeholder="Required for agents"/></div>
+    <div class="form-group"><label>WhatsApp Number</label><input type="text" id="aW" placeholder="Optional"/></div>
     <div class="form-grid"><div class="form-group"><label>Email</label><input type="email" id="aE" placeholder="Optional"/></div><div class="form-group"><label>Skype</label><input type="text" id="aS" placeholder="Optional"/></div></div>
     <div class="form-group"><label class="switch"><input type="checkbox" id="aA" checked/> Account Active</label></div>
   </div>
@@ -708,7 +723,7 @@ let nSort={k:null,d:1},agFilter=0,rangeF='',agentF='';
 function sortNum(k){if(nSort.k===k)nSort.d*=-1;else{nSort.k=k;nSort.d=1;}if(k==='number')document.getElementById('nSortHint').textContent=nSort.d===1?'▲':'▼';renderNumbers();}
 function cycleAgentFilter(){agFilter=(agFilter+1)%3;document.getElementById('aSortHint').textContent=agFilter===0?'⇅':(agFilter===1?'Unallocated ▾':'Allocated ▾');renderNumbers();}
 function resetNum(){rangeF='';agentF='';document.getElementById('numRange').value='';document.getElementById('numAgent').value='';document.getElementById('numSearch').value='';agFilter=0;document.getElementById('aSortHint').textContent='⇅';renderNumbers();}
-async function loadNumbers(){ try{ numData=(await API.get('/numbers')).map(r=>({id:r.id,range:r.range_name||'',number:r.number,rate:r.rate||'',agent:r.agent_name||'',sd:r.sd_limit||0,sw:r.sw_limit||0})); }catch(e){ numData=[]; } renderNumbers(); }
+async function loadNumbers(){ try{ numData=(await API.get('/numbers')).map(r=>({id:r.id,range:r.range_name||'',number:r.number,rate:r.effective_rate||r.rate||'',agent:r.agent_name||'',sd:r.sd_limit||0,sw:r.sw_limit||0})); }catch(e){ numData=[]; } renderNumbers(); }
 function renderNumbers(){
   rangeF=document.getElementById('numRange').value;agentF=document.getElementById('numAgent').value;
   const len=document.getElementById('numLen').value,q=(document.getElementById('numSearch').value||'').toLowerCase();
@@ -787,7 +802,7 @@ function findAgent(id){return (agentsData||[]).find(x=>x.id===id);}
 function openAgent(id){agId=id;document.getElementById('agentModalTitle').textContent=id<0?'Add Agent':'Edit Agent';
   const r=id<0?{username:'',name:'',email:'',whatsapp:'',skype:'',active:1}:findAgent(id)||{};aU.value=r.username||'';aP.value='';aN.value=r.name||'';aE.value=r.email||'';aW.value=r.whatsapp||'';aS.value=r.skype||'';aA.checked=!!r.active;aU.disabled=id>=0;
   document.getElementById('agentModal').classList.add('show');}
-async function saveAgent(){if(!aU.value.trim()){alert('Username is required.');return;}if(agId<0&&!aP.value){alert('Password is required.');return;}if(!aW.value.trim()){alert('Agent WhatsApp number is required.');return;}
+async function saveAgent(){if(!aU.value.trim()){alert('Username is required.');return;}if(agId<0&&!aP.value){alert('Password is required.');return;}
   const body={username:aU.value.trim(),password:aP.value,role:'agent',name:aN.value.trim(),email:aE.value.trim(),whatsapp:aW.value.trim(),skype:aS.value.trim(),active:aA.checked};
   try{ if(agId<0) await API.post('/users',body); else await API.put('/users/'+agId,body); closeModal('agentModal'); loadAgents(); }catch(e){ alert('❌ '+e.message); }}
 async function delAgent(id){if(confirm('Delete this agent?')){try{await API.del('/users/'+id);loadAgents();}catch(e){alert('❌ '+e.message);}}}
@@ -964,7 +979,7 @@ async function loadProfile(){try{const me=await API.get('/me');MGR=me.name||me.u
 async function loadDashboard(){try{const d=await API.get('/dashboard');const cards=document.querySelectorAll('#page-dashboard .stat-card .stat-info h3');[d.sms_today,d.sms_yesterday,d.sms_7d,money(d.payout_month)].forEach((v,i)=>{if(cards[i])cards[i].textContent=String(v)});const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];drawWeek((d.daily7||[]).map(x=>({l:days[new Date(x.date).getDay()]||'',v:x.count||0})));const recentCard=document.querySelector('#page-dashboard .dashboard-recent');if(recentCard){const head=recentCard.querySelector('.card-head')?.outerHTML||'';recentCard.innerHTML=head+((d.recent||[]).map(r=>`<div class="li"><div class="l"><div><div class="t1">SMS received — ${r.number||'—'}</div><div class="t2">${(r.received_at||'').slice(0,16)} · ${r.cli||'—'}</div></div></div></div>`).join('')||'<div class="muted" style="padding:18px">No recent activity yet</div>');}}catch(e){console.warn(e)}}
 function rebuildBa(){baData=(rateCard||[]).map(r=>{const nums=(numData||[]).filter(n=>n.range===r.range);const alloc=nums.filter(n=>n.agent).length;return{id:r.id,range:r.range,total:nums.length,alloc,avail:nums.length-alloc,rate:r.r4||r.r2||'NA'};});}
 async function loadRateCard(){ try{const ranges=await API.get('/ranges'); rateCard=ranges.map(r=>({id:r.id,range:r.name,prefix:r.prefix,cur:r.currency,r1:r.rate_1_1,r2:r.rate_7_1,r3:r.rate_7_7,r4:r.rate_30_45,test_number:r.test_number})); rangeNames=rateCard.map(r=>r.range); try{testNumbers=(await API.get('/test-numbers')).map(t=>({range:t.range_name,num:t.number,payout:t.payout||'Ask'}));}catch(e){testNumbers=[];} }catch(e){ rateCard=[]; rangeNames=[]; testNumbers=[]; } renderRateCard(); fillSel('numRange',rangeNames);fillSel('baRange',rangeNames);fillSel('testRange',rangeNames);rebuildBa();renderBulk();renderTest(); }
-async function loadNumbers(){ try{ numData=(await API.get('/numbers')).map(r=>({id:r.id,range_id:r.range_id,range:r.range_name||'',number:r.number,rate:r.rate||'',agent:r.agent_name||'',agent_id:r.agent_id,sd:r.sd_limit||0,sw:r.sw_limit||0})); }catch(e){ numData=[]; } rebuildBa(); renderNumbers(); renderBulk(); }
+async function loadNumbers(){ try{ numData=(await API.get('/numbers')).map(r=>({id:r.id,range_id:r.range_id,range:r.range_name||'',number:r.number,rate:r.effective_rate||r.rate||'',agent:r.agent_name||'',agent_id:r.agent_id,sd:r.sd_limit||0,sw:r.sw_limit||0})); }catch(e){ numData=[]; } rebuildBa(); renderNumbers(); renderBulk(); }
 async function loadAgents(){ try{ agentsData=await API.get('/users/agent'); }catch(e){ agentsData=[]; } refreshAgentClientMaps(); fillSel('numAgent',myAgents);fillSel('bulkAgent',myAgents);fillSel('baAgent',myAgents); renderAgents(); if(document.getElementById('clBody')) renderClients(); if(document.getElementById('sdAgent')){fillSel('sdAgent',myAgents);document.getElementById('sdAgent').children[0].textContent='Filter Agent';} }
 async function loadClients(){ try{ clientsData=await API.get('/users/client'); }catch(e){ clientsData=[]; } refreshAgentClientMaps(); if(document.getElementById('clBody')) {buildClients();} }
 async function loadSms(){ try{ smsRecords=await API.get('/sms'); }catch(e){ smsRecords=[]; } cdr=(smsRecords||[]).map(smsToCdr); recentTests=(smsRecords||[]).slice(0,50).map(r=>({date:(r.received_at||'').slice(0,16),range:r.range_name||'—',num:r.number||'',cli:r.cli||'',msg:r.message||''})); refreshAgentClientMaps(); const b=document.getElementById('agSumBody');if(b){const byAgt={};smsRecords.forEach(r=>{const a=r.agent_name||'—';byAgt[a]=(byAgt[a]||0)+1;});b.innerHTML=Object.keys(byAgt).map(a=>`<tr><td><span class="tag tag-agt">${a}</span></td><td><span class="tag tag-cli">${(agentClients[a]||[]).length}</span></td><td class="cell-money">${byAgt[a]}</td><td class="cell-money" style="color:#6ee7b7">$ ${sumPay((smsRecords||[]).filter(r=>r.agent_name===a))}</td></tr>`).join('')||`<tr><td colspan="4" class="muted" style="text-align:center;padding:16px">No records found</td></tr>`;} if(document.getElementById('srBody'))renderSmsReport(); if(document.getElementById('sdBody'))renderSmsDetail(); ['client','agent'].forEach(k=>{if(document.getElementById(k+'Body')){buildEntTot(k);renderEntity(k);}}); ['range','number'].forEach(k=>{if(document.getElementById(k+'Body')){buildDrillTot(k);renderDrill(k);}}); renderTest(); }
@@ -1005,6 +1020,6 @@ buildDrill('range');buildDrill('number');
 renderTest();renderCredit();loadManagerPayout();loadClim();loadNews();
 </script>
 
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a16cdbcd6ffcde71',t:'MTc4MzMyMjU0OQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 </html>

@@ -24,6 +24,12 @@
   body.ms-dark-mode .page-head{border-bottom-color:#334155!important}
   body.ms-dark-mode .page > .toolbar:not(:first-child)::before,body.ms-dark-mode .page > .table-wrap:not(:first-child)::before,body.ms-dark-mode .page > .card:not(:first-child)::before,body.ms-dark-mode .page > .grid2:not(:first-child)::before{background:#334155!important}
 
+
+
+  /* ===== Agent mobile sidebar button fix ===== */
+  .hamburger{display:none;align-items:center;justify-content:center;width:38px;height:38px;border:0;border-radius:10px;background:transparent;color:#64748B;font-size:22px;font-weight:900;cursor:pointer}
+  .hamburger:hover{background:#FEF3C7;color:#92400E}
+  @media(max-width:900px){.hamburger{display:flex!important}.rail.show{transform:translateX(0)!important;width:238px!important;align-items:stretch!important}.rail.show .brand-text,.rail.show .ritem .lbl,.rail.show .rsubitem .lbl,.rail.show .ritem .chev{opacity:1!important;display:block!important}.rail.show .rsub{max-height:500px!important}}
 </style>
 <script>
 (function(){
@@ -413,6 +419,7 @@
 
   <div class="main">
     <header class="topbar">
+      <button class="hamburger" type="button" onclick="toggleRail()" aria-label="Menu">☰</button>
       <span class="tb-title" id="pageTitle">Dashboard</span>
       <span class="clock" id="clock">Fri, 2026-07-03 05:33:57</span>
       <button class="tb-btn" title="News"><span class="dot"></span><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></button>
@@ -620,6 +627,7 @@ function showPage(id,el){document.querySelectorAll('.page').forEach(p=>p.classLi
 document.querySelectorAll('.ritem[data-page]').forEach(n=>n.addEventListener('click',()=>showPage(n.dataset.page,n)));
 document.querySelectorAll('.rsubitem').forEach(s=>s.addEventListener('click',()=>{showPage(s.dataset.page,s);const p=s.closest('.rsub').previousElementSibling;if(p)p.classList.add('active');}));
 function toggleSub(subId,pId){document.getElementById(subId).classList.toggle('open');document.getElementById(pId).classList.toggle('open');}
+function toggleRail(){document.getElementById('rail')?.classList.toggle('show');}
 function closeModal(id){document.getElementById(id).classList.remove('show');}
 function toggleFull(){if(!document.fullscreenElement){document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen();}else{document.exitFullscreen&&document.exitFullscreen();}}
 function logout(){ if(confirm('Do you want to logout?')){ if(window.API&&API.logout){API.logout();}else{try{localStorage.clear();}catch(e){} window.location.href='/login';} } }
@@ -668,7 +676,7 @@ let nSort={k:null,d:1},cliF=0,rangeF='',clientF='';
 function sortNum(k){if(nSort.k===k)nSort.d*=-1;else{nSort.k=k;nSort.d=1;}if(k==='number')document.getElementById('nSortHint').textContent=nSort.d===1?'▲':'▼';renderNumbers();}
 function cycleClientFilter(){cliF=(cliF+1)%3;document.getElementById('cSortHint').textContent=cliF===0?'⇅':(cliF===1?'Unallocated ▾':'Allocated ▾');renderNumbers();}
 function resetNum(){rangeF='';clientF='';document.getElementById('numRange').value='';document.getElementById('numClient').value='';document.getElementById('numSearch').value='';cliF=0;document.getElementById('cSortHint').textContent='⇅';renderNumbers();}
-async function loadNumbers(){ try{ numData=(await API.get('/numbers')).map(r=>({id:r.id,range:r.range_name||'',number:r.number,rate:r.rate||'',client:r.client_name||'',sd:r.sd_limit||0,sw:r.sw_limit||0})); }catch(e){ numData=[]; } renderNumbers(); }
+async function loadNumbers(){ try{ numData=(await API.get('/numbers')).map(r=>({id:r.id,range:r.range_name||'',number:r.number,rate:r.effective_rate||r.rate||'',client:r.client_name||'',sd:r.sd_limit||0,sw:r.sw_limit||0})); }catch(e){ numData=[]; } renderNumbers(); }
 function renderNumbers(){rangeF=document.getElementById('numRange').value;clientF=document.getElementById('numClient').value;
   const len=document.getElementById('numLen').value,q=(document.getElementById('numSearch').value||'').toLowerCase();
   let rows=(numData||[]).filter(r=>(r.number.includes(q)||r.client.toLowerCase().includes(q)||r.range.toLowerCase().includes(q)));
@@ -878,7 +886,7 @@ async function loadProfile(){try{const me=await API.get('/me');AGT=me.name||me.u
 async function loadDashboard(){try{const d=await API.get('/dashboard');const cards=document.querySelectorAll('#page-dashboard .stat-card .stat-info h3');[d.sms_today,d.sms_yesterday,d.sms_7d,money(d.payout_month)].forEach((v,i)=>{if(cards[i])cards[i].textContent=String(v)});const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];drawWeek((d.daily7||[]).map(x=>({l:days[new Date(x.date).getDay()]||'',v:x.count||0})));const recentCard=document.querySelector('#page-dashboard .dashboard-recent');if(recentCard){const head=recentCard.querySelector('.card-head')?.outerHTML||'';recentCard.innerHTML=head+((d.recent||[]).map(r=>`<div class="li"><div class="l"><div><div class="t1">SMS received — ${r.number||'—'}</div><div class="t2">${(r.received_at||'').slice(0,16)} · ${r.cli||'—'}</div></div></div></div>`).join('')||'<div class="muted" style="padding:18px">No recent activity yet</div>');}}catch(e){console.warn(e)}}
 function rebuildBa(){baData=(rateCard||[]).map(r=>{const nums=(numData||[]).filter(n=>n.range===r.range);const alloc=nums.filter(n=>n.client).length;return{id:r.id,range:r.range,total:nums.length,alloc,avail:nums.length-alloc,rate:r.r4||r.r2||'NA'};});}
 async function loadRateCard(){ try{const ranges=await API.get('/ranges'); rateCard=ranges.map(r=>({id:r.id,range:r.name,cur:r.currency,r1:r.rate_1_1,r2:r.rate_7_1,r3:r.rate_7_7,r4:r.rate_30_45,test_number:r.test_number})); rangeNames=rateCard.map(r=>r.range); try{testNumbers=(await API.get('/test-numbers')).map(t=>({range:t.range_name,num:t.number,payout:t.payout||'Ask'}));}catch(e){testNumbers=[];} }catch(e){ rateCard=[]; rangeNames=[]; testNumbers=[]; } renderRateCard(); fillSel('numRange',rangeNames);fillSel('baRange',rangeNames);fillSel('testRange',rangeNames);rebuildBa();renderBulk();renderTest(); }
-async function loadNumbers(){ try{ numData=(await API.get('/numbers')).map(r=>({id:r.id,range_id:r.range_id,range:r.range_name||'',number:r.number,rate:r.rate||'',client:r.client_name||'',client_id:r.client_id,sd:r.sd_limit||0,sw:r.sw_limit||0})); }catch(e){ numData=[]; } rebuildBa(); renderNumbers(); renderBulk(); }
+async function loadNumbers(){ try{ numData=(await API.get('/numbers')).map(r=>({id:r.id,range_id:r.range_id,range:r.range_name||'',number:r.number,rate:r.effective_rate||r.rate||'',client:r.client_name||'',client_id:r.client_id,sd:r.sd_limit||0,sw:r.sw_limit||0})); }catch(e){ numData=[]; } rebuildBa(); renderNumbers(); renderBulk(); }
 async function loadClients(){ try{ clientsData=await API.get('/users/client'); }catch(e){ clientsData=[]; } refreshClients(); refreshClientSelects(); renderClients(); }
 async function loadSms(){ try{ smsRecords=await API.get('/sms'); }catch(e){ smsRecords=[]; } cdr=(smsRecords||[]).map(smsToCdr); recentTests=(smsRecords||[]).slice(0,50).map(r=>({date:(r.received_at||'').slice(0,16),range:r.range_name||'—',num:r.number||'',cli:r.cli||'',msg:r.message||''})); refreshClients(); const byCli={};smsRecords.forEach(r=>{const c=r.client_name||'—';byCli[c]=(byCli[c]||0)+1;});const b=document.getElementById('clSumBody');if(b)b.innerHTML=Object.keys(byCli).map(c=>`<tr><td><span class="tag tag-cli">${c}</span></td><td class="cell-money">${byCli[c]}</td><td class="cell-money" style="color:#86efac">$ ${sumPay((smsRecords||[]).filter(r=>r.client_name===c))}</td></tr>`).join('')||`<tr><td colspan="3" class="muted" style="text-align:center;padding:16px">No records found</td></tr>`; if(document.getElementById('srBody'))renderSmsReport();if(document.getElementById('sdBody'))renderSmsDetail();if(document.getElementById('csBody'))renderClientStats();['range','number'].forEach(k=>{if(document.getElementById(k+'Body')){buildDrillTot(k);renderDrill(k);}});renderTest(); }
 function baRow(i){const q=parseInt(document.getElementById('bq'+i).value),c=document.getElementById('bc'+i).value;if(!q||!c){alert('Select client and quantity.');return;}const row=baData[i],cl=(clientsData||[]).find(x=>x.username===c);if(!row||!cl)return;API.post('/numbers/smart-divide',{range_ids:[row.id],target_ids:[cl.id],qty:q}).then(res=>{alert(`✅ ${res.total||0} numbers allocated.`);loadNumbers();}).catch(e=>alert('❌ '+e.message));}
@@ -906,6 +914,6 @@ buildDrill('range');buildDrill('number');
 renderTest();renderPay();loadAgentPayout();loadNews();
 </script>
 
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a16cdbb6a89ede71',t:'MTc4MzMyMjU0NQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 </html>
