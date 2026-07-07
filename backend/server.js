@@ -1294,6 +1294,13 @@ app.get('/api/carrier-webhook-logs', authRequired, requireRole('admin'), (req,re
   const limit = Math.min(1000, parseInt(req.query.limit || '500'));
   res.json(db.all(`SELECT * FROM webhook_logs ORDER BY id DESC LIMIT ${limit}`));
 });
+app.delete('/api/carrier-webhook-logs', authRequired, requireRole('admin'), (req,res)=>{
+  if (!requireCarrierLock(req, res)) return;
+  const count = db.get('SELECT COUNT(*) c FROM webhook_logs')?.c || 0;
+  db.run('DELETE FROM webhook_logs');
+  logAction(req,'clear_carrier_webhook_logs','carrier_integration',{count});
+  res.json({ok:true,deleted:count});
+});
 
 /* ============ LOGS / FAILED QUEUE ============ */
 app.get('/api/logs/activity', authRequired, requireRole('admin'), (req,res)=>{

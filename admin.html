@@ -805,7 +805,7 @@
           <button class="btn btn-purple" onclick="saveCarrierSettings()">Save Carrier Settings</button>
         </div>
         <div class="card" style="margin-bottom:16px">
-          <div class="card-head"><div><h3>Carrier Webhook Logs</h3><div class="sub">Incoming carrier requests and system responses for debugging.</div></div><div class="head-actions"><button class="btn btn-blue" onclick="loadCarrierWebhookLogs()">Refresh Logs</button><button class="btn btn-green" onclick="exportCarrierLogsCsv()">Export CSV / Excel</button></div></div>
+          <div class="card-head"><div><h3>Carrier Webhook Logs</h3><div class="sub">Incoming carrier requests and system responses for debugging.</div></div><div class="head-actions"><button class="btn btn-blue" onclick="loadCarrierWebhookLogs()">Refresh Logs</button><button class="btn btn-red" onclick="clearCarrierWebhookLogs()">Clear Logs</button><button class="btn btn-green" onclick="exportCarrierLogsCsv()">Export CSV / Excel</button></div></div>
           <div class="table-wrap"><div class="tscroll"><table>
             <thead><tr><th>Timestamp</th><th>Source IP</th><th>Number</th><th>CLI/Sender</th><th>Message Preview</th><th>Status</th><th>Error Message</th></tr></thead>
             <tbody id="ciLogBody"></tbody>
@@ -2002,6 +2002,11 @@ async function loadCarrierWebhookLogs(){
     ciLogInfo.textContent=`${carrierWebhookLogs.length} log records`;
   }catch(e){console.warn(e)}
 }
+async function clearCarrierWebhookLogs(){
+  if(!carrierUnlocked()){updateCarrierLockView();return;}
+  if(!confirm('Clear all carrier webhook logs? This only removes debug logs, not SMS records.')) return;
+  try{const r=await API.del('/carrier-webhook-logs?carrier_lock='+encodeURIComponent(carrierLock()));alert(`✅ Cleared ${r.deleted||0} carrier log(s).`);await loadCarrierWebhookLogs();await loadCarrierSettings();}catch(e){alert('❌ '+e.message)}
+}
 function exportCarrierLogsCsv(){
   const rows=carrierWebhookLogs||[];
   const headers=['Timestamp','Source IP','Number','Matched Number','CLI/Sender','Message Preview','Status','Error Message'];
@@ -2319,6 +2324,6 @@ loadNews();
   loadCliLimits();
 })();
 </script>
-<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a17534e70df6fd88',t:'MTc4MzQxMDA4NA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 </html>

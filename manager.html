@@ -382,9 +382,48 @@
   body.ms-dark-mode .page-head{border-bottom-color:#334155!important}
   body.ms-dark-mode .page > .toolbar:not(:first-child)::before,body.ms-dark-mode .page > .table-wrap:not(:first-child)::before,body.ms-dark-mode .page > .card:not(:first-child)::before,body.ms-dark-mode .page > .grid2:not(:first-child)::before{background:#334155!important}
 
+
+
+  /* ===== FINAL Manager layout: Admin-like left sidebar + mobile drawer ===== */
+  @media(min-width:901px){
+    body .appbar{position:fixed!important;left:0!important;top:0!important;bottom:0!important;width:260px!important;height:100vh!important;z-index:70!important;display:flex!important;flex-direction:column!important;overflow-y:auto!important;overflow-x:hidden!important;background:linear-gradient(180deg,#050505,#0B0B0B)!important;border-right:1px solid #1F2937!important;border-bottom:0!important;box-shadow:8px 0 28px rgba(15,23,42,.10)!important;transform:none!important}
+    body .appbar-top{display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:12px!important;padding:16px 14px!important;border-bottom:1px solid rgba(212,175,55,.20)!important}
+    body .appbar-top .spacer,body .appbar-top .clock{display:none!important}
+    body .appbar-top .brand{width:100%!important} body .appbar-top .brand h1{color:#F8FAFC!important} body .appbar-top .brand small{color:#CBD5E1!important}
+    body .appbar-top .who{width:100%!important;justify-content:flex-start!important;background:#111827!important;border-color:#334155!important;color:#CBD5E1!important}
+    body .appbar-top .tb-btn{width:100%!important;height:36px!important;border-radius:10px!important;justify-content:flex-start!important;padding-left:12px!important;background:#111827!important;color:#CBD5E1!important}
+    body .navtabs{display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:6px!important;padding:12px!important;overflow:visible!important;flex-wrap:nowrap!important}
+    body .dropwrap{width:100%!important;position:static!important}
+    body .navtab{width:100%!important;border:0!important;border-radius:12px!important;padding:12px 13px!important;color:#CBD5E1!important;background:transparent!important;justify-content:flex-start!important}
+    body .navtab:hover{background:#1A1A1A!important;color:#FDE68A!important}
+    body .navtab.active{background:linear-gradient(135deg,#D4AF37,#F59E0B)!important;color:#0F172A!important;box-shadow:0 12px 26px rgba(212,175,55,.24)!important}
+    body .navtab.active svg{stroke:#0F172A!important} body .navtab .chev{margin-left:auto!important}
+    body .dropmenu{position:static!important;min-width:0!important;width:100%!important;box-shadow:none!important;border:0!important;background:transparent!important;padding:3px 0 3px 14px!important;margin:0!important;display:none!important}
+    body .dropmenu.show{display:block!important;animation:none!important}
+    body .dropitem{border-radius:10px!important;color:#CBD5E1!important;padding:9px 12px!important}
+    body .dropitem:hover,body .dropitem.active{background:rgba(212,175,55,.14)!important;color:#FDE68A!important}
+    body .content{margin-left:260px!important;max-width:none!important;width:calc(100% - 260px)!important;padding:26px 22px!important}
+    .mgr-mobile-menu,.mgr-mobile-overlay{display:none!important}
+  }
+  @media(max-width:900px){
+    body .appbar{position:fixed!important;left:0!important;top:0!important;bottom:0!important;width:260px!important;height:100vh!important;z-index:1000!important;display:flex!important;flex-direction:column!important;overflow-y:auto!important;overflow-x:hidden!important;background:linear-gradient(180deg,#050505,#0B0B0B)!important;border-right:1px solid #1F2937!important;border-bottom:0!important;box-shadow:8px 0 28px rgba(15,23,42,.22)!important;transform:translateX(-105%)!important;transition:transform .22s ease!important}
+    body .appbar.show{transform:translateX(0)!important}
+    body .appbar-top{display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:10px!important;padding:14px!important;border-bottom:1px solid rgba(212,175,55,.20)!important}
+    body .appbar-top .spacer,body .appbar-top .clock{display:none!important}
+    body .navtabs{display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:6px!important;padding:12px!important;overflow:visible!important;flex-wrap:nowrap!important}
+    body .dropwrap{width:100%!important;position:static!important}
+    body .navtab{width:100%!important;border:0!important;border-radius:12px!important;padding:12px 13px!important;color:#CBD5E1!important;background:transparent!important;justify-content:flex-start!important}
+    body .navtab:hover,body .navtab.active{background:linear-gradient(135deg,#D4AF37,#F59E0B)!important;color:#0F172A!important}
+    body .dropmenu{position:static!important;width:100%!important;box-shadow:none!important;border:0!important;background:transparent!important;padding:3px 0 3px 14px!important;display:none!important}.dropmenu.show{display:block!important}
+    body .dropitem{color:#CBD5E1!important;border-radius:10px!important;padding:9px 12px!important}.dropitem:hover,.dropitem.active{background:rgba(212,175,55,.14)!important;color:#FDE68A!important}
+    body .content{margin-left:0!important;width:100%!important;padding:68px 14px 20px!important;max-width:none!important}
+    .mgr-mobile-menu{display:flex!important;position:fixed!important;top:12px!important;left:12px!important;z-index:1002!important;width:42px!important;height:42px!important;border:1px solid #E2E8F0!important;border-radius:12px!important;background:#fff!important;color:#0f2454!important;align-items:center!important;justify-content:center!important;font-size:24px!important;font-weight:900!important;box-shadow:0 10px 24px rgba(15,23,42,.14)!important}
+    .mgr-mobile-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,.42);z-index:999}.mgr-mobile-overlay.show{display:block!important}
+  }
 </style>
 </head>
 <body>
+<button class="mgr-mobile-menu" type="button" onclick="toggleManagerSidebar()">☰</button><div class="mgr-mobile-overlay" id="mgrMobileOverlay" onclick="closeManagerSidebar()"></div>
 
 <!-- ================= APP BAR ================= -->
 <header class="appbar">
@@ -1018,8 +1057,12 @@ buildSmsReport();buildSmsDetail();
 buildEntity('client');buildEntity('agent');
 buildDrill('range');buildDrill('number');
 renderTest();renderCredit();loadManagerPayout();loadClim();loadNews();
+
+function toggleManagerSidebar(){document.querySelector('.appbar')?.classList.toggle('show');document.getElementById('mgrMobileOverlay')?.classList.toggle('show');}
+function closeManagerSidebar(){document.querySelector('.appbar')?.classList.remove('show');document.getElementById('mgrMobileOverlay')?.classList.remove('show');}
+document.addEventListener('click',function(e){if(e.target.closest('[data-page]') && window.innerWidth<=900) setTimeout(closeManagerSidebar,80);},true);
 </script>
 
-<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a17534efeac2fd88',t:'MTc4MzQxMDA4Ng=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 </html>
