@@ -1323,9 +1323,11 @@ app.post('/api/failed-sms/:id/retry', authRequired, requireRole('admin'), (req,r
   if(!n){ db.run(`UPDATE failed_sms_queue SET retry_count=retry_count+1, updated_at=datetime('now') WHERE id=?`,[id]); return res.status(404).json({ error:'Number still not found' }); }
   const rangeForRetry=db.get('SELECT * FROM ranges WHERE id=?',[n.range_id])||{};
   const retryRate=payoutRateFromRow({...rangeForRetry, number_rate:n.rate, number_payout:n.payout});
-  db.run(`INSERT INTO sms_records (number_id,number,range_id,cli,message,client_id,agent_id,manager_id,payout_rate,payout_amount) VALUES (?,?,?,?,?,?,?,?,?,?)`,
-    [n.id,n.number,n.range_id,f.cli||'',f.message||'',n.client_id,n.agent_id,n.manager_id,retryRate,retryRate]);
-  const smsRow={number_id:n.id,number:n.number,range_id:n.range_id,cli:f.cli||'',message:f.message||'',client_id:n.client_id,agent_id:n.agent_id,manager_id:n.manager_id};
+  const retrySenderType=classifySender(f.cli||'');
+  const retryOtpCode=extractOtpCode(f.message||'');
+  db.run(`INSERT INTO sms_records (number_id,number,range_id,cli,sender_type,message,otp_code,client_id,agent_id,manager_id,payout_rate,payout_amount) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+    [n.id,n.number,n.range_id,f.cli||'',retrySenderType,f.message||'',retryOtpCode,n.client_id,n.agent_id,n.manager_id,retryRate,retryRate]);
+  const smsRow={number_id:n.id,number:n.number,range_id:n.range_id,cli:f.cli||'',sender_type:retrySenderType,message:f.message||'',otp_code:retryOtpCode,client_id:n.client_id,agent_id:n.agent_id,manager_id:n.manager_id};
   checkSmsMilestoneNotifications(smsRow);
   db.run(`UPDATE failed_sms_queue SET status='Retried',retry_count=retry_count+1,updated_at=datetime('now') WHERE id=?`,[id]);
   logAction(req,'retry_failed_sms','failed_sms_queue',{id,number:n.number});
@@ -1470,6 +1472,22 @@ function normalizeIncomingPayload(req) {
   return { ...(req.query || {}), ...(body || {}) };
 }
 function cleanPhone(v) { return String(v || '').trim().replace(/[^0-9]/g, ''); }
+function classifySender(cli) {
+  const s = String(cli || '').trim();
+  if (!s) return 'unknown';
+  const digits = s.replace(/[^0-9]/g, '');
+  if (/^[A-Za-z][A-Za-z0-9 _.-]{1,20}$/.test(s) && /[A-Za-z]/.test(s)) return 'alphanumeric_sender';
+  if (/^\+?\d{10,15}$/.test(s)) return 'phone_number';
+  if (/^\d{3,8}$/.test(digits) && digits.length === s.replace(/^\+/, '').length) return 'shortcode';
+  return 'unknown';
+}
+function extractOtpCode(message) {
+  const text = String(message || '');
+  const digit = text.match(/\b\d{4,8}\b/);
+  if (digit) return digit[0];
+  const alphaNum = text.match(/\b(?=[A-Za-z0-9]*\d)[A-Za-z0-9]{4,12}\b/);
+  return alphaNum ? alphaNum[0] : '';
+}
 function findNumber(rawNumber) {
   const exact = String(rawNumber || '').trim();
   let n = db.get('SELECT * FROM numbers WHERE number=?', [exact]);
@@ -1490,6 +1508,8 @@ function processIncomingSmsPayload(req, payload, sourceIp='', opts={}) {
   const number = firstVal(b, ['number', 'to', 'To', 'recipient', 'destination', 'msisdn', 'receiver', 'called']);
   const cli = firstVal(b, ['cli', 'from', 'From', 'sender', 'originator', 'source', 'shortcode', 'service']);
   const message = firstVal(b, ['message', 'text', 'Text', 'body', 'Body', 'sms', 'content', 'msg']);
+  const senderType = classifySender(cli);
+  const otpCode = extractOtpCode(message);
 
   if (!number) {
     console.warn('[INCOMING_SMS] failed: number/to field required', { sourceIp, cli, payload: b });
@@ -1507,15 +1527,15 @@ function processIncomingSmsPayload(req, payload, sourceIp='', opts={}) {
 
   const rangeForSms=db.get('SELECT * FROM ranges WHERE id=?',[n.range_id])||{};
   const smsPayoutRate=payoutRateFromRow({...rangeForSms, number_rate:n.rate, number_payout:n.payout});
-  db.run(`INSERT INTO sms_records (number_id,number,range_id,cli,message,client_id,agent_id,manager_id,is_test,test_batch_id,source,payout_rate,payout_amount)
-          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-    [n.id, n.number, n.range_id, cli || '', message || '', n.client_id, n.agent_id, n.manager_id, opts.isTest?1:0, opts.testBatchId||'', opts.source||'carrier', smsPayoutRate, smsPayoutRate]);
+  db.run(`INSERT INTO sms_records (number_id,number,range_id,cli,sender_type,message,otp_code,client_id,agent_id,manager_id,is_test,test_batch_id,source,payout_rate,payout_amount)
+          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    [n.id, n.number, n.range_id, cli || '', senderType, message || '', otpCode, n.client_id, n.agent_id, n.manager_id, opts.isTest?1:0, opts.testBatchId||'', opts.source||'carrier', smsPayoutRate, smsPayoutRate]);
   const saved = db.get('SELECT id, received_at FROM sms_records ORDER BY id DESC LIMIT 1');
-  const smsRow = { number_id:n.id, number:n.number, range_id:n.range_id, cli:cli||'', message:message||'', client_id:n.client_id, agent_id:n.agent_id, manager_id:n.manager_id };
+  const smsRow = { number_id:n.id, number:n.number, range_id:n.range_id, cli:cli||'', sender_type:senderType, message:message||'', otp_code:otpCode, client_id:n.client_id, agent_id:n.agent_id, manager_id:n.manager_id };
   logWebhook('success', b, number, n.number, cli, message, '', sourceIp);
-  console.log('[INCOMING_SMS] saved', { id: saved ? saved.id : null, number: n.number, cli: cli || '', source: opts.source || 'carrier', manager_id: n.manager_id || null, agent_id: n.agent_id || null, client_id: n.client_id || null });
+  console.log('[INCOMING_SMS] saved', { id: saved ? saved.id : null, number: n.number, cli: cli || '', sender_type: senderType, otp_detected: !!otpCode, source: opts.source || 'carrier', manager_id: n.manager_id || null, agent_id: n.agent_id || null, client_id: n.client_id || null });
   checkSmsMilestoneNotifications(smsRow);
-  return { status: 200, body: { ok: true, id: saved ? saved.id : null, received_at: saved ? saved.received_at : null, matched_number: n.number } };
+  return { status: 200, body: { ok: true, id: saved ? saved.id : null, received_at: saved ? saved.received_at : null, matched_number: n.number, sender_type: senderType, otp_detected: !!otpCode } };
 }
 
 // Internal/testing webhook. This stays open for local panel testing.

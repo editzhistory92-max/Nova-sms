@@ -98,7 +98,9 @@ function createTables() {
     number     TEXT,
     range_id   INTEGER,
     cli        TEXT DEFAULT '',
+    sender_type TEXT DEFAULT '',
     message    TEXT DEFAULT '',
+    otp_code   TEXT DEFAULT '',
     is_otp     INTEGER DEFAULT 1,
     client_id  INTEGER,
     agent_id   INTEGER,
@@ -328,6 +330,8 @@ function createTables() {
   ensureColumn('sms_records', 'is_test', 'INTEGER DEFAULT 0');
   ensureColumn('sms_records', 'test_batch_id', "TEXT DEFAULT ''");
   ensureColumn('sms_records', 'source', "TEXT DEFAULT 'carrier'");
+  ensureColumn('sms_records', 'sender_type', "TEXT DEFAULT ''");
+  ensureColumn('sms_records', 'otp_code', "TEXT DEFAULT ''");
   ensureColumn('numbers', 'import_batch_id', "TEXT DEFAULT ''");
   ensureColumn('numbers', 'import_source', "TEXT DEFAULT ''");
   ensureColumn('numbers', 'imported_by', 'INTEGER');
