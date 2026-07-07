@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <link rel="icon" type="image/png" href="assets/mufasa-favicon.png" />
-<title>Mufasa SMS — Agent Panel</title>
+<title>MUFASA SMS — Agent Panel</title>
 <style id="route-auth-hide">html{visibility:hidden}
 
   /* ===== Agent rail layout fix ===== */
@@ -334,7 +334,7 @@
 
 
 
-  /* ===== Mufasa SMS branding polish ===== */
+  /* ===== MUFASA SMS branding polish ===== */
   .sb-logo,.brand .logo,.rail .logo,.sb-brand .logo,.brand-logo .logo{background:linear-gradient(135deg,#2563EB,#06B6D4)!important;color:#fff!important;box-shadow:0 12px 26px rgba(37,99,235,.24)!important}
   .sb-logo svg,.brand .logo svg,.rail .logo svg,.sb-brand .logo svg,.brand-logo .logo svg{stroke:#fff!important;color:#fff!important}
   .sb-brand h1,.brand h1,.brand-text h1,.brand-logo h1{color:#1E293B!important;font-weight:700!important;letter-spacing:-.01em!important}
@@ -343,7 +343,7 @@
 
 
 
-  /* ===== Uploaded Mufasa SMS logo ===== */
+  /* ===== Uploaded MUFASA SMS logo ===== */
   .mufasa-logo-img{width:100%!important;height:100%!important;object-fit:cover!important;display:block!important;border-radius:inherit!important}
   .sb-logo,.brand .logo,.rail .logo,.sb-brand .logo,.brand-logo .logo{background:#050505!important;padding:0!important;overflow:hidden!important;border:1px solid rgba(245,158,11,.28)!important;box-shadow:0 12px 26px rgba(245,158,11,.18)!important}
   .brand-logo .logo{width:92px!important;height:92px!important;border-radius:22px!important;margin-bottom:16px!important}
@@ -382,14 +382,19 @@
   body.ms-dark-mode .page-head{border-bottom-color:#334155!important}
   body.ms-dark-mode .page > .toolbar:not(:first-child)::before,body.ms-dark-mode .page > .table-wrap:not(:first-child)::before,body.ms-dark-mode .page > .card:not(:first-child)::before,body.ms-dark-mode .page > .grid2:not(:first-child)::before{background:#334155!important}
 
+
+
+  /* ===== FINAL Agent sidebar: same open/close behavior as other panels ===== */
+  @media(min-width:901px){.rail{width:260px!important;align-items:stretch!important}.rail:hover{width:260px!important}.rail .logo{margin:0 14px 8px!important}.brand-text{display:block!important}.ritem .lbl,.rsubitem .lbl,.ritem .chev{opacity:1!important;display:block!important}.rail:not(:hover) .rsub.open,.rsub.open{max-height:500px!important}.main{margin-left:260px!important}}
+  @media(max-width:900px){.rail{width:260px!important;align-items:stretch!important;transform:translateX(-105%)!important}.rail.show{transform:translateX(0)!important;width:260px!important}.rail.show .brand-text,.rail.show .ritem .lbl,.rail.show .rsubitem .lbl,.rail.show .ritem .chev{opacity:1!important;display:block!important}.main{margin-left:0!important}.content{padding:20px 14px!important}}
 </style>
 </head>
 <body>
 <div class="layout">
   <!-- ===== ICON RAIL ===== -->
   <aside class="rail" id="rail">
-    <div class="logo"><img class="mufasa-logo-img" src="assets/mufasa-logo.png" alt="Mufasa SMS" /></div>
-    <div class="brand-text"><h1>Mufasa SMS</h1><small>Agent Panel</small></div>
+    <div class="logo"><img class="mufasa-logo-img" src="assets/mufasa-logo.png" alt="MUFASA SMS" /></div>
+    <div class="brand-text"><h1>MUFASA SMS</h1><small>Agent Panel</small></div>
     <nav class="rail-nav">
       <div class="ritem active" data-page="dashboard"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg><span class="lbl">Dashboard</span></div>
 
@@ -915,5 +920,5 @@ renderTest();renderPay();loadAgentPayout();loadNews();
 </script>
 
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
-</body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a176a3e6bd05997c',t:'MTc4MzQyNTExNw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>

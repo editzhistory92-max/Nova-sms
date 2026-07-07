@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <link rel="icon" type="image/png" href="assets/mufasa-favicon.png" />
-<title>Mufasa SMS — Login</title>
+<title>MUFASA SMS — Login</title>
 <style>
   :root{--bg:#f4f7fb;--panel:#ffffff;--border:#e4eaf3;--border2:#d7e0ec;--text:#0f2454;--muted:#64748b;--blue:#1d4ed8;--cyan:#0ea5e9;--purple:#7c3aed;--danger:#dc2626;--ok:#16a34a}
   *{box-sizing:border-box;margin:0;padding:0}
@@ -27,7 +27,7 @@
   @media(max-width:900px){.shell{grid-template-columns:1fr}.brand-panel{display:none}.login-panel{min-height:calc(100vh - 44px);padding:30px 22px}.captcha-row{grid-template-columns:1fr}}
 
 
-  /* ===== Mufasa SMS branding polish ===== */
+  /* ===== MUFASA SMS branding polish ===== */
   .sb-logo,.brand .logo,.rail .logo,.sb-brand .logo,.brand-logo .logo{background:linear-gradient(135deg,#2563EB,#06B6D4)!important;color:#fff!important;box-shadow:0 12px 26px rgba(37,99,235,.24)!important}
   .sb-logo svg,.brand .logo svg,.rail .logo svg,.sb-brand .logo svg,.brand-logo .logo svg{stroke:#fff!important;color:#fff!important}
   .sb-brand h1,.brand h1,.brand-text h1,.brand-logo h1{color:#1E293B!important;font-weight:700!important;letter-spacing:-.01em!important}
@@ -35,14 +35,14 @@
   .sb-brand small,.brand small,.brand-text small{color:#64748B!important}
 
 
-  /* ===== Mufasa SMS login polish ===== */
+  /* ===== MUFASA SMS login polish ===== */
   body{background:#F8FAFC!important}
   .brand-panel{background:linear-gradient(135deg,#2563EB 0%,#06B6D4 100%)!important}
   .feature{background:rgba(255,255,255,.14)!important;border-color:rgba(255,255,255,.24)!important;min-height:48px;display:flex;align-items:center}.feature b{font-size:13.5px!important;margin-bottom:0!important}.features{grid-template-columns:1fr!important;gap:10px!important;margin-top:34px!important}.login-panel{background:#fff!important}.btn{background:linear-gradient(135deg,#2563EB,#06B6D4)!important}.login-head .eyebrow{color:#2563EB!important}input:focus{border-color:#2563EB!important;box-shadow:0 0 0 4px rgba(37,99,235,.10)!important}
 
 
 
-  /* ===== Uploaded Mufasa SMS logo ===== */
+  /* ===== Uploaded MUFASA SMS logo ===== */
   .mufasa-logo-img{width:100%!important;height:100%!important;object-fit:cover!important;display:block!important;border-radius:inherit!important}
   .sb-logo,.brand .logo,.rail .logo,.sb-brand .logo,.brand-logo .logo{background:#050505!important;padding:0!important;overflow:hidden!important;border:1px solid rgba(245,158,11,.28)!important;box-shadow:0 12px 26px rgba(245,158,11,.18)!important}
   .brand-logo .logo{width:92px!important;height:92px!important;border-radius:22px!important;margin-bottom:16px!important}
@@ -106,8 +106,8 @@
 <body>
 <script id="login-dark-mode-init">try{if(localStorage.getItem('ms_dark_mode')==='1')document.body.classList.add('ms-dark-mode');}catch(e){}</script>
   <main class="shell">
-    <section class="brand-panel logo-only-panel" aria-label="Mufasa SMS branding">
-      <img class="login-hero-logo" src="assets/mufasa-logo.png" alt="Mufasa SMS" />
+    <section class="brand-panel logo-only-panel" aria-label="MUFASA SMS branding">
+      <img class="login-hero-logo" src="assets/mufasa-logo.png" alt="MUFASA SMS" />
     </section>
     <section class="login-panel"><div class="login-card">
       <div class="login-head"><div class="eyebrow">Secure Login</div><h2>Welcome back</h2><p>Enter your credentials and complete the security check to continue.</p></div>
@@ -118,7 +118,7 @@
         <div class="row-between"><label class="checkbox"><input type="checkbox" id="remember"/> Remember me</label><a href="#" onclick="return false;">Forgot password?</a></div>
         <button type="submit" class="btn">Sign In</button><div class="msg" id="msg"></div>
       </form>
-      <div class="footer">© 2026 Mufasa SMS • All rights reserved</div>
+      <div class="footer">© 2026 MUFASA SMS • All rights reserved</div>
     </div></section>
   </main>
 <script>
@@ -130,5 +130,5 @@
   document.getElementById('loginForm').addEventListener('submit',function(e){e.preventDefault();const u=document.getElementById('username').value.trim(),p=document.getElementById('password').value,c=parseInt(document.getElementById('captcha').value,10);if(c!==captchaAnswer){showMsg('❌ Incorrect captcha answer. Please try again.','error');newCaptcha();return;}showMsg('⏳ Verifying...','success');fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})}).then(async r=>{const data=await r.json();if(!r.ok)throw new Error(data.error||'Login failed');return data;}).then(data=>{try{localStorage.setItem('ms_token',data.token);localStorage.setItem('ms_role',data.user.role);localStorage.setItem('ms_user',data.user.username);localStorage.setItem('ms_name',data.user.name||data.user.username);}catch(e){}showMsg('✅ Welcome '+(data.user.name||data.user.username)+'! Redirecting...','success');setTimeout(()=>{window.location.href='/' + data.user.role.toLowerCase();},550);}).catch(err=>{showMsg('❌ '+err.message,'error');newCaptcha();});});
 </script>
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
-</body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a176a3f39960997c',t:'MTc4MzQyNTExOQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>

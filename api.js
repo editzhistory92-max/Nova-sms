@@ -341,6 +341,20 @@
     }, true);
   }
 
+  function closeAllSidebars(){
+    try{
+      document.getElementById('sidebar')?.classList.remove('show');
+      document.getElementById('overlay')?.classList.remove('show');
+      document.getElementById('sbOverlay')?.classList.remove('show');
+      document.getElementById('rail')?.classList.remove('show');
+      document.getElementById('mgrMobileOverlay')?.classList.remove('show');
+      if(window.innerWidth <= 900) document.querySelector('.appbar')?.classList.remove('show');
+      if(typeof window.closeManagerSidebar==='function' && window.innerWidth <= 900) window.closeManagerSidebar();
+      if(typeof window.closeSidebar==='function' && window.innerWidth <= 900) window.closeSidebar();
+      if(typeof window.closeSb==='function' && window.innerWidth <= 900) window.closeSb();
+    }catch(e){}
+  }
+
   function activatePageFromHistory(page){
     if(!page) page='dashboard';
     try{ localStorage.setItem('ms_last_page_'+(ROLE()||''), page); }catch(e){}
@@ -362,7 +376,7 @@
       const el=e.target.closest('[data-page]');
       if(!el || window.__msHistoryNav) return;
       const page=el.dataset.page; if(!page) return;
-      setTimeout(()=>{ try{ history.pushState({msPanel:true,page},'',location.pathname); }catch(_){ } },0);
+      setTimeout(()=>{ try{ history.pushState({msPanel:true,page},'',location.pathname); }catch(_){ } closeAllSidebars(); },60);
     }, true);
     window.addEventListener('popstate',(e)=>{
       if(e.state && e.state.msPanel){ activatePageFromHistory(e.state.page || 'dashboard'); }
