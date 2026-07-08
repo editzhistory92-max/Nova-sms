@@ -274,11 +274,10 @@
       if(el && el.dataset && el.dataset.page) localStorage.setItem(key, el.dataset.page);
     }, true);
     setTimeout(()=>{
-      const page=localStorage.getItem(key);
+      const fromHash = location.hash ? decodeURIComponent(location.hash.slice(1)) : '';
+      const page=fromHash || localStorage.getItem(key) || 'dashboard';
       if(!page || page==='dashboard'){document.documentElement.style.visibility='visible'; return;}
-      const selector=['.sub-item','.dropitem','.rsubitem','.navtab','.tab','.ritem','.nav-item'].map(c=>`${c}[data-page="${page}"]`).join(',');
-      const el=document.querySelector(selector);
-      if(el) el.click();
+      activatePageFromHistory(page);
       document.documentElement.style.visibility='visible';
     }, 180);
   }
@@ -305,6 +304,8 @@
       while(n){ const t=n.querySelector&&n.querySelector('table'); if(t) return t; n=n.nextElementSibling; }
       const t=wrap.querySelector('table'); if(t) return t;
     }
+    const card=btn.closest('.card');
+    if(card){ const t=[...card.querySelectorAll('table')].find(x=>x.offsetParent!==null && x.querySelector('tbody')); if(t) return t; }
     const tables=[...page.querySelectorAll('table')].filter(t=>t.offsetParent!==null && t.querySelector('tbody'));
     return tables[0] || page.querySelector('table');
   }
@@ -371,12 +372,13 @@
   }
   function initPanelHistory(){
     if(!TOKEN() || location.pathname.includes('login')) return;
-    try{ history.replaceState({msPanel:true,page:currentPageName()},'',location.pathname); }catch(e){}
+    const initialPage=(location.hash?decodeURIComponent(location.hash.slice(1)):'') || localStorage.getItem('ms_last_page_'+(ROLE()||'')) || currentPageName();
+    try{ history.replaceState({msPanel:true,page:initialPage},'',location.pathname+'#'+encodeURIComponent(initialPage)); }catch(e){}
     document.addEventListener('click',(e)=>{
       const el=e.target.closest('[data-page]');
       if(!el || window.__msHistoryNav) return;
       const page=el.dataset.page; if(!page) return;
-      setTimeout(()=>{ try{ history.pushState({msPanel:true,page},'',location.pathname); }catch(_){ } closeAllSidebars(); },60);
+      setTimeout(()=>{ try{ history.pushState({msPanel:true,page},'',location.pathname+'#'+encodeURIComponent(page)); }catch(_){ } closeAllSidebars(); },60);
     }, true);
     window.addEventListener('popstate',(e)=>{
       if(e.state && e.state.msPanel){ activatePageFromHistory(e.state.page || 'dashboard'); }

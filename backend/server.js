@@ -37,6 +37,10 @@ app.get('/agent', (req, res) => sendFrontendPage(res, 'agent.html'));
 app.get('/agent.html', (req, res) => res.redirect(301, '/agent'));
 app.get('/client', (req, res) => sendFrontendPage(res, 'client.html'));
 app.get('/client.html', (req, res) => res.redirect(301, '/client'));
+app.get('/test-login', (req, res) => sendFrontendPage(res, 'test-login.html'));
+app.get('/test-login.html', (req, res) => res.redirect(301, '/test-login'));
+app.get('/test', (req, res) => sendFrontendPage(res, 'test.html'));
+app.get('/test.html', (req, res) => res.redirect(301, '/test'));
 
 // serve frontend assets and static files from project root
 app.use(express.static(FRONTEND_ROOT));
@@ -371,7 +375,7 @@ app.get('/api/test-numbers', authRequired, (req, res) => {
   res.json(rows);
 });
 
-app.post('/api/test-numbers/import', authRequired, requireRole('admin'), (req, res) => {
+app.post('/api/test-numbers/import', authRequired, requireRole('admin','test'), (req, res) => {
   const { range_id, range_name, numbers } = req.body || {};
   if (!Array.isArray(numbers) || numbers.length === 0) return res.status(400).json({ error: 'numbers[] required' });
   let range = range_id ? db.get('SELECT * FROM ranges WHERE id=?', [+range_id]) : null;
@@ -396,6 +400,62 @@ app.post('/api/test-numbers/import', authRequired, requireRole('admin'), (req, r
   res.json({ ok: true, inserted, skipped, range_id: range.id });
 });
 
+app.post('/api/test-numbers', authRequired, requireRole('admin','test'), (req, res) => {
+  const b = req.body || {};
+  const number = String(b.number || '').trim();
+  if (!number) return res.status(400).json({ error: 'number required' });
+  let range = b.range_id ? db.get('SELECT * FROM ranges WHERE id=?', [+b.range_id]) : null;
+  if (!range && b.range_name) range = db.get('SELECT * FROM ranges WHERE name=?', [String(b.range_name).trim()]);
+  if (!range) return res.status(404).json({ error: 'Range not found' });
+  const cleaned = cleanPhone(number);
+  const existsPanel = db.get(`SELECT id FROM numbers WHERE REPLACE(REPLACE(REPLACE(REPLACE(number,'+',''),' ',''),'-',''),'_','')=?`, [cleaned]);
+  if (existsPanel) return res.status(409).json({ error: 'This number already exists in live SMS Numbers' });
+  const existsTest = db.get(`SELECT id FROM range_test_numbers WHERE range_id=? AND REPLACE(REPLACE(REPLACE(REPLACE(test_number,'+',''),' ',''),'-',''),'_','')=?`, [range.id, cleaned]);
+  if (existsTest) return res.status(409).json({ error: 'This test number already exists in this range' });
+  db.run('INSERT INTO range_test_numbers (range_id,test_number,active) VALUES (?,?,1)', [range.id, number]);
+  const joined = db.all('SELECT test_number FROM range_test_numbers WHERE range_id=? AND active=1 ORDER BY id', [range.id]).map(x => x.test_number).join(', ');
+  db.run('UPDATE ranges SET test_number=? WHERE id=?', [joined, range.id]);
+  logAction(req, 'add_test_number', 'test_numbers', { range: range.name, number });
+  res.json({ ok: true, inserted: 1, range_id: range.id });
+});
+
+app.delete('/api/test-numbers/:id', authRequired, requireRole('admin','test'), (req, res) => {
+  const id = +req.params.id;
+  const row = db.get('SELECT * FROM range_test_numbers WHERE id=?', [id]);
+  if (!row) return res.status(404).json({ error: 'Test number not found' });
+  db.run('DELETE FROM range_test_numbers WHERE id=?', [id]);
+  const joined = db.all('SELECT test_number FROM range_test_numbers WHERE range_id=? AND active=1 ORDER BY id', [row.range_id]).map(x => x.test_number).join(', ');
+  db.run('UPDATE ranges SET test_number=? WHERE id=?', [joined, row.range_id]);
+  logAction(req, 'delete_test_number', 'test_numbers', { id, number: row.test_number, range_id: row.range_id });
+  res.json({ ok: true, deleted: 1 });
+});
+
+app.get('/api/test-panel/dashboard', authRequired, requireRole('admin','test'), (req, res) => {
+  const nums = db.get('SELECT COUNT(*) c FROM range_test_numbers WHERE active=1')?.c || 0;
+  const today = db.get(`SELECT COUNT(*) c FROM sms_records s WHERE date(s.received_at)=date('now') AND EXISTS (
+      SELECT 1 FROM range_test_numbers t WHERE t.active=1 AND REPLACE(REPLACE(REPLACE(REPLACE(t.test_number,'+',''),' ',''),'-',''),'_','')=REPLACE(REPLACE(REPLACE(REPLACE(s.number,'+',''),' ',''),'-',''),'_','')
+    )`)?.c || 0;
+  const daily7 = db.all(`WITH days(n,d) AS (
+      SELECT 6, date('now','-6 days') UNION ALL SELECT n-1, date(d,'+1 day') FROM days WHERE n>0
+    ) SELECT d AS date, COALESCE((SELECT COUNT(*) FROM sms_records s WHERE date(s.received_at)=d AND EXISTS (
+      SELECT 1 FROM range_test_numbers t WHERE t.active=1 AND REPLACE(REPLACE(REPLACE(REPLACE(t.test_number,'+',''),' ',''),'-',''),'_','')=REPLACE(REPLACE(REPLACE(REPLACE(s.number,'+',''),' ',''),'-',''),'_','')
+    )),0) AS count FROM days ORDER BY d`);
+  res.json({ today_otps: today, total_test_numbers: nums, daily7 });
+});
+
+app.get('/api/test-panel/sms', authRequired, requireRole('admin','test'), (req, res) => {
+  const number = String(req.query.number || '').trim();
+  const params = [];
+  let extra = '';
+  if (number) { extra = `AND REPLACE(REPLACE(REPLACE(REPLACE(s.number,'+',''),' ',''),'-',''),'_','')=?`; params.push(cleanPhone(number)); }
+  const rows = db.all(`SELECT s.*, r.name AS range_name, t.id AS test_number_id, t.test_number
+    FROM sms_records s
+    JOIN range_test_numbers t ON t.active=1 AND REPLACE(REPLACE(REPLACE(REPLACE(t.test_number,'+',''),' ',''),'-',''),'_','')=REPLACE(REPLACE(REPLACE(REPLACE(s.number,'+',''),' ',''),'-',''),'_','')
+    LEFT JOIN ranges r ON r.id=COALESCE(s.range_id,t.range_id)
+    WHERE 1=1 ${extra}
+    ORDER BY s.id DESC LIMIT 1000`, params);
+  res.json(rows);
+});
 
 
 /* ============ NUMBERS ============ */
@@ -1500,6 +1560,14 @@ function findNumber(rawNumber) {
     [cleaned]
   );
 }
+function findTestNumber(rawNumber) {
+  const cleaned = cleanPhone(rawNumber);
+  if (!cleaned) return null;
+  return db.get(`SELECT t.*, t.test_number AS number, r.name AS range_name
+    FROM range_test_numbers t
+    LEFT JOIN ranges r ON r.id=t.range_id
+    WHERE t.active=1 AND REPLACE(REPLACE(REPLACE(REPLACE(t.test_number,'+',''),' ',''),'-',''),'_','')=?`, [cleaned]);
+}
 function processIncomingSmsPayload(req, payload, sourceIp='', opts={}) {
   const b = payload || {};
   // Generic: {number, cli, message}
@@ -1517,7 +1585,15 @@ function processIncomingSmsPayload(req, payload, sourceIp='', opts={}) {
     addFailedSms(b, '', cli, message, 'number/to field required');
     return { status: 400, body: { error: 'number/to field required' } };
   }
-  const n = findNumber(number);
+  let n = findNumber(number);
+  let matchedTest = null;
+  if (!n) {
+    matchedTest = findTestNumber(number);
+    if (matchedTest) {
+      n = { id: null, number: matchedTest.test_number, range_id: matchedTest.range_id, rate: '', payout: '0', manager_id: null, agent_id: null, client_id: null };
+      opts = { ...opts, isTest: 1, source: opts.source || 'carrier_test_number' };
+    }
+  }
   if (!n) {
     console.warn('[INCOMING_SMS] failed: number not found/allocated', { sourceIp, number, cli });
     logWebhook('failed', b, number, '', cli, message, 'Number not found/allocated in system', sourceIp);
@@ -1531,7 +1607,7 @@ function processIncomingSmsPayload(req, payload, sourceIp='', opts={}) {
           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     [n.id, n.number, n.range_id, cli || '', senderType, message || '', otpCode, n.client_id, n.agent_id, n.manager_id, opts.isTest?1:0, opts.testBatchId||'', opts.source||'carrier', smsPayoutRate, smsPayoutRate]);
   const saved = db.get('SELECT id, received_at FROM sms_records ORDER BY id DESC LIMIT 1');
-  const smsRow = { number_id:n.id, number:n.number, range_id:n.range_id, cli:cli||'', sender_type:senderType, message:message||'', otp_code:otpCode, client_id:n.client_id, agent_id:n.agent_id, manager_id:n.manager_id };
+  const smsRow = { number_id:n.id, number:n.number, range_id:n.range_id, cli:cli||'', sender_type:senderType, message:message||'', otp_code:otpCode, client_id:n.client_id, agent_id:n.agent_id, manager_id:n.manager_id, is_test: opts.isTest?1:0 };
   logWebhook('success', b, number, n.number, cli, message, '', sourceIp);
   console.log('[INCOMING_SMS] saved', { id: saved ? saved.id : null, number: n.number, cli: cli || '', sender_type: senderType, otp_detected: !!otpCode, source: opts.source || 'carrier', manager_id: n.manager_id || null, agent_id: n.agent_id || null, client_id: n.client_id || null });
   checkSmsMilestoneNotifications(smsRow);

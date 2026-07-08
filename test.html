@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" type="image/png" href="assets/mufasa-favicon.png" />
+<title>MUFASA SMS — Test Panel</title>
+<style id="route-auth-hide">html{visibility:hidden}</style>
+<script>
+(function(){try{const t=localStorage.getItem('ms_token'),r=localStorage.getItem('ms_role');if(!t||r!=='test'){location.replace('/test-login');return;}fetch('/api/me',{headers:{Authorization:'Bearer '+t}}).then(x=>{if(!x.ok)throw 0;return x.json()}).then(u=>{if(!u||u.role!=='test')throw 0;document.documentElement.style.visibility='visible';}).catch(()=>{localStorage.clear();location.replace('/test-login')});}catch(e){localStorage.clear();location.replace('/test-login')}})();
+</script>
+<style>
+:root{--bg:#f8fafc;--panel:#fff;--border:#e2e8f0;--text:#0f2454;--muted:#64748b;--gold:#d4af37;--gold2:#f59e0b;--black:#050505;--blue:#2563eb;--green:#16a34a;--red:#dc2626}*{box-sizing:border-box;margin:0;padding:0}body{font-family:Inter,Segoe UI,system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:14px}.sidebar{position:fixed;left:0;top:0;bottom:0;width:260px;background:linear-gradient(180deg,#050505,#0b0b0b);border-right:1px solid #1f2937;z-index:60;transition:transform .22s ease;overflow:auto}.brand{display:flex;align-items:center;gap:12px;padding:16px 14px;border-bottom:1px solid rgba(212,175,55,.22)}.logo{width:46px;height:46px;border-radius:14px;overflow:hidden;border:1px solid rgba(212,175,55,.45);background:#050505}.logo img{width:100%;height:100%;object-fit:cover}.brand h1{font-size:16px;color:#fff}.brand small{color:#cbd5e1;font-size:11px}.nav{padding:12px}.sec{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:#94a3b8;font-weight:800;margin:14px 12px 6px}.item{display:flex;align-items:center;gap:12px;padding:12px 13px;border-radius:12px;color:#cbd5e1;cursor:pointer}.item:hover{background:#1a1a1a;color:#fde68a}.item.active{background:linear-gradient(135deg,var(--gold),var(--gold2));color:#0f172a;font-weight:900}.main{margin-left:260px;min-height:100vh}.topbar{height:56px;background:#fff;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:0 22px;position:sticky;top:0;z-index:40}.hamb{display:none;width:38px;height:38px;border:0;border-radius:10px;background:transparent;color:#64748b;font-size:22px;cursor:pointer}.clock{color:#64748b}.spacer{flex:1}.tb-btn{height:38px;min-width:38px;border:0;border-radius:10px;background:transparent;color:#64748b;cursor:pointer;font-weight:800}.tb-btn:hover{background:#fef3c7;color:#92400e}.content{padding:26px 22px}.page{display:none}.page.active{display:block}.head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:18px;border-bottom:1px solid var(--border);padding-bottom:14px}.head h2{font-size:24px}.crumb{font-size:12.5px;color:#64748b;margin-top:4px}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:18px}.card{background:#fff;border:1px solid var(--border);border-radius:16px;padding:18px;box-shadow:0 10px 30px rgba(15,23,42,.04)}.metric{background:linear-gradient(135deg,#1d4ed8,#38bdf8);color:#fff;overflow:hidden}.metric.green{background:linear-gradient(135deg,#0f766e,#22c55e)}.metric h3{font-size:30px;margin-top:8px}.metric p{text-transform:uppercase;font-size:12px;font-weight:900;opacity:.9}.grid2{display:grid;grid-template-columns:1fr 1.4fr;gap:16px}.toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}.input,select,input{border:1px solid #d7e0ec;border-radius:12px;padding:10px 12px;min-height:42px;background:#fff;color:#0f2454}button.btn{border:0;border-radius:12px;padding:11px 14px;font-weight:900;cursor:pointer}.btn-blue{background:#2563eb;color:#fff}.btn-red{background:#dc2626;color:#fff}.btn-green{background:#16a34a;color:#fff}.btn-gold{background:linear-gradient(135deg,var(--gold),var(--gold2));color:#111827}.table-wrap{background:#fff;border:1px solid var(--border);border-radius:16px;overflow:hidden}.tscroll{overflow:auto}table{width:100%;border-collapse:separate;border-spacing:0}th,td{padding:12px 14px;border-bottom:1px solid #eef2f7;text-align:left;vertical-align:top}th{background:#f8fafc;font-size:12px;text-transform:uppercase;color:#334155}.muted{color:#64748b}.mono{font-family:Consolas,monospace}.otp{font-size:18px;font-weight:950;color:#065f46}.selected-row td{background:#fef3c7!important}.overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,.42);z-index:50}.overlay.show{display:block}@media(max-width:900px){.sidebar{transform:translateX(-105%);width:260px}.sidebar.show{transform:translateX(0)}.main{margin-left:0}.hamb{display:block}.content{padding:20px 14px}.grid2{grid-template-columns:1fr}.topbar{padding:0 12px}}
+</style>
+</head>
+<body>
+<aside class="sidebar" id="sidebar">
+  <div class="brand"><div class="logo"><img src="assets/mufasa-logo.png" alt="MUFASA SMS"></div><div><h1>MUFASA SMS</h1><small>Test Panel</small></div></div>
+  <div class="nav">
+    <div class="sec">Main</div>
+    <div class="item active" data-page="dashboard">▦ Dashboard</div>
+    <div class="sec">Test Numbers</div>
+    <div class="item" data-page="numbers">☎ SMS Numbers</div>
+    <div class="sec">Testing</div>
+    <div class="item" data-page="test">✉ SMS Test Panel</div>
+  </div>
+</aside>
+<div class="overlay" id="overlay" onclick="closeSidebar()"></div>
+<div class="main">
+  <header class="topbar"><button class="hamb" onclick="openSidebar()">☰</button><span class="clock" id="clock">—</span><div class="spacer"></div><button class="tb-btn" onclick="API.logout()">Logout</button></header>
+  <main class="content">
+    <section class="page active" id="page-dashboard">
+      <div class="head"><div><h2>Dashboard</h2><div class="crumb">Test Panel › Dashboard</div></div></div>
+      <div class="cards"><div class="card metric"><p>Today's OTPs</p><h3 id="todayOtp">0</h3></div><div class="card metric green"><p>Total Test Numbers</p><h3 id="totalNums">0</h3></div></div>
+      <div class="card"><h3>Last 7 Days</h3><div id="dailyStats" class="toolbar" style="margin-top:14px"></div></div>
+    </section>
+
+    <section class="page" id="page-numbers">
+      <div class="head"><div><h2>SMS Numbers</h2><div class="crumb">Only Test Numbers are shown here</div></div></div>
+      <div class="card" style="margin-bottom:16px">
+        <div class="toolbar"><select id="addRange"><option value="">Select Range</option></select><input id="addNumber" placeholder="Test number"/><button class="btn btn-green" onclick="addTestNumber()">Add</button></div>
+        <div class="toolbar"><select id="importRange"><option value="">Select Range</option></select><input type="file" id="importFile" accept=".txt,.csv"/><button class="btn btn-blue" onclick="importTestNumbers()">Import</button></div>
+      </div>
+      <div class="exp-btns" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px"><button class="btn btn-blue">Copy</button><button class="btn btn-blue">CSV</button><button class="btn btn-green">Excel</button></div><div class="table-wrap"><div class="tscroll"><table><thead><tr><th>Range</th><th>Prefix</th><th>Number</th><th>Action</th></tr></thead><tbody id="numBody"></tbody></table></div></div>
+    </section>
+
+    <section class="page" id="page-test">
+      <div class="head"><div><h2>SMS Test Panel</h2><div class="crumb">Select a test number to view OTPs in real time</div></div><button class="btn btn-blue" onclick="loadAll()">Refresh</button></div>
+      <div class="grid2"><div class="card"><h3>Test Numbers</h3><input id="numberSearch" placeholder="Search number/range" oninput="renderTestNumbers()" style="width:100%;margin:12px 0"/><div class="exp-btns" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px"><button class="btn btn-blue">Copy</button><button class="btn btn-blue">CSV</button><button class="btn btn-green">Excel</button></div><div class="table-wrap"><div class="tscroll"><table><thead><tr><th>Range</th><th>Number</th></tr></thead><tbody id="leftNums"></tbody></table></div></div></div>
+      <div class="card"><h3 id="otpTitle">OTPs</h3><div class="exp-btns" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px"><button class="btn btn-blue">Copy</button><button class="btn btn-blue">CSV</button><button class="btn btn-green">Excel</button></div><div class="table-wrap" style="margin-top:12px"><div class="tscroll"><table><thead><tr><th>Time</th><th>CLI</th><th>OTP</th><th>Message</th></tr></thead><tbody id="otpBody"></tbody></table></div></div></div></div>
+    </section>
+  </main>
+</div>
+<script src="api.js"></script>
+<script>
+API.guard('test');
+let ranges=[], testNumbers=[], selectedNumber='', pollTimer=null;
+function tick(){const d=new Date(),p=n=>String(n).padStart(2,'0');clock.textContent=d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds())}setInterval(tick,1000);tick();
+function openSidebar(){sidebar.classList.add('show');overlay.classList.add('show')}function closeSidebar(){sidebar.classList.remove('show');overlay.classList.remove('show')}
+function showPage(id){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.getElementById('page-'+id)?.classList.add('active');document.querySelectorAll('.item').forEach(i=>i.classList.toggle('active',i.dataset.page===id));localStorage.setItem('ms_last_page_test',id);history.replaceState({msPanel:true,page:id},'',location.pathname+'#'+id);closeSidebar();if(id==='test')startPolling();else stopPolling();}
+document.querySelectorAll('.item[data-page]').forEach(i=>i.onclick=()=>showPage(i.dataset.page));
+function fillRanges(){const opts='<option value="">Select Range</option>'+ranges.map(r=>`<option value="${r.id}">${r.name}</option>`).join('');addRange.innerHTML=opts;importRange.innerHTML=opts;}
+function otp(msg){const m=String(msg||'').match(/\b\d{4,8}\b/);return m?m[0]:'—'}
+async function loadAll(){ranges=await API.get('/ranges').catch(()=>[]);testNumbers=await API.get('/test-numbers').catch(()=>[]);fillRanges();renderNumbers();renderTestNumbers();loadDash();if(document.getElementById('page-test').classList.contains('active'))loadOtps();}
+async function loadDash(){const d=await API.get('/test-panel/dashboard').catch(()=>({today_otps:0,total_test_numbers:testNumbers.length,daily7:[]}));todayOtp.textContent=d.today_otps||0;totalNums.textContent=d.total_test_numbers||0;dailyStats.innerHTML=(d.daily7||[]).map(x=>`<div class="card" style="min-width:120px;padding:12px"><b>${(x.date||'').slice(5)}</b><div class="otp">${x.count||0}</div></div>`).join('')||'<span class="muted">No data</span>';}
+function renderNumbers(){numBody.innerHTML=testNumbers.map(n=>`<tr><td>${n.range_name||''}</td><td class="muted">${n.prefix||'—'}</td><td class="mono">${n.number}</td><td><button class="btn btn-red" onclick="deleteTestNumber(${n.id})">Delete</button></td></tr>`).join('')||'<tr><td colspan="4" class="muted">No test numbers found</td></tr>';}
+function renderTestNumbers(){const q=(numberSearch?.value||'').toLowerCase();const rows=testNumbers.filter(n=>[n.range_name,n.number].join(' ').toLowerCase().includes(q));leftNums.innerHTML=rows.map(n=>`<tr class="${selectedNumber===n.number?'selected-row':''}" onclick="selectNumber('${n.number.replace(/'/g,'\\\'')}')"><td>${n.range_name||''}</td><td class="mono">${n.number}</td></tr>`).join('')||'<tr><td colspan="2" class="muted">No test numbers</td></tr>';}
+function selectNumber(n){selectedNumber=n;otpTitle.textContent='OTPs for '+n;renderTestNumbers();loadOtps();startPolling();}
+async function loadOtps(){if(!selectedNumber){otpBody.innerHTML='<tr><td colspan="4" class="muted">Select a test number</td></tr>';return;}const rows=await API.get('/test-panel/sms?number='+encodeURIComponent(selectedNumber)).catch(()=>[]);otpBody.innerHTML=rows.map(r=>`<tr><td>${(r.received_at||'').slice(0,19)}</td><td>${r.cli||'—'}</td><td class="otp">${r.otp_code||otp(r.message)}</td><td>${r.message||''}</td></tr>`).join('')||'<tr><td colspan="4" class="muted">No OTPs yet</td></tr>';}
+function startPolling(){clearInterval(pollTimer);pollTimer=setInterval(()=>{loadOtps();loadDash();},4000)}function stopPolling(){clearInterval(pollTimer)}
+async function addTestNumber(){if(!addRange.value||!addNumber.value.trim()){alert('Select range and enter number');return;}try{await API.post('/test-numbers',{range_id:+addRange.value,number:addNumber.value.trim()});addNumber.value='';await loadAll();alert('Test number added');}catch(e){alert('❌ '+e.message)}}
+async function importTestNumbers(){const f=importFile.files[0];if(!importRange.value||!f){alert('Select range and file');return;}const text=await f.text();const nums=text.split(/[\s,;]+/).map(x=>x.trim()).filter(x=>/^\+?\d{5,}$/.test(x));if(!nums.length){alert('No valid numbers found');return;}try{const r=await API.post('/test-numbers/import',{range_id:+importRange.value,numbers:nums});importFile.value='';await loadAll();alert(`Imported ${r.inserted||0}. Skipped ${r.skipped||0}`);}catch(e){alert('❌ '+e.message)}}
+async function deleteTestNumber(id){if(!confirm('Delete this test number?'))return;try{await API.del('/test-numbers/'+id);await loadAll();}catch(e){alert('❌ '+e.message)}}
+window.addEventListener('popstate',e=>showPage((e.state&&e.state.page)||'dashboard'));
+const initial=(location.hash||'').replace('#','')||localStorage.getItem('ms_last_page_test')||'dashboard';showPage(initial);loadAll();
+</script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body>
+</html>
