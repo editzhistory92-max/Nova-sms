@@ -3,8 +3,12 @@
  * Uses localStorage token, adds Authorization header, redirects on 401.
  */
 (function () {
-  const TOKEN = () => localStorage.getItem('ms_token');
-  const ROLE = () => localStorage.getItem('ms_role');
+  const AUTH_KEYS = ['ms_token','ms_role','ms_user','ms_name'];
+  function clearAuthStorage(){
+    try{ AUTH_KEYS.forEach(k=>{ sessionStorage.removeItem(k); localStorage.removeItem(k); }); }catch(e){}
+  }
+  const TOKEN = () => sessionStorage.getItem('ms_token');
+  const ROLE = () => sessionStorage.getItem('ms_role');
 
   function guard(expectedRole) {
     if (!TOKEN()) { location.href = '/login'; return false; }
@@ -18,7 +22,7 @@
     if (t) opt.headers['Authorization'] = 'Bearer ' + t;
     if (body !== undefined) opt.body = JSON.stringify(body);
     const r = await fetch('/api' + path, opt);
-    if (r.status === 401) { localStorage.clear(); location.href = '/login'; throw new Error('Session expired'); }
+    if (r.status === 401) { clearAuthStorage(); location.href = '/login'; throw new Error('Session expired'); }
     const data = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(data.error || ('HTTP ' + r.status));
     return data;
@@ -193,8 +197,11 @@
     document.getElementById('msOpenActivity').onclick=()=>{menu.classList.remove('show');openActivityModal();};
     document.getElementById('msCloseProfile').onclick=document.getElementById('msProfileCancel').onclick=()=>modal.classList.remove('show');
     document.getElementById('msCloseActivity').onclick=document.getElementById('msActivityClose').onclick=()=>act.classList.remove('show');
+    const secBox=document.getElementById('msSecurityCodeBox');
+    if(secBox && !document.getElementById('msCarrierLockBox')) secBox.insertAdjacentHTML('afterend', `<div id="msCarrierLockBox" class="ms-admin-only" style="margin-top:16px;padding-top:14px;border-top:1px solid #E2E8F0"><h4 style="margin:0 0 10px;color:#1E293B">Change Carrier Integration Password</h4><div class="ms-form-grid"><div class="ms-field"><label>Admin Security Code</label><input type="password" id="msCarrierSecCode"></div><div class="ms-field"><label>New Carrier Password</label><input type="password" id="msCarrierNewPass"></div><div class="ms-field"><label>Confirm Carrier Password</label><input type="password" id="msCarrierConfirmPass"></div></div><button class="ms-btn primary" id="msChangeCarrierPass" type="button">Change Carrier Password</button></div>`);
     document.getElementById('msProfileSave').onclick=saveOwnProfile;
     document.getElementById('msChangeSecCode').onclick=changeAdminSecurityCode;
+    document.getElementById('msChangeCarrierPass').onclick=changeCarrierLockPassword;
   }
   function openProfileMenu(){
     if(ROLE()==='client'){ return; }
@@ -204,13 +211,13 @@
   }
   async function openProfileModal(){
     ensureProfileUI();
-    try{const p=await req('GET','/profile');document.getElementById('msProfileUsername').value=p.username||'';document.getElementById('msProfileCurrent').value='';document.getElementById('msProfileNew').value='';document.getElementById('msProfileConfirm').value='';document.getElementById('msProfileAdminCode').value='';document.getElementById('msOldSecCode').value='';document.getElementById('msNewSecCode').value='';document.getElementById('msConfirmSecCode').value='';document.querySelectorAll('.ms-admin-only').forEach(el=>el.style.display=(ROLE()==='admin'?'block':'none'));document.getElementById('msProfileMsg').textContent=ROLE()==='admin'?'Admin password changes require the admin security code.':'Change username, or enter current/new passwords to change password.';document.getElementById('msProfileModal').classList.add('show');}catch(e){alert(e.message)}
+    try{const p=await req('GET','/profile');document.getElementById('msProfileUsername').value=p.username||'';document.getElementById('msProfileCurrent').value='';document.getElementById('msProfileNew').value='';document.getElementById('msProfileConfirm').value='';document.getElementById('msProfileAdminCode').value='';document.getElementById('msOldSecCode').value='';document.getElementById('msNewSecCode').value='';document.getElementById('msConfirmSecCode').value='';if(document.getElementById('msCarrierSecCode')){document.getElementById('msCarrierSecCode').value='';document.getElementById('msCarrierNewPass').value='';document.getElementById('msCarrierConfirmPass').value='';}document.querySelectorAll('.ms-admin-only').forEach(el=>el.style.display=(ROLE()==='admin'?'block':'none'));document.getElementById('msProfileMsg').textContent=ROLE()==='admin'?'Admin password changes require the admin security code. Carrier Integration password can also be changed here.':'Change username, or enter current/new passwords to change password.';document.getElementById('msProfileModal').classList.add('show');}catch(e){alert(e.message)}
   }
   async function saveOwnProfile(){
     try{
       const body={username:document.getElementById('msProfileUsername').value.trim(),current_password:document.getElementById('msProfileCurrent').value,new_password:document.getElementById('msProfileNew').value,confirm_password:document.getElementById('msProfileConfirm').value,admin_security_code:document.getElementById('msProfileAdminCode')?document.getElementById('msProfileAdminCode').value:''};
       const r=await req('PUT','/profile',body);
-      localStorage.setItem('ms_token',r.token);localStorage.setItem('ms_user',r.user.username);localStorage.setItem('ms_role',r.user.role);localStorage.setItem('ms_name',r.user.name||r.user.username);
+      sessionStorage.setItem('ms_token',r.token);sessionStorage.setItem('ms_user',r.user.username);sessionStorage.setItem('ms_role',r.user.role);sessionStorage.setItem('ms_name',r.user.name||r.user.username);['ms_token','ms_role','ms_user','ms_name'].forEach(k=>localStorage.removeItem(k));
       document.getElementById('msProfileMsg').textContent='Profile updated successfully.';
       setTimeout(()=>location.reload(),700);
     }catch(e){document.getElementById('msProfileMsg').textContent='Error: '+e.message;}
@@ -221,6 +228,14 @@
       await req('PUT','/admin-security-code',body);
       document.getElementById('msProfileMsg').textContent='Security code updated successfully.';
       document.getElementById('msOldSecCode').value='';document.getElementById('msNewSecCode').value='';document.getElementById('msConfirmSecCode').value='';
+    }catch(e){document.getElementById('msProfileMsg').textContent='Error: '+e.message;}
+  }
+  async function changeCarrierLockPassword(){
+    try{
+      const body={admin_security_code:document.getElementById('msCarrierSecCode').value,new_password:document.getElementById('msCarrierNewPass').value,confirm_password:document.getElementById('msCarrierConfirmPass').value};
+      await req('PUT','/carrier-lock-password',body);
+      document.getElementById('msProfileMsg').textContent='Carrier Integration password updated successfully.';
+      document.getElementById('msCarrierSecCode').value='';document.getElementById('msCarrierNewPass').value='';document.getElementById('msCarrierConfirmPass').value='';
     }catch(e){document.getElementById('msProfileMsg').textContent='Error: '+e.message;}
   }
   function renderActivityTable(title, rows){
@@ -447,8 +462,13 @@
     if(!TOKEN() || location.pathname.includes('login')) return;
     const maxIdleMs = parseInt(localStorage.getItem('ms_idle_timeout_ms') || String(7*60*1000), 10);
     let timer=null;
-    const reset=()=>{ clearTimeout(timer); timer=setTimeout(()=>{ try{alert('Session expired due to inactivity. Please login again.');}catch(e){} API.logout(); }, maxIdleMs); };
-    ['click','mousemove','keydown','scroll','touchstart'].forEach(ev=>document.addEventListener(ev, reset, {passive:true}));
+    const stamp=()=>sessionStorage.setItem('ms_last_activity', String(Date.now()));
+    const expired=()=>Date.now() - parseInt(sessionStorage.getItem('ms_last_activity') || String(Date.now()), 10) > maxIdleMs;
+    const doLogout=()=>{ try{alert('Session expired due to inactivity. Please login again.');}catch(e){} API.logout(); };
+    const check=()=>{ if(expired()) return doLogout(); clearTimeout(timer); timer=setTimeout(check, Math.min(maxIdleMs, 60000)); };
+    const reset=()=>{ stamp(); clearTimeout(timer); timer=setTimeout(check, Math.min(maxIdleMs, 60000)); };
+    ['click','mousemove','keydown','scroll','touchstart','pointerdown'].forEach(ev=>document.addEventListener(ev, reset, {passive:true}));
+    ['focus','pageshow','visibilitychange'].forEach(ev=>window.addEventListener(ev, check));
     reset();
   }
 
@@ -461,18 +481,18 @@
     settingsBtns.forEach(b=>{b.addEventListener('click',(e)=>{e.preventDefault();e.stopPropagation();openSettings();});});
     document.querySelectorAll('.avatar,.who').forEach(a=>a.addEventListener('click',(e)=>{e.preventDefault();e.stopPropagation();openProfileMenu();}));
     document.querySelectorAll('[title="Fullscreen"]').forEach(b=>{if(!b.dataset.msFull){b.dataset.msFull='1';b.addEventListener('click',(e)=>{if(!document.fullscreenElement){document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen();}else{document.exitFullscreen&&document.exitFullscreen();}});}});
-    document.querySelectorAll('[title="Logout"]').forEach(b=>{if(!b.dataset.msLogout){b.dataset.msLogout='1';b.addEventListener('click',()=>{window.API&&API.logout?API.logout():(localStorage.clear(),location.href='/login');});}});
+    document.querySelectorAll('[title="Logout"]').forEach(b=>{if(!b.dataset.msLogout){b.dataset.msLogout='1';b.addEventListener('click',()=>{window.API&&API.logout?API.logout():(clearAuthStorage(),location.href='/login');});}});
   }
   window.API = {
     guard,
     role: ROLE,
-    user: () => localStorage.getItem('ms_user'),
-    name: () => localStorage.getItem('ms_name'),
+    user: () => sessionStorage.getItem('ms_user'),
+    name: () => sessionStorage.getItem('ms_name'),
     get: (p) => req('GET', p),
     post: (p, b) => req('POST', p, b),
     put: (p, b) => req('PUT', p, b),
     del: (p) => req('DELETE', p),
-    logout: async () => { try{ await req('POST','/logout',{}); }catch(e){} localStorage.clear(); location.href = '/login'; },
+    logout: async () => { try{ await req('POST','/logout',{}); }catch(e){} clearAuthStorage(); location.href = '/login'; },
     initNotifications,
     markNotificationRead,
     openSettings,

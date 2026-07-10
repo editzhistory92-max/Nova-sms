@@ -35,14 +35,14 @@
 (function(){
   var expected='agent';
   try{
-    var token=localStorage.getItem('ms_token');
-    var role=localStorage.getItem('ms_role');
+    var token=sessionStorage.getItem('ms_token');
+    var role=sessionStorage.getItem('ms_role');
     if(!token || role!==expected){ location.replace('/login'); return; }
     fetch('/api/me',{headers:{Authorization:'Bearer '+token}})
       .then(function(r){ if(!r.ok) throw new Error('auth'); return r.json(); })
       .then(function(u){ if(!u || u.role!==expected) throw new Error('role'); if(!localStorage.getItem('ms_last_page_'+expected)||localStorage.getItem('ms_last_page_'+expected)==='dashboard'){document.documentElement.style.visibility='visible';} })
-      .catch(function(){ localStorage.clear(); location.replace('/login'); });
-  }catch(e){ localStorage.clear(); location.replace('/login'); }
+      .catch(function(){ sessionStorage.clear(); ['ms_token','ms_role','ms_user','ms_name'].forEach(k=>localStorage.removeItem(k)); location.replace('/login'); });
+  }catch(e){ sessionStorage.clear(); ['ms_token','ms_role','ms_user','ms_name'].forEach(k=>localStorage.removeItem(k)); location.replace('/login'); }
 })();
 </script>
 <style>
@@ -620,7 +620,7 @@
   <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal('clientModal')">Cancel</button><button class="btn btn-blue" onclick="saveClient()">Save</button></div>
 </div></div>
 
-<script src="api.js"></script>
+<script src="api.js?v=20260709-ux2"></script>
 <script>
 if(window.API){ API.guard('agent'); }
 /* NAV */
@@ -635,7 +635,7 @@ function toggleSub(subId,pId){document.getElementById(subId).classList.toggle('o
 function toggleRail(){document.getElementById('rail')?.classList.toggle('show');}
 function closeModal(id){document.getElementById(id).classList.remove('show');}
 function toggleFull(){if(!document.fullscreenElement){document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen();}else{document.exitFullscreen&&document.exitFullscreen();}}
-function logout(){ if(confirm('Do you want to logout?')){ if(window.API&&API.logout){API.logout();}else{try{localStorage.clear();}catch(e){} window.location.href='/login';} } }
+function logout(){ if(confirm('Do you want to logout?')){ if(window.API&&API.logout){API.logout();}else{try{sessionStorage.clear();['ms_token','ms_role','ms_user','ms_name'].forEach(k=>localStorage.removeItem(k));}catch(e){} window.location.href='/login';} } }
 function tick(){const d=new Date();const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];const p=n=>String(n).padStart(2,'0');
   document.getElementById('clock').textContent=days[d.getDay()]+', '+d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());}
 setInterval(tick,1000);tick();
@@ -643,7 +643,7 @@ function drawWeek(data){const el=document.getElementById('wk');if(!el)return;con
 drawWeek([{l:'Mon',v:0},{l:'Tue',v:0},{l:'Wed',v:0},{l:'Thu',v:0},{l:'Fri',v:0},{l:'Sat',v:0},{l:'Sun',v:0}]);
 
 /* ===== LIVE DATA ONLY (no dummy data) ===== */
-let AGT=localStorage.getItem('ms_name')||localStorage.getItem('ms_user')||'Agent', MGR='';
+let AGT=sessionStorage.getItem('ms_name')||sessionStorage.getItem('ms_user')||'Agent', MGR='';
 let myClients=[];
 let clientsData=[];
 let rangeNames=[];

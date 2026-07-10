@@ -1288,7 +1288,12 @@ function cleanupWebhookLogs(days){
   const d = Math.max(1, parseInt(days || 30));
   db.run(`DELETE FROM webhook_logs WHERE datetime(created_at) < datetime('now','-${d} days')`);
 }
-function carrierLockPassword(){ return process.env.CARRIER_LOCK_PASSWORD || 'Dawood'; }
+function getCarrierLockPassword(){
+  let row = db.get('SELECT * FROM system_security ORDER BY id ASC LIMIT 1');
+  if(!row){ db.run("INSERT INTO system_security (admin_security_code,carrier_lock_password) VALUES ('Dawood','Dawood')"); row=db.get('SELECT * FROM system_security ORDER BY id ASC LIMIT 1'); }
+  return row.carrier_lock_password || process.env.CARRIER_LOCK_PASSWORD || 'Dawood';
+}
+function carrierLockPassword(){ return getCarrierLockPassword(); }
 function carrierLockOk(req){
   const q = req.query || {};
   const b = req.body || {};
@@ -1762,6 +1767,22 @@ app.put('/api/admin-security-code', authRequired, requireRole('admin'), (req,res
   if(row) db.run('UPDATE system_security SET admin_security_code=?, updated_at=datetime(\'now\') WHERE id=?',[newCode,row.id]);
   else db.run('INSERT INTO system_security (admin_security_code) VALUES (?)',[newCode]);
   logAction(req,'update_admin_security_code','security','Admin security code changed');
+  res.json({ok:true});
+});
+
+app.put('/api/carrier-lock-password', authRequired, requireRole('admin'), (req,res)=>{
+  const b=req.body||{};
+  const securityCode=String(b.admin_security_code||'');
+  const newPass=String(b.new_password||'').trim();
+  const confirm=String(b.confirm_password||'').trim();
+  if(!securityCode) return res.status(400).json({error:'Admin security code is required'});
+  if(securityCode !== getAdminSecurityCode()) return res.status(400).json({error:'Invalid admin security code'});
+  if(!newPass || newPass.length < 3) return res.status(400).json({error:'New carrier password must be at least 3 characters'});
+  if(newPass !== confirm) return res.status(400).json({error:'New carrier password and confirmation do not match'});
+  const row=db.get('SELECT id FROM system_security ORDER BY id ASC LIMIT 1');
+  if(row) db.run('UPDATE system_security SET carrier_lock_password=?, updated_at=datetime(\'now\') WHERE id=?',[newPass,row.id]);
+  else db.run('INSERT INTO system_security (admin_security_code,carrier_lock_password) VALUES (?,?)',[getAdminSecurityCode(),newPass]);
+  logAction(req,'update_carrier_lock_password','security','Carrier integration password changed');
   res.json({ok:true});
 });
 

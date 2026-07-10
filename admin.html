@@ -21,14 +21,14 @@
 (function(){
   var expected='admin';
   try{
-    var token=localStorage.getItem('ms_token');
-    var role=localStorage.getItem('ms_role');
+    var token=sessionStorage.getItem('ms_token');
+    var role=sessionStorage.getItem('ms_role');
     if(!token || role!==expected){ location.replace('/login'); return; }
     fetch('/api/me',{headers:{Authorization:'Bearer '+token}})
       .then(function(r){ if(!r.ok) throw new Error('auth'); return r.json(); })
       .then(function(u){ if(!u || u.role!==expected) throw new Error('role'); if(!localStorage.getItem('ms_last_page_'+expected)||localStorage.getItem('ms_last_page_'+expected)==='dashboard'){document.documentElement.style.visibility='visible';} })
-      .catch(function(){ localStorage.clear(); location.replace('/login'); });
-  }catch(e){ localStorage.clear(); location.replace('/login'); }
+      .catch(function(){ sessionStorage.clear(); ['ms_token','ms_role','ms_user','ms_name'].forEach(k=>localStorage.removeItem(k)); location.replace('/login'); });
+  }catch(e){ sessionStorage.clear(); ['ms_token','ms_role','ms_user','ms_name'].forEach(k=>localStorage.removeItem(k)); location.replace('/login'); }
 })();
 </script>
 <style>
@@ -531,11 +531,6 @@
           </div>
           <div class="bulk-bar">
             <span class="info" id="selInfo">0 selected</span>
-            <button class="btn btn-green btn-sm" onclick="openAllocAll()">Allocate Selected → Manager</button>
-            <button class="btn btn-red btn-sm" onclick="unallocateSelected()">Unallocate Selected</button>
-            <button class="btn btn-red btn-sm" onclick="deleteSelectedNumbers()">Delete Selected</button>
-            <button class="btn btn-red btn-sm" onclick="deleteCurrentFilteredNumbers()">Delete Filtered</button>
-            <button class="btn btn-red btn-sm" onclick="deleteAllNumbersFromDb()">Delete ALL</button>
           </div>
         </div>
         <div class="table-wrap">
@@ -774,7 +769,7 @@
             <div class="form-group"><label>Password</label><input id="carrierLockPassword" type="password" placeholder="Enter password" /></div>
             <button class="btn btn-purple" onclick="unlockCarrierIntegration()">Unlock</button>
           </div>
-          <div class="hint">Default password: configured by server. Current requested password is <b>Dawood</b>.</div>
+          <div class="hint">Password can be changed from Admin Profile after entering the admin security code.</div>
         </div>
         <div id="carrierProtected">
         <div class="stats-grid">
@@ -790,7 +785,7 @@
             <div class="form-group"><label>Allowed Carrier IP List</label><input id="ciIp" placeholder="51.77.64.61, 51.77.64.62, 127.0.0.1" /><div class="hint">Comma, space or new-line separated IP addresses.</div></div>
             <div class="form-group"><label>Webhook Log Retention</label><select id="ciRetention"><option value="7">7 Days</option><option value="30">30 Days</option><option value="90">90 Days</option><option value="180">180 Days</option></select></div>
           </div>
-          <div class="form-group"><label>HTTP Callback URL</label><div style="display:flex;gap:8px;align-items:center"><input id="ciCallback" placeholder="https://yourdomain.com/api/incoming-sms"/><button class="btn btn-blue btn-sm" onclick="copyCarrierUrl()" type="button">Copy</button><button class="btn btn-green btn-sm" onclick="testCarrierConnection()" type="button">Test Connection</button></div><div class="hint">Send this URL to the carrier. For local testing, expose localhost with Cloudflare Tunnel or ngrok, then use the public URL ending with <b>/api/incoming-sms</b>.</div></div>
+          <div class="form-group"><label>HTTP Callback URL</label><div style="display:flex;gap:8px;align-items:center"><input id="ciCallback" placeholder="https://yourdomain.com/api/incoming-sms"/><button class="btn btn-blue btn-sm" onclick="copyCarrierUrl()" type="button">Copy</button><button class="btn btn-green btn-sm" onclick="testCarrierConnection()" type="button">Test Connection</button></div><div class="hint">Send this URL to the carrier. The URL must end with <b>/api/incoming-sms</b>.</div></div>
           <div class="form-grid" style="grid-template-columns:1fr 1fr;gap:14px">
             <div class="form-group"><label>Future API Key</label><input id="ciApiKey" placeholder="Optional / future" /></div>
             <div class="form-group"><label>Future Auth Token</label><input id="ciToken" placeholder="Optional / future" /></div>
@@ -810,14 +805,6 @@
             <thead><tr><th>Timestamp</th><th>Source IP</th><th>Number</th><th>CLI/Sender</th><th>Message Preview</th><th>Status</th><th>Error Message</th></tr></thead>
             <tbody id="ciLogBody"></tbody>
           </table></div><div class="table-foot"><div class="info" id="ciLogInfo"></div></div></div>
-        </div>
-        <div class="card">
-          <div class="card-head"><div><h3>Temporary Public URL for Local Testing</h3><div class="sub">Run one of these commands while your Node server is running.</div></div></div>
-          <pre style="background:#f8fafc;border:1px solid var(--border);border-radius:12px;padding:14px;color:#0f2454;white-space:pre-wrap">cloudflared tunnel --url http://localhost:4000
-
-# or
-ngrok http 4000</pre>
-          <div class="hint">After you receive the public URL, update the HTTP Callback URL above to: <b>https://public-url/api/incoming-sms</b></div>
         </div>
         </div>
       </section>
@@ -1074,7 +1061,7 @@ ngrok http 4000</pre>
   <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal('newsModal')">Cancel</button><button class="btn btn-purple" onclick="saveNews()">Save</button></div>
 </div></div>
 
-<script src="api.js"></script>
+<script src="api.js?v=20260709-ux2"></script>
 <script>
 /* auth guard — admin only */
 if(window.API){ API.guard('admin'); }
@@ -1101,7 +1088,7 @@ function openSidebar(){ document.getElementById('sidebar').classList.add('show')
 function closeSidebar(){ document.getElementById('sidebar').classList.remove('show'); document.getElementById('overlay').classList.remove('show'); }
 function toggleFull(){ if(!document.fullscreenElement){document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen();}else{document.exitFullscreen&&document.exitFullscreen();} }
 function closeModal(id){const el=document.getElementById(id);if(el)el.classList.remove('show');}
-function logout(){ if(confirm('Do you want to logout?')){ if(window.API&&API.logout){API.logout();}else{try{localStorage.clear();}catch(e){} window.location.href='/login';} } }
+function logout(){ if(confirm('Do you want to logout?')){ if(window.API&&API.logout){API.logout();}else{try{sessionStorage.clear();['ms_token','ms_role','ms_user','ms_name'].forEach(k=>localStorage.removeItem(k));}catch(e){} window.location.href='/login';} } }
 function tick(){const d=new Date();const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];const p=n=>String(n).padStart(2,'0');
   document.getElementById('clock').textContent=days[d.getDay()]+', '+d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());}
 setInterval(tick,1000);tick();
@@ -2086,7 +2073,7 @@ async function createBackupNow(){
 }
 async function downloadBackup(file){
   try{
-    const token=localStorage.getItem('ms_token');
+    const token=sessionStorage.getItem('ms_token');
     const res=await fetch('/api/backups/'+encodeURIComponent(file)+'/download',{headers:{Authorization:'Bearer '+token}});
     if(!res.ok) throw new Error((await res.json().catch(()=>({error:'Download failed'}))).error||'Download failed');
     const blob=await res.blob();
@@ -2095,7 +2082,7 @@ async function downloadBackup(file){
 }
 async function downloadLatestBackup(){
   try{
-    const token=localStorage.getItem('ms_token');
+    const token=sessionStorage.getItem('ms_token');
     const res=await fetch('/api/backups/latest/download',{headers:{Authorization:'Bearer '+token}});
     if(!res.ok) throw new Error((await res.json().catch(()=>({error:'Download failed'}))).error||'Download failed');
     const blob=await res.blob();
