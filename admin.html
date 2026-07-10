@@ -883,6 +883,20 @@
           <button class="btn btn-red" onclick="renderTest()">Filter</button>
           <button class="btn btn-ghost" onclick="document.getElementById('testCliFilter').value='';document.getElementById('testRange').value='';renderTest()">Reset</button>
         </div></div>
+        <div class="card" style="margin-bottom:16px;border:1px solid rgba(212,175,55,.35)">
+          <div class="card-head"><div><h3>Demo Traffic Generator</h3><div class="sub">Admin-only: generate fake/demo OTP messages on Test Numbers for display traffic.</div></div><button class="btn btn-red btn-sm" onclick="clearAdminFakeTraffic()">Clear Demo Traffic</button></div>
+          <div class="form-grid" style="grid-template-columns:140px auto;gap:12px;align-items:end;margin-bottom:12px">
+            <div class="form-group"><label>Limit</label><input id="adminFakeDefaultLimit" type="number" min="1" max="1000" value="25"></div>
+            <button class="btn btn-purple" onclick="generateAdminDefaultFake()">Generate Default Demo</button>
+          </div>
+          <div class="form-grid" style="grid-template-columns:1fr 140px 2fr auto;gap:12px;align-items:end">
+            <div class="form-group"><label>Custom CLI</label><input id="adminFakeCli" placeholder="e.g. Affirm"></div>
+            <div class="form-group"><label>Limit</label><input id="adminFakeLimit" type="number" min="1" max="1000" value="25"></div>
+            <div class="form-group"><label>Message Body</label><input id="adminFakeMsg" placeholder="Use {code}, {number}, {service}, {range}, {index}"></div>
+            <button class="btn btn-blue" onclick="generateAdminCustomFake()">Generate Custom</button>
+          </div>
+          <div class="hint" style="margin-top:10px">Demo messages are marked as <b>source=test_panel_fake</b>. Public Test Panel users can view them, but cannot generate or delete them.</div>
+        </div>
         <div class="two-col">
           <div>
             <h3 style="margin-bottom:12px;font-size:16px">SMS Test Numbers</h3>
@@ -1062,7 +1076,7 @@
   <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal('newsModal')">Cancel</button><button class="btn btn-purple" onclick="saveNews()">Save</button></div>
 </div></div>
 
-<script src="api.js?v=20260710-fake-traffic"></script>
+<script src="api.js?v=20260710-public-test"></script>
 <script>
 /* auth guard — admin only */
 if(window.API){ API.guard('admin'); }
@@ -1686,6 +1700,20 @@ function renderPayments(){const len=document.getElementById('payLen').value,q=(d
 /* =============== SMS TEST PANEL (CLI masking) =============== */
 function maskCLI(cli){ if(!cli) return ''; if(cli.length<=2) return cli; return cli.slice(0,2)+'x'.repeat(cli.length-2); }
 function normPhone(v){return String(v||'').replace(/[^0-9]/g,'');}
+async function generateAdminDefaultFake(){
+  try{const r=await API.post('/test-panel/fake/default',{limit:+(document.getElementById('adminFakeDefaultLimit').value||25)});alert(`✅ Generated ${r.inserted||0} default demo messages.`);await loadSmsRecords();await loadDashboard();renderTest();}catch(e){alert('❌ '+e.message)}
+}
+async function generateAdminCustomFake(){
+  const cli=document.getElementById('adminFakeCli').value.trim();
+  const message=document.getElementById('adminFakeMsg').value.trim();
+  const limit=+(document.getElementById('adminFakeLimit').value||25);
+  if(!cli||!message){alert('Enter custom CLI and message body.');return;}
+  try{const r=await API.post('/test-panel/fake/custom',{cli,message,limit});alert(`✅ Generated ${r.inserted||0} custom demo messages.`);await loadSmsRecords();await loadDashboard();renderTest();}catch(e){alert('❌ '+e.message)}
+}
+async function clearAdminFakeTraffic(){
+  if(!confirm('Clear all demo/fake messages? Real carrier/test SMS will not be removed.'))return;
+  try{const r=await API.del('/test-panel/fake');alert(`✅ Cleared ${r.deleted||0} demo messages.`);await loadSmsRecords();await loadDashboard();renderTest();}catch(e){alert('❌ '+e.message)}
+}
 function renderTest(){
   const role=document.getElementById('cliRole').value; // admin=full, agent=masked
   const rangeF=document.getElementById('testRange').value;

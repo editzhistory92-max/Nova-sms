@@ -370,7 +370,7 @@ app.get('/api/test-numbers', authRequired, (req, res) => {
   res.json(rows);
 });
 
-app.post('/api/test-numbers/import', authRequired, requireRole('admin','test'), (req, res) => {
+app.post('/api/test-numbers/import', authRequired, requireRole('admin'), (req, res) => {
   const { range_id, range_name, numbers } = req.body || {};
   if (!Array.isArray(numbers) || numbers.length === 0) return res.status(400).json({ error: 'numbers[] required' });
   let range = range_id ? db.get('SELECT * FROM ranges WHERE id=?', [+range_id]) : null;
@@ -395,7 +395,7 @@ app.post('/api/test-numbers/import', authRequired, requireRole('admin','test'), 
   res.json({ ok: true, inserted, skipped, range_id: range.id });
 });
 
-app.post('/api/test-numbers', authRequired, requireRole('admin','test'), (req, res) => {
+app.post('/api/test-numbers', authRequired, requireRole('admin'), (req, res) => {
   const b = req.body || {};
   const number = String(b.number || '').trim();
   if (!number) return res.status(400).json({ error: 'number required' });
@@ -414,7 +414,7 @@ app.post('/api/test-numbers', authRequired, requireRole('admin','test'), (req, r
   res.json({ ok: true, inserted: 1, range_id: range.id });
 });
 
-app.delete('/api/test-numbers/:id', authRequired, requireRole('admin','test'), (req, res) => {
+app.delete('/api/test-numbers/:id', authRequired, requireRole('admin'), (req, res) => {
   const id = +req.params.id;
   const row = db.get('SELECT * FROM range_test_numbers WHERE id=?', [id]);
   if (!row) return res.status(404).json({ error: 'Test number not found' });
@@ -500,12 +500,12 @@ function generateTestPanelFakeMessages({ limit=25, cli='', message='' }, req) {
   logAction(req, 'generate_test_panel_fake_sms', 'test_panel', { inserted, mode: message || cli ? 'custom' : 'default' });
   return { ok:true, inserted, available_test_numbers: pool.length };
 }
-app.post('/api/test-panel/fake/default', authRequired, requireRole('admin','test'), (req, res) => {
+app.post('/api/test-panel/fake/default', authRequired, requireRole('admin'), (req, res) => {
   const result = generateTestPanelFakeMessages({ limit: req.body?.limit || 25 }, req);
   if (!result.ok) return res.status(400).json({ error: result.error });
   res.json(result);
 });
-app.post('/api/test-panel/fake/custom', authRequired, requireRole('admin','test'), (req, res) => {
+app.post('/api/test-panel/fake/custom', authRequired, requireRole('admin'), (req, res) => {
   const b = req.body || {};
   const cli = String(b.cli || '').trim();
   const message = String(b.message || '').trim();
@@ -515,7 +515,7 @@ app.post('/api/test-panel/fake/custom', authRequired, requireRole('admin','test'
   if (!result.ok) return res.status(400).json({ error: result.error });
   res.json(result);
 });
-app.delete('/api/test-panel/fake', authRequired, requireRole('admin','test'), (req, res) => {
+app.delete('/api/test-panel/fake', authRequired, requireRole('admin'), (req, res) => {
   const count = db.get("SELECT COUNT(*) c FROM sms_records WHERE source='test_panel_fake'")?.c || 0;
   db.run("DELETE FROM sms_records WHERE source='test_panel_fake'");
   logAction(req, 'clear_test_panel_fake_sms', 'test_panel', { count });
