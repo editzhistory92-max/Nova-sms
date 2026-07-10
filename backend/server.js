@@ -31,16 +31,21 @@ app.get('/login', (req, res) => sendFrontendPage(res, 'login.html'));
 app.get('/login.html', (req, res) => res.redirect(301, '/login'));
 app.get('/admin', (req, res) => sendFrontendPage(res, 'admin.html'));
 app.get('/admin.html', (req, res) => res.redirect(301, '/admin'));
+app.get('/admin/:page', (req, res) => sendFrontendPage(res, 'admin.html'));
 app.get('/manager', (req, res) => sendFrontendPage(res, 'manager.html'));
 app.get('/manager.html', (req, res) => res.redirect(301, '/manager'));
+app.get('/manager/:page', (req, res) => sendFrontendPage(res, 'manager.html'));
 app.get('/agent', (req, res) => sendFrontendPage(res, 'agent.html'));
 app.get('/agent.html', (req, res) => res.redirect(301, '/agent'));
+app.get('/agent/:page', (req, res) => sendFrontendPage(res, 'agent.html'));
 app.get('/client', (req, res) => sendFrontendPage(res, 'client.html'));
 app.get('/client.html', (req, res) => res.redirect(301, '/client'));
+app.get('/client/:page', (req, res) => sendFrontendPage(res, 'client.html'));
 app.get('/test-login', (req, res) => sendFrontendPage(res, 'test-login.html'));
 app.get('/test-login.html', (req, res) => res.redirect(301, '/test-login'));
 app.get('/test', (req, res) => sendFrontendPage(res, 'test.html'));
 app.get('/test.html', (req, res) => res.redirect(301, '/test'));
+app.get('/test/:page', (req, res) => sendFrontendPage(res, 'test.html'));
 
 // serve frontend assets and static files from project root
 app.use(express.static(FRONTEND_ROOT));
@@ -49,6 +54,25 @@ app.get('/health', (req, res) => res.json({ ok: true, service: 'Mufasa SMS', tim
 app.get('/api/health', (req, res) => res.json({ ok: true, service: 'Mufasa SMS', time: new Date().toISOString() }));
 
 /* ============ helpers ============ */
+function ukOffsetMinutes(date = new Date()) {
+  try {
+    const parts = new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Europe/London', hour12: false,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit'
+    }).formatToParts(date).reduce((a, p) => (a[p.type] = p.value, a), {});
+    const asUtc = Date.UTC(+parts.year, +parts.month - 1, +parts.day, +parts.hour, +parts.minute, +parts.second);
+    return Math.round((asUtc - date.getTime()) / 60000);
+  } catch (_) { return 0; }
+}
+function ukSqlModifier() {
+  const off = ukOffsetMinutes();
+  return off >= 0 ? `+${off} minutes` : `${off} minutes`;
+}
+function ukDateExpr(column) { return `date(${column}, '${ukSqlModifier()}')`; }
+function ukDateNowSql(extra = '') { return `date('now','${ukSqlModifier()}'${extra ? `, '${extra}'` : ''})`; }
+function ukDateTimeExpr(column) { return `datetime(${column}, '${ukSqlModifier()}')`; }
+
 function scopeIds(user) {
   // admin sees everyone; others see their downstream hierarchy
   if (user.role === 'admin') return db.all('SELECT id FROM users').map(r => r.id);
@@ -427,17 +451,19 @@ app.delete('/api/test-numbers/:id', authRequired, requireRole('admin'), (req, re
   res.json({ ok: true, deleted: 1 });
 });
 
-app.get('/api/test-panel/dashboard', authRequired, requireRole('admin','test'), (req, res) => {
+app.get('/api/test-panel/dashboard', authRequired, requireRole('admin','manager','agent','client','test'), (req, res) => {
   const nums = db.get('SELECT COUNT(*) c FROM range_test_numbers WHERE active=1')?.c || 0;
-  const today = db.get(`SELECT COUNT(*) c FROM sms_records s WHERE date(s.received_at)=date('now') AND EXISTS (
-      SELECT 1 FROM range_test_numbers t WHERE t.active=1 AND REPLACE(REPLACE(REPLACE(REPLACE(t.test_number,'+',''),' ',''),'-',''),'_','')=REPLACE(REPLACE(REPLACE(REPLACE(s.number,'+',''),' ',''),'-',''),'_','')
+  const ukDay = ukDateExpr('s.received_at');
+  const matchExpr = `REPLACE(REPLACE(REPLACE(REPLACE(t.test_number,'+',''),' ',''),'-',''),'_','')=REPLACE(REPLACE(REPLACE(REPLACE(s.number,'+',''),' ',''),'-',''),'_','')`;
+  const today = db.get(`SELECT COUNT(*) c FROM sms_records s WHERE ${ukDay}=${ukDateNowSql()} AND EXISTS (
+      SELECT 1 FROM range_test_numbers t WHERE t.active=1 AND ${matchExpr}
     )`)?.c || 0;
   const daily7 = db.all(`WITH days(n,d) AS (
-      SELECT 6, date('now','-6 days') UNION ALL SELECT n-1, date(d,'+1 day') FROM days WHERE n>0
-    ) SELECT d AS date, COALESCE((SELECT COUNT(*) FROM sms_records s WHERE date(s.received_at)=d AND EXISTS (
-      SELECT 1 FROM range_test_numbers t WHERE t.active=1 AND REPLACE(REPLACE(REPLACE(REPLACE(t.test_number,'+',''),' ',''),'-',''),'_','')=REPLACE(REPLACE(REPLACE(REPLACE(s.number,'+',''),' ',''),'-',''),'_','')
+      SELECT 6, ${ukDateNowSql('-6 days')} UNION ALL SELECT n-1, date(d,'+1 day') FROM days WHERE n>0
+    ) SELECT d AS date, COALESCE((SELECT COUNT(*) FROM sms_records s WHERE ${ukDay}=d AND EXISTS (
+      SELECT 1 FROM range_test_numbers t WHERE t.active=1 AND ${matchExpr}
     )),0) AS count FROM days ORDER BY d`);
-  res.json({ today_otps: today, total_test_numbers: nums, daily7 });
+  res.json({ today_otps: today, total_test_numbers: nums, daily7, reporting_timezone: 'Europe/London' });
 });
 
 app.get('/api/test-panel/sms', authRequired, requireRole('admin','manager','agent','client','test'), (req, res) => {
@@ -1037,10 +1063,12 @@ app.get('/api/dashboard', authRequired, (req, res) => {
   const u = req.user;
   const smsScope = smsScopeWhere(u);
   const numScope = numberScopeWhere(u);
-  const today = db.get(`SELECT COUNT(*) c FROM sms_records WHERE ${smsScope.where} AND date(received_at)=date('now')`, smsScope.params)?.c || 0;
-  const yesterday = db.get(`SELECT COUNT(*) c FROM sms_records WHERE ${smsScope.where} AND date(received_at)=date('now','-1 day')`, smsScope.params)?.c || 0;
-  const d7 = db.get(`SELECT COUNT(*) c FROM sms_records WHERE ${smsScope.where} AND received_at >= datetime('now','-7 days')`, smsScope.params)?.c || 0;
-  const month = db.get(`SELECT COUNT(*) c FROM sms_records WHERE ${smsScope.where} AND strftime('%Y-%m',received_at)=strftime('%Y-%m','now')`, smsScope.params)?.c || 0;
+  const dExpr = ukDateExpr('received_at');
+  const dtExpr = ukDateTimeExpr('received_at');
+  const today = db.get(`SELECT COUNT(*) c FROM sms_records WHERE ${smsScope.where} AND ${dExpr}=${ukDateNowSql()}`, smsScope.params)?.c || 0;
+  const yesterday = db.get(`SELECT COUNT(*) c FROM sms_records WHERE ${smsScope.where} AND ${dExpr}=${ukDateNowSql('-1 day')}`, smsScope.params)?.c || 0;
+  const d7 = db.get(`SELECT COUNT(*) c FROM sms_records WHERE ${smsScope.where} AND ${dExpr} >= ${ukDateNowSql('-6 days')}`, smsScope.params)?.c || 0;
+  const month = db.get(`SELECT COUNT(*) c FROM sms_records WHERE ${smsScope.where} AND strftime('%Y-%m',${dtExpr})=strftime('%Y-%m',datetime('now','${ukSqlModifier()}'))`, smsScope.params)?.c || 0;
   const numbers = db.get(`SELECT COUNT(*) c FROM numbers WHERE ${numScope.where}`, numScope.params)?.c || 0;
   const managers = u.role === 'admin' ? (db.get(`SELECT COUNT(*) c FROM users WHERE role='manager'`)?.c || 0) : 0;
   let agents = 0, clients = 0;
@@ -1057,11 +1085,11 @@ app.get('/api/dashboard', authRequired, (req, res) => {
   } else if (u.role === 'agent') {
     clients = db.get(`SELECT COUNT(*) c FROM users WHERE role='client' AND parent_id=?`, [u.id])?.c || 0;
   }
-  const rows7 = smsRowsForScope(u, `s.received_at >= datetime('now','-7 days')`);
-  const rowsMonth = smsRowsForScope(u, `strftime('%Y-%m',s.received_at)=strftime('%Y-%m','now')`);
+  const rows7 = smsRowsForScope(u, `${ukDateExpr('s.received_at')} >= ${ukDateNowSql('-6 days')}`);
+  const rowsMonth = smsRowsForScope(u, `strftime('%Y-%m',${ukDateTimeExpr('s.received_at')})=strftime('%Y-%m',datetime('now','${ukSqlModifier()}'))`);
   const daily7 = [];
   for (let i = 6; i >= 0; i--) {
-    const r = db.get(`SELECT date('now','-${i} days') d, COUNT(*) c FROM sms_records WHERE ${smsScope.where} AND date(received_at)=date('now','-${i} days')`, smsScope.params);
+    const r = db.get(`SELECT ${ukDateNowSql('-'+i+' days')} d, COUNT(*) c FROM sms_records WHERE ${smsScope.where} AND ${ukDateExpr('received_at')}=${ukDateNowSql('-'+i+' days')}`, smsScope.params);
     daily7.push({ date: r?.d || '', count: r?.c || 0 });
   }
   const recent = smsRowsForScope(u).slice(0,5).map(r=>({received_at:r.received_at,number:r.number,cli:r.cli,message:r.message,range_name:r.range_name,payout_rate:r.payout_rate}));

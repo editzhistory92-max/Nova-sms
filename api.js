@@ -146,6 +146,7 @@
       .page.active{animation:msPageFade .22s ease both}.card,.table-wrap,.toolbar,.stat-card{transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease,background-color .18s ease}.card:hover,.table-wrap:hover{box-shadow:0 16px 38px rgba(15,23,42,.07)}button,.btn,.tb-btn,.nav-item,.sub-item,.tab,.ritem,.rsubitem,.navtab,.dropitem{transition:transform .14s ease,box-shadow .14s ease,background-color .14s ease,color .14s ease,opacity .14s ease}button:active,.btn:active{transform:translateY(1px) scale(.99)}tbody tr{transition:background-color .14s ease,transform .14s ease}tbody tr:hover{transform:translateX(1px)}@keyframes msPageFade{from{opacity:.55;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
       .ms-progress{position:fixed;left:0;right:0;top:0;height:3px;background:linear-gradient(90deg,#D4AF37,#F59E0B,#38BDF8);z-index:20000;transform-origin:left;animation:msProgress .7s ease both}.ms-working{box-shadow:0 0 0 4px rgba(245,158,11,.18)!important;filter:brightness(1.03)}@keyframes msProgress{0%{transform:scaleX(0)}70%{transform:scaleX(.82)}100%{transform:scaleX(1);opacity:0}}
       .ms-toast{position:fixed;right:22px;bottom:22px;background:#0F172A;color:#fff;border-radius:12px;padding:10px 13px;font-weight:800;font-size:13px;box-shadow:0 18px 45px rgba(15,23,42,.25);z-index:20001;opacity:0;transform:translateY(8px);animation:msToast .95s ease both}@keyframes msToast{15%,80%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(8px)}}
+      [data-page]{position:relative}.ms-page-link-overlay{position:absolute;inset:0;z-index:3;background:transparent!important;color:inherit!important;text-decoration:none!important}.ms-page-link-overlay:focus{outline:2px solid rgba(245,158,11,.45);outline-offset:2px;border-radius:inherit}
       body.ms-dark-mode{background:#0B0B0B!important;color:#E5E7EB!important}
       body.ms-dark-mode .main,body.ms-dark-mode .content{background:#0B0B0B!important;color:#E5E7EB!important}
       body.ms-dark-mode .card,body.ms-dark-mode .toolbar,body.ms-dark-mode .table-wrap,body.ms-dark-mode .modal,body.ms-dark-mode .modal-box,body.ms-dark-mode .ms-modal,body.ms-dark-mode .ms-notif-panel,body.ms-dark-mode .ms-profile-menu{background:#111827!important;border-color:#334155!important;color:#E5E7EB!important;box-shadow:0 18px 50px rgba(0,0,0,.42)!important}
@@ -285,6 +286,43 @@
     }, 0);
     return { rows: sliced, total: rows.length, page, totalPages };
   }
+  function basePathForRole(role=ROLE()){
+    return {admin:'/admin',manager:'/manager',agent:'/agent',client:'/client',test:'/test'}[role] || '/login';
+  }
+  function pageUrl(page){ return basePathForRole() + '/' + encodeURIComponent(page || 'dashboard'); }
+  function pageFromUrl(){
+    const base=basePathForRole();
+    const path=location.pathname.replace(/\/+$/,'');
+    if(path.startsWith(base + '/')) return decodeURIComponent(path.slice(base.length+1).split('/')[0] || 'dashboard');
+    if(location.hash) return decodeURIComponent(location.hash.slice(1));
+    return '';
+  }
+  function initPageLinks(){
+    document.querySelectorAll('[data-page]').forEach(el=>{
+      const page=el.dataset.page;
+      if(!page || el.querySelector(':scope > a.ms-page-link-overlay')) return;
+      el.style.position = el.style.position || 'relative';
+      const a=document.createElement('a');
+      a.className='ms-page-link-overlay';
+      a.href=pageUrl(page);
+      a.dataset.page=page;
+      a.setAttribute('aria-label','Open '+page);
+      el.appendChild(a);
+    });
+  }
+  function initPageLinkClicks(){
+    document.addEventListener('click',(e)=>{
+      const a=e.target.closest('a.ms-page-link-overlay');
+      if(!a) return;
+      if(e.button!==0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+      e.preventDefault(); e.stopPropagation();
+      const page=a.dataset.page || 'dashboard';
+      activatePageFromHistory(page);
+      try{ history.pushState({msPanel:true,page},'',pageUrl(page)); }catch(_){}
+      closeAllSidebars();
+    }, true);
+  }
+
   function initRoutePersistence(){
     if(!TOKEN()) return;
     const key='ms_last_page_'+(ROLE()||'');
@@ -293,8 +331,8 @@
       if(el && el.dataset && el.dataset.page) localStorage.setItem(key, el.dataset.page);
     }, true);
     setTimeout(()=>{
-      const fromHash = location.hash ? decodeURIComponent(location.hash.slice(1)) : '';
-      const page=fromHash || localStorage.getItem(key) || 'dashboard';
+      const fromRoute = pageFromUrl();
+      const page=fromRoute || localStorage.getItem(key) || 'dashboard';
       if(!page || page==='dashboard'){document.documentElement.style.visibility='visible'; return;}
       activatePageFromHistory(page);
       document.documentElement.style.visibility='visible';
@@ -445,13 +483,15 @@
   }
   function initPanelHistory(){
     if(!TOKEN() || location.pathname.includes('login')) return;
-    const initialPage=(location.hash?decodeURIComponent(location.hash.slice(1)):'') || localStorage.getItem('ms_last_page_'+(ROLE()||'')) || currentPageName();
-    try{ history.replaceState({msPanel:true,page:initialPage},'',location.pathname+'#'+encodeURIComponent(initialPage)); }catch(e){}
+    initPageLinks(); initPageLinkClicks(); setInterval(initPageLinks, 1500);
+    const initialPage=pageFromUrl() || localStorage.getItem('ms_last_page_'+(ROLE()||'')) || currentPageName();
+    try{ history.replaceState({msPanel:true,page:initialPage},'',pageUrl(initialPage)); }catch(e){}
     document.addEventListener('click',(e)=>{
+      if(e.target.closest('a.ms-page-link-overlay')) return;
       const el=e.target.closest('[data-page]');
       if(!el || window.__msHistoryNav) return;
       const page=el.dataset.page; if(!page) return;
-      setTimeout(()=>{ try{ history.pushState({msPanel:true,page},'',location.pathname+'#'+encodeURIComponent(page)); }catch(_){ } closeAllSidebars(); },60);
+      setTimeout(()=>{ try{ history.pushState({msPanel:true,page},'',pageUrl(page)); }catch(_){ } closeAllSidebars(); },60);
     }, true);
     window.addEventListener('popstate',(e)=>{
       if(e.state && e.state.msPanel){ activatePageFromHistory(e.state.page || 'dashboard'); }
@@ -470,6 +510,30 @@
     ['click','mousemove','keydown','scroll','touchstart','pointerdown'].forEach(ev=>document.addEventListener(ev, reset, {passive:true}));
     ['focus','pageshow','visibilitychange'].forEach(ev=>window.addEventListener(ev, check));
     reset();
+  }
+
+  function formatLocalFromDb(value){
+    const s=String(value||'').trim();
+    const m=s.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/);
+    if(!m) return '';
+    const d=new Date(Date.UTC(+m[1], +m[2]-1, +m[3], +m[4], +m[5], +(m[6]||0)));
+    const p=n=>String(n).padStart(2,'0');
+    return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}${m[6]?':'+p(d.getSeconds()):''}`;
+  }
+  function localizeTimes(root=document){
+    const els=[...root.querySelectorAll?.('td,.t2,.ps,.last-sms,.ms-time')||[]];
+    els.forEach(el=>{
+      if(el.children.length) return;
+      const raw=el.dataset.msUtc || el.textContent.trim();
+      if(!/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2})?$/.test(raw)) return;
+      const local=formatLocalFromDb(raw);
+      if(local){ el.dataset.msUtc=raw; el.textContent=local; el.title='Local time: '+local+' | UTC: '+raw; }
+    });
+  }
+  function initTimeLocalization(){
+    localizeTimes(document);
+    const mo=new MutationObserver(muts=>{ clearTimeout(window.__msTzTimer); window.__msTzTimer=setTimeout(()=>muts.forEach(m=>m.addedNodes.forEach(n=>{ if(n.nodeType===1) localizeTimes(n); })),80); });
+    mo.observe(document.body,{childList:true,subtree:true});
   }
 
   function initTopbarControls(){
@@ -499,5 +563,5 @@
     openProfileMenu,
     paginateRows,
   };
-  document.addEventListener('DOMContentLoaded', ()=>{ initExportButtons(); initActionFeedback(); initPanelHistory(); initIdleLogout(); initNotifications(); initRoutePersistence(); enhancePageSizeOptions(); setInterval(enhancePageSizeOptions, 2000); });
+  document.addEventListener('DOMContentLoaded', ()=>{ initExportButtons(); initActionFeedback(); initPanelHistory(); initIdleLogout(); initNotifications(); initRoutePersistence(); initTimeLocalization(); enhancePageSizeOptions(); setInterval(enhancePageSizeOptions, 2000); });
 })();
