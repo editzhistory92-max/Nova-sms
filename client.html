@@ -462,7 +462,7 @@
   </div>
 </div>
 
-<script src="api.js?v=20260710-public-test"></script>
+<script src="api.js?v=20260710-test-sync"></script>
 <script>
 if(window.API){ API.guard('client'); }
 /* NAV */
@@ -554,9 +554,12 @@ function renderStats(){const rf=document.getElementById('stRange').value,cf=(doc
 
 /* TEST PANEL (masked CLI + masked SMS; range filter only on test numbers) */
 function normPhone(v){return String(v||'').replace(/[^0-9]/g,'');}
-function renderTest(){const rf=document.getElementById('testRange').value,cf=(document.getElementById('testCli').value||'').toLowerCase();
+async function renderTest(){const rf=document.getElementById('testRange').value,cf=(document.getElementById('testCli').value||'').toLowerCase();
   document.getElementById('tnBody').innerHTML=testNumbers.filter(r=>!rf||r.range===rf).map(r=>`<tr><td>${r.range}</td><td class="mono">${r.num}</td></tr>`).join('');
-  {const tmap=new Map((testNumbers||[]).map(t=>[normPhone(t.num),t]));const rows=(smsRecords||[]).filter(r=>tmap.has(normPhone(r.number))).map(r=>({date:(r.received_at||'').slice(0,16),range:r.range_name||tmap.get(normPhone(r.number))?.range||'',num:r.number||'',cli:r.cli||''})).filter(r=>(!rf||r.range===rf)&&(!cf||maskCLI(r.cli).toLowerCase().includes(cf)||r.cli.toLowerCase().includes(cf)));document.getElementById('trBody').innerHTML=rows.map(r=>`<tr><td class="muted">${r.date}</td><td>${r.range}</td><td class="mono">${r.num}</td><td class="mono">${maskCLI(r.cli)}</td><td class="mono">********</td></tr>`).join('')||`<tr><td colspan="5" class="muted" style="text-align:center;padding:22px">No test panel SMS found</td></tr>`;}}
+  const apiRows=await API.get('/test-panel/sms').catch(()=>[]);
+  const rows=(apiRows||[]).map(r=>({date:(r.received_at||'').slice(0,16),range:r.range_name||'',num:r.number||'',cli:r.cli||''})).filter(r=>(!rf||r.range===rf)&&(!cf||maskCLI(r.cli).toLowerCase().includes(cf)||r.cli.toLowerCase().includes(cf)));
+  document.getElementById('trBody').innerHTML=rows.map(r=>`<tr><td class="muted">${r.date}</td><td>${r.range}</td><td class="mono">${r.num}</td><td class="mono">${maskCLI(r.cli)}</td><td class="mono">xxxxxxxxxxxx</td></tr>`).join('')||`<tr><td colspan="5" class="muted" style="text-align:center;padding:22px">No test panel SMS found</td></tr>`;
+}
 
 /* NEWS (API) */
 async function loadNews(){ try{ newsFeed=(await API.get('/news')).map(n=>({title:n.title,body:n.body,by:n.created_by||'Admin',date:(n.created_at||'').slice(0,16)})); }catch(e){ newsFeed=[]; } renderNews(); }
@@ -580,5 +583,6 @@ async function loadStats(){ try{ const sms=await API.get('/sms'); stats=sms.map(
 loadProfile();loadDashboard();loadRanges();loadNumbers();loadStats();renderTest();loadNews();setTimeout(showClientWelcome,700);
 </script>
 
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 </html>

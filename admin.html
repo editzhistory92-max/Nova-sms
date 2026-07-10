@@ -1076,7 +1076,7 @@
   <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal('newsModal')">Cancel</button><button class="btn btn-purple" onclick="saveNews()">Save</button></div>
 </div></div>
 
-<script src="api.js?v=20260710-public-test"></script>
+<script src="api.js?v=20260710-test-sync"></script>
 <script>
 /* auth guard — admin only */
 if(window.API){ API.guard('admin'); }
@@ -1714,17 +1714,17 @@ async function clearAdminFakeTraffic(){
   if(!confirm('Clear all demo/fake messages? Real carrier/test SMS will not be removed.'))return;
   try{const r=await API.del('/test-panel/fake');alert(`✅ Cleared ${r.deleted||0} demo messages.`);await loadSmsRecords();await loadDashboard();renderTest();}catch(e){alert('❌ '+e.message)}
 }
-function renderTest(){
+async function renderTest(){
   const role=document.getElementById('cliRole').value; // admin=full, agent=masked
   const rangeF=document.getElementById('testRange').value;
   const tq=(document.getElementById('testNumSearch').value||'').toLowerCase();
   let tRows=testNumbers.filter(r=>(!rangeF||r.range===rangeF)&&[r.range,r.num].join(' ').toLowerCase().includes(tq));
   const tLen=document.getElementById('testNumLen').value; if(tLen!=='All')tRows=tRows.slice(0,parseInt(tLen));
   document.getElementById('testNumBody').innerHTML=tRows.map(r=>`<tr><td>${r.range}</td><td class="mono">${r.num}</td></tr>`).join('')||`<tr><td colspan="2" class="muted" style="text-align:center;padding:24px">No test numbers found</td></tr>`;
-  const testMap=new Map((testNumbers||[]).map(t=>[normPhone(t.num),t]));
   const rq=(document.getElementById('testRecSearch').value||'').toLowerCase();
   const cliF=(document.getElementById('testCliFilter').value||'').toLowerCase();
-  let rRows=(smsRecords||[]).filter(r=>{const t=testMap.get(normPhone(r.number));return !!t && (!t.created_at || String(r.received_at||'') >= String(t.created_at||''));}).map(r=>({date:(r.received_at||'').slice(0,16),range:r.range_name||testMap.get(normPhone(r.number))?.range||'',num:r.number||'',cli:r.cli||'',msg:r.message||''}))
+  const apiRows=await API.get('/test-panel/sms').catch(()=>[]);
+  let rRows=(apiRows||[]).map(r=>({date:(r.received_at||'').slice(0,16),range:r.range_name||'',num:r.number||'',cli:r.cli||'',msg:r.message||''}))
     .filter(r=>(!rangeF||r.range===rangeF)&&(!cliF||r.cli.toLowerCase().includes(cliF))&&[r.range,r.num,r.cli,r.msg].join(' ').toLowerCase().includes(rq));
   const rLen=document.getElementById('testRecLen').value; if(rLen!=='All')rRows=rRows.slice(0,parseInt(rLen));
   document.getElementById('testRecBody').innerHTML=rRows.map(r=>{

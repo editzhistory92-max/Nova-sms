@@ -505,7 +505,8 @@ function generateTestPanelFakeMessages({ limit=25, cli='', message='' }, req) {
       .replaceAll('{index}', String(i+1));
     const senderType = classifySender(service);
     const otpCode = extractOtpCode(body) || code;
-    const when = demoSqlDate(Math.floor(Math.random() * 360));
+    // Keep demo traffic at current time so generated limit, dashboard count and displayed rows match exactly.
+    const when = demoSqlDate(0);
     const owner = owners.length ? owners[i % owners.length] : {};
     db.run(`INSERT INTO sms_records (number_id,number,range_id,cli,sender_type,message,otp_code,client_id,agent_id,manager_id,is_test,test_batch_id,source,payout_rate,payout_amount,received_at)
       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,

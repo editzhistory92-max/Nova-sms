@@ -704,7 +704,7 @@
   <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal('agentModal')">Cancel</button><button class="btn btn-teal" onclick="saveAgent()">Save</button></div>
 </div></div>
 
-<script src="api.js?v=20260710-public-test"></script>
+<script src="api.js?v=20260710-test-sync"></script>
 <script>
 if(window.API){ API.guard('manager'); }
 /* ===== NAV ===== */
@@ -994,9 +994,12 @@ function renderDrill(kind){const len=document.getElementById(kind+'Len').value,q
 
 /* ===== TEST PANEL (full CLI) ===== */
 function normPhone(v){return String(v||'').replace(/[^0-9]/g,'');}
-function renderTest(){const rf=document.getElementById('testRange').value,cf=(document.getElementById('testCli').value||'').toLowerCase();
+async function renderTest(){const rf=document.getElementById('testRange').value,cf=(document.getElementById('testCli').value||'').toLowerCase();
   document.getElementById('tnBody').innerHTML=testNumbers.filter(r=>!rf||r.range===rf).map(r=>`<tr><td>${r.range}</td><td class="mono">${r.num}</td></tr>`).join('');
-  {const tmap=new Map((testNumbers||[]).map(t=>[normPhone(t.num),t]));const rows=(smsRecords||[]).filter(r=>tmap.has(normPhone(r.number))).map(r=>({date:(r.received_at||'').slice(0,16),range:r.range_name||tmap.get(normPhone(r.number))?.range||'',num:r.number||'',cli:r.cli||'',msg:r.message||''})).filter(r=>(!rf||r.range===rf)&&(!cf||r.cli.toLowerCase().includes(cf)));document.getElementById('trBody').innerHTML=rows.map(r=>`<tr><td class="muted">${r.date}</td><td>${r.range}</td><td class="mono">${r.num}</td><td class="mono">${r.cli}</td><td class="msg-body">${r.msg}</td></tr>`).join('')||`<tr><td colspan="5" class="muted" style="text-align:center;padding:22px">No test panel SMS found</td></tr>`;}}
+  const apiRows=await API.get('/test-panel/sms').catch(()=>[]);
+  const rows=(apiRows||[]).map(r=>({date:(r.received_at||'').slice(0,16),range:r.range_name||'',num:r.number||'',cli:r.cli||'',msg:r.message||''})).filter(r=>(!rf||r.range===rf)&&(!cf||r.cli.toLowerCase().includes(cf)));
+  document.getElementById('trBody').innerHTML=rows.map(r=>`<tr><td class="muted">${r.date}</td><td>${r.range}</td><td class="mono">${r.num}</td><td class="mono">${r.cli}</td><td class="msg-body">${r.msg}</td></tr>`).join('')||`<tr><td colspan="5" class="muted" style="text-align:center;padding:22px">No test panel SMS found</td></tr>`;
+}
 
 /* ===== CREDIT NOTES ===== */
 function renderCredit(){const len=document.getElementById('crLen').value,q=(document.getElementById('crSearch').value||'').toLowerCase();
