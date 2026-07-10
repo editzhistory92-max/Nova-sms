@@ -108,7 +108,9 @@ function attachSmsPayoutFields(rows){
 function sumPayout(rows){ return (rows||[]).reduce((s,r)=>decimalAdd(s,r.payout_amount ?? r.payout_rate ?? payoutRateFromRow(r)), '0'); }
 function smsRowsForScope(user, extraWhere='', extraParams=[]){
   const scope=smsScopeWhere(user,'s');
-  const where=[scope.where]; const params=[...scope.params];
+  // Normal SMS/report/earning modules should not mix Test Panel OTPs.
+  // Test Panel data is served separately by /api/test-panel/sms.
+  const where=[scope.where, 'COALESCE(s.is_test,0)=0']; const params=[...scope.params];
   if(extraWhere){ where.push(extraWhere); params.push(...extraParams); }
   const rows=db.all(`SELECT s.*, r.name AS range_name, r.rate_1_1, r.rate_7_1, r.rate_7_7, r.rate_30_45,
       n.rate AS number_rate, n.payout AS number_payout,
@@ -438,7 +440,7 @@ app.get('/api/test-panel/dashboard', authRequired, requireRole('admin','test'), 
   res.json({ today_otps: today, total_test_numbers: nums, daily7 });
 });
 
-app.get('/api/test-panel/sms', authRequired, requireRole('admin','test'), (req, res) => {
+app.get('/api/test-panel/sms', authRequired, requireRole('admin','manager','agent','client','test'), (req, res) => {
   const number = String(req.query.number || '').trim();
   const params = [];
   let extra = '';
@@ -783,32 +785,32 @@ app.post('/api/numbers/move-to-test', authRequired, requireRole('admin'), (req, 
   const rows = db.all(`SELECT n.id,n.number,n.range_id,r.name AS range_name FROM numbers n LEFT JOIN ranges r ON r.id=n.range_id WHERE n.id IN (${ph})`, uniqueIds);
   if (!rows.length) return res.status(404).json({ error: 'No matching numbers found' });
 
-  let moved = 0, skipped = 0;
-  const movedIds = [];
+  let moved = 0, skipped = 0, deletedFromLive = 0;
+  const seenCleaned = new Set();
   const affectedRanges = new Set();
   for (const n of rows) {
     const cleaned = cleanPhone(n.number);
     if (!cleaned || !n.range_id) { skipped++; continue; }
+    if (seenCleaned.has(cleaned)) { skipped++; continue; }
+    seenCleaned.add(cleaned);
     const existsTest = db.get(`SELECT id FROM range_test_numbers
       WHERE range_id=? AND REPLACE(REPLACE(REPLACE(REPLACE(test_number,'+',''),' ',''),'-',''),'_','')=?`, [n.range_id, cleaned]);
     if (!existsTest) {
       db.run('INSERT INTO range_test_numbers (range_id,test_number,active) VALUES (?,?,1)', [n.range_id, n.number]);
     }
-    movedIds.push(n.id);
+    const liveCount = db.get(`SELECT COUNT(*) c FROM numbers WHERE REPLACE(REPLACE(REPLACE(REPLACE(number,'+',''),' ',''),'-',''),'_','')=?`, [cleaned])?.c || 0;
+    db.run(`DELETE FROM numbers WHERE REPLACE(REPLACE(REPLACE(REPLACE(number,'+',''),' ',''),'-',''),'_','')=?`, [cleaned]);
+    deletedFromLive += liveCount;
     affectedRanges.add(n.range_id);
     moved++;
   }
 
-  if (movedIds.length) {
-    const mph = movedIds.map(() => '?').join(',');
-    db.run(`DELETE FROM numbers WHERE id IN (${mph})`, movedIds);
-  }
   for (const rid of affectedRanges) {
     const joined = db.all('SELECT test_number FROM range_test_numbers WHERE range_id=? AND active=1 ORDER BY id', [rid]).map(x => x.test_number).join(', ');
     db.run('UPDATE ranges SET test_number=? WHERE id=?', [joined, rid]);
   }
-  logAction(req, 'move_numbers_to_test_panel', 'numbers', { requested: ids.length, moved, skipped, ranges: [...affectedRanges] });
-  res.json({ ok: true, moved, skipped, deleted_from_live: movedIds.length, ranges: [...affectedRanges] });
+  logAction(req, 'move_numbers_to_test_panel', 'numbers', { requested: ids.length, moved, skipped, deleted_from_live: deletedFromLive, ranges: [...affectedRanges] });
+  res.json({ ok: true, moved, skipped, deleted_from_live: deletedFromLive, ranges: [...affectedRanges] });
 });
 
 // hard delete all numbers that match current filters/search/range (Admin only, DB-side, not current page only)
