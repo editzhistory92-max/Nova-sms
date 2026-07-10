@@ -360,17 +360,12 @@ app.delete('/api/ranges/:id', authRequired, requireRole('admin'), (req, res) => 
 });
 
 app.get('/api/test-numbers', authRequired, (req, res) => {
-  // Test panel numbers are separate from actual panel numbers. If a test number exists in SMS Numbers table, it is hidden here.
-  const rows = db.all(`SELECT t.id, t.range_id, t.test_number AS number, t.label, r.name AS range_name, r.prefix,
+  // Test panel numbers are separate from actual panel numbers. UI should show only range name + number.
+  const rows = db.all(`SELECT t.id, t.range_id, t.test_number AS number, t.label, t.created_at, r.name AS range_name, r.prefix,
       COALESCE(NULLIF(r.rate_30_45,''), NULLIF(r.rate_7_1,''), 'Ask') AS payout
     FROM range_test_numbers t
     JOIN ranges r ON r.id=t.range_id
     WHERE t.active=1
-      AND NOT EXISTS (
-        SELECT 1 FROM numbers n
-        WHERE REPLACE(REPLACE(REPLACE(REPLACE(n.number,'+',''),' ',''),'-',''),'_','') =
-              REPLACE(REPLACE(REPLACE(REPLACE(t.test_number,'+',''),' ',''),'-',''),'_','')
-      )
     ORDER BY r.name, t.id`);
   res.json(rows);
 });
@@ -448,11 +443,11 @@ app.get('/api/test-panel/sms', authRequired, requireRole('admin','test'), (req, 
   const params = [];
   let extra = '';
   if (number) { extra = `AND REPLACE(REPLACE(REPLACE(REPLACE(s.number,'+',''),' ',''),'-',''),'_','')=?`; params.push(cleanPhone(number)); }
-  const rows = db.all(`SELECT s.*, r.name AS range_name, t.id AS test_number_id, t.test_number
+  const rows = db.all(`SELECT s.*, r.name AS range_name, t.id AS test_number_id, t.test_number, t.created_at AS test_number_created_at
     FROM sms_records s
     JOIN range_test_numbers t ON t.active=1 AND REPLACE(REPLACE(REPLACE(REPLACE(t.test_number,'+',''),' ',''),'-',''),'_','')=REPLACE(REPLACE(REPLACE(REPLACE(s.number,'+',''),' ',''),'-',''),'_','')
     LEFT JOIN ranges r ON r.id=COALESCE(s.range_id,t.range_id)
-    WHERE 1=1 ${extra}
+    WHERE datetime(s.received_at) >= datetime(t.created_at) ${extra}
     ORDER BY s.id DESC LIMIT 1000`, params);
   res.json(rows);
 });
@@ -689,6 +684,45 @@ app.post('/api/numbers/delete', authRequired, requireRole('admin'), (req, res) =
   const ph = uniqueIds.map(() => '?').join(',');
   const result = deleteNumbersWhere(`id IN (${ph})`, uniqueIds, req, 'delete_selected_numbers', { requested: ids.length });
   res.json({ ok: true, ...result });
+});
+
+// Move selected live SMS Numbers into Test Panel numbers.
+// This removes them from live numbers table and keeps only range + number in range_test_numbers.
+app.post('/api/numbers/move-to-test', authRequired, requireRole('admin'), (req, res) => {
+  const ids = (req.body && Array.isArray(req.body.ids) ? req.body.ids : [])
+    .map(x => parseInt(x, 10)).filter(x => Number.isFinite(x) && x > 0);
+  if (!ids.length) return res.status(400).json({ error: 'ids[] required' });
+  const uniqueIds = [...new Set(ids)];
+  const ph = uniqueIds.map(() => '?').join(',');
+  const rows = db.all(`SELECT n.id,n.number,n.range_id,r.name AS range_name FROM numbers n LEFT JOIN ranges r ON r.id=n.range_id WHERE n.id IN (${ph})`, uniqueIds);
+  if (!rows.length) return res.status(404).json({ error: 'No matching numbers found' });
+
+  let moved = 0, skipped = 0;
+  const movedIds = [];
+  const affectedRanges = new Set();
+  for (const n of rows) {
+    const cleaned = cleanPhone(n.number);
+    if (!cleaned || !n.range_id) { skipped++; continue; }
+    const existsTest = db.get(`SELECT id FROM range_test_numbers
+      WHERE range_id=? AND REPLACE(REPLACE(REPLACE(REPLACE(test_number,'+',''),' ',''),'-',''),'_','')=?`, [n.range_id, cleaned]);
+    if (!existsTest) {
+      db.run('INSERT INTO range_test_numbers (range_id,test_number,active) VALUES (?,?,1)', [n.range_id, n.number]);
+    }
+    movedIds.push(n.id);
+    affectedRanges.add(n.range_id);
+    moved++;
+  }
+
+  if (movedIds.length) {
+    const mph = movedIds.map(() => '?').join(',');
+    db.run(`DELETE FROM numbers WHERE id IN (${mph})`, movedIds);
+  }
+  for (const rid of affectedRanges) {
+    const joined = db.all('SELECT test_number FROM range_test_numbers WHERE range_id=? AND active=1 ORDER BY id', [rid]).map(x => x.test_number).join(', ');
+    db.run('UPDATE ranges SET test_number=? WHERE id=?', [joined, rid]);
+  }
+  logAction(req, 'move_numbers_to_test_panel', 'numbers', { requested: ids.length, moved, skipped, ranges: [...affectedRanges] });
+  res.json({ ok: true, moved, skipped, deleted_from_live: movedIds.length, ranges: [...affectedRanges] });
 });
 
 // hard delete all numbers that match current filters/search/range (Admin only, DB-side, not current page only)

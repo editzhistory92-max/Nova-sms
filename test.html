@@ -41,7 +41,7 @@
         <div class="toolbar"><select id="addRange"><option value="">Select Range</option></select><input id="addNumber" placeholder="Test number"/><button class="btn btn-green" onclick="addTestNumber()">Add</button></div>
         <div class="toolbar"><select id="importRange"><option value="">Select Range</option></select><input type="file" id="importFile" accept=".txt,.csv"/><button class="btn btn-blue" onclick="importTestNumbers()">Import</button></div>
       </div>
-      <div class="exp-btns" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px"><button class="btn btn-blue">Copy</button><button class="btn btn-blue">CSV</button><button class="btn btn-green">Excel</button></div><div class="table-wrap"><div class="tscroll"><table><thead><tr><th>Range</th><th>Prefix</th><th>Number</th><th>Action</th></tr></thead><tbody id="numBody"></tbody></table></div></div>
+      <div class="exp-btns" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px"><button class="btn btn-blue">Copy</button><button class="btn btn-blue">CSV</button><button class="btn btn-green">Excel</button></div><div class="table-wrap"><div class="tscroll"><table><thead><tr><th>Range</th><th>Number</th><th>Action</th></tr></thead><tbody id="numBody"></tbody></table></div></div>
     </section>
 
     <section class="page" id="page-test">
@@ -51,7 +51,7 @@
     </section>
   </main>
 </div>
-<script src="api.js?v=20260709-ux2"></script>
+<script src="api.js?v=20260710-move-test"></script>
 <script>
 API.guard('test');
 let ranges=[], testNumbers=[], selectedNumber='', pollTimer=null;
@@ -63,7 +63,7 @@ function fillRanges(){const opts='<option value="">Select Range</option>'+ranges
 function otp(msg){const m=String(msg||'').match(/\b\d{4,8}\b/);return m?m[0]:'—'}
 async function loadAll(){ranges=await API.get('/ranges').catch(()=>[]);testNumbers=await API.get('/test-numbers').catch(()=>[]);fillRanges();renderNumbers();renderTestNumbers();loadDash();if(document.getElementById('page-test').classList.contains('active'))loadOtps();}
 async function loadDash(){const d=await API.get('/test-panel/dashboard').catch(()=>({today_otps:0,total_test_numbers:testNumbers.length,daily7:[]}));todayOtp.textContent=d.today_otps||0;totalNums.textContent=d.total_test_numbers||0;dailyStats.innerHTML=(d.daily7||[]).map(x=>`<div class="card" style="min-width:120px;padding:12px"><b>${(x.date||'').slice(5)}</b><div class="otp">${x.count||0}</div></div>`).join('')||'<span class="muted">No data</span>';}
-function renderNumbers(){numBody.innerHTML=testNumbers.map(n=>`<tr><td>${n.range_name||''}</td><td class="muted">${n.prefix||'—'}</td><td class="mono">${n.number}</td><td><button class="btn btn-red" onclick="deleteTestNumber(${n.id})">Delete</button></td></tr>`).join('')||'<tr><td colspan="4" class="muted">No test numbers found</td></tr>';}
+function renderNumbers(){numBody.innerHTML=testNumbers.map(n=>`<tr><td>${n.range_name||''}</td><td class="mono">${n.number}</td><td><button class="btn btn-red" onclick="deleteTestNumber(${n.id})">Delete</button></td></tr>`).join('')||'<tr><td colspan="3" class="muted">No test numbers found</td></tr>';}
 function renderTestNumbers(){const q=(numberSearch?.value||'').toLowerCase();const rows=testNumbers.filter(n=>[n.range_name,n.number].join(' ').toLowerCase().includes(q));leftNums.innerHTML=rows.map(n=>`<tr class="${selectedNumber===n.number?'selected-row':''}" onclick="selectNumber('${n.number.replace(/'/g,'\\\'')}')"><td>${n.range_name||''}</td><td class="mono">${n.number}</td></tr>`).join('')||'<tr><td colspan="2" class="muted">No test numbers</td></tr>';}
 function selectNumber(n){selectedNumber=n;otpTitle.textContent='OTPs for '+n;renderTestNumbers();loadOtps();startPolling();}
 async function loadOtps(){if(!selectedNumber){otpBody.innerHTML='<tr><td colspan="4" class="muted">Select a test number</td></tr>';return;}const rows=await API.get('/test-panel/sms?number='+encodeURIComponent(selectedNumber)).catch(()=>[]);otpBody.innerHTML=rows.map(r=>`<tr><td>${(r.received_at||'').slice(0,19)}</td><td>${r.cli||'—'}</td><td class="otp">${r.otp_code||otp(r.message)}</td><td>${r.message||''}</td></tr>`).join('')||'<tr><td colspan="4" class="muted">No OTPs yet</td></tr>';}

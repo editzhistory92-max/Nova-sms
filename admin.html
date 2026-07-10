@@ -509,6 +509,7 @@
             <button class="btn btn-green" onclick="openAllocAll()">✔ Allocate Selected</button>
             <button class="btn btn-red" onclick="unallocateSelected()">↩ Unallocate Selected</button>
             <button class="btn btn-red" onclick="deleteSelectedNumbers()">🗑 Delete Selected</button>
+            <button class="btn btn-blue" onclick="moveSelectedToTestPanel()">🧪 Move to Test Panel</button>
             <button class="btn btn-red" onclick="deleteCurrentFilteredNumbers()">🧹 Delete Filtered</button>
             <button class="btn btn-red" onclick="deleteAllNumbersFromDb()">🔥 Delete ALL Numbers</button>
             <button class="btn btn-purple" onclick="openSmart()">⚡ Smart Divide</button>
@@ -891,7 +892,7 @@
               <div class="tc-right"><label>Search:</label><input type="text" id="testNumSearch" oninput="renderTest()" placeholder="Search..."/></div>
             </div></div>
             <div class="table-wrap"><div class="tscroll"><table>
-              <thead><tr><th>Range</th><th>Prefix</th><th>Test Number</th></tr></thead>
+              <thead><tr><th>Range</th><th>Test Number</th></tr></thead>
               <tbody id="testNumBody"></tbody>
             </table></div></div>
           </div>
@@ -1061,7 +1062,7 @@
   <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal('newsModal')">Cancel</button><button class="btn btn-purple" onclick="saveNews()">Save</button></div>
 </div></div>
 
-<script src="api.js?v=20260709-ux2"></script>
+<script src="api.js?v=20260710-move-test"></script>
 <script>
 /* auth guard — admin only */
 if(window.API){ API.guard('admin'); }
@@ -1276,6 +1277,17 @@ async function deleteSelectedNumbers(){
     const r=await API.post('/numbers/delete',{ids});
     alert(`✅ Deleted ${r.deleted||0} numbers. Linked SMS removed: ${r.deleted_sms||0}. Database optimized.`);
     if(typeof refreshNumberDependentViews==='function') await refreshNumberDependentViews(); else loadNumbers();
+  }catch(e){ alert('❌ '+e.message); }
+}
+async function moveSelectedToTestPanel(){
+  const ids=getSelectedIds();
+  if(!ids.length){alert('Please select numbers first.');return;}
+  if(!confirm(`Move ${ids.length} selected number(s) to Test Panel?\nThey will be removed from live SMS Numbers and added as Test Numbers with range name + number only.`))return;
+  try{
+    const r=await API.post('/numbers/move-to-test',{ids});
+    alert(`✅ Moved ${r.moved||0} number(s) to Test Panel. Skipped: ${r.skipped||0}`);
+    if(typeof refreshNumberDependentViews==='function') await refreshNumberDependentViews(); else loadNumbers();
+    await loadRates();
   }catch(e){ alert('❌ '+e.message); }
 }
 /* Allocate All modal (Admin -> Manager, as per rule) */
@@ -1680,11 +1692,11 @@ function renderTest(){
   const tq=(document.getElementById('testNumSearch').value||'').toLowerCase();
   let tRows=testNumbers.filter(r=>(!rangeF||r.range===rangeF)&&[r.range,r.num].join(' ').toLowerCase().includes(tq));
   const tLen=document.getElementById('testNumLen').value; if(tLen!=='All')tRows=tRows.slice(0,parseInt(tLen));
-  document.getElementById('testNumBody').innerHTML=tRows.map(r=>`<tr><td>${r.range}</td><td class="muted">${r.prefix||'—'}</td><td class="mono">${r.num}</td></tr>`).join('')||`<tr><td colspan="3" class="muted" style="text-align:center;padding:24px">No test numbers found</td></tr>`;
+  document.getElementById('testNumBody').innerHTML=tRows.map(r=>`<tr><td>${r.range}</td><td class="mono">${r.num}</td></tr>`).join('')||`<tr><td colspan="2" class="muted" style="text-align:center;padding:24px">No test numbers found</td></tr>`;
   const testMap=new Map((testNumbers||[]).map(t=>[normPhone(t.num),t]));
   const rq=(document.getElementById('testRecSearch').value||'').toLowerCase();
   const cliF=(document.getElementById('testCliFilter').value||'').toLowerCase();
-  let rRows=(smsRecords||[]).filter(r=>testMap.has(normPhone(r.number))).map(r=>({date:(r.received_at||'').slice(0,16),range:r.range_name||testMap.get(normPhone(r.number))?.range||'',num:r.number||'',cli:r.cli||'',msg:r.message||''}))
+  let rRows=(smsRecords||[]).filter(r=>{const t=testMap.get(normPhone(r.number));return !!t && (!t.created_at || String(r.received_at||'') >= String(t.created_at||''));}).map(r=>({date:(r.received_at||'').slice(0,16),range:r.range_name||testMap.get(normPhone(r.number))?.range||'',num:r.number||'',cli:r.cli||'',msg:r.message||''}))
     .filter(r=>(!rangeF||r.range===rangeF)&&(!cliF||r.cli.toLowerCase().includes(cliF))&&[r.range,r.num,r.cli,r.msg].join(' ').toLowerCase().includes(rq));
   const rLen=document.getElementById('testRecLen').value; if(rLen!=='All')rRows=rRows.slice(0,parseInt(rLen));
   document.getElementById('testRecBody').innerHTML=rRows.map(r=>{
@@ -1779,7 +1791,7 @@ async function loadRates(){ try{ ratesData=await API.get('/ranges'); }catch(e){ 
   fillSelect('testRange',liveRanges);
   const delSel=document.getElementById('deleteRangeSelect');
   if(delSel) delSel.innerHTML='<option value="">Select Range</option>'+((ratesData||[]).map(r=>`<option value="${r.id}">${r.name}</option>`).join(''));
-  try{ testNumbers=(await API.get('/test-numbers')).map(t=>({range:t.range_name,prefix:t.prefix||'',num:t.number,payout:t.payout||'Ask'})); }
+  try{ testNumbers=(await API.get('/test-numbers')).map(t=>({range:t.range_name,prefix:t.prefix||'',num:t.number,payout:t.payout||'Ask',created_at:t.created_at||''})); }
   catch(e){ testNumbers=[]; }
   renderRates(); rebuildAllocData(); renderAlloc(); renderTest();
 }
