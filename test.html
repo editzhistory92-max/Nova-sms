@@ -46,12 +46,13 @@
 
     <section class="page" id="page-test">
       <div class="head"><div><h2>SMS Test Panel</h2><div class="crumb">Select a test number to view OTPs in real time</div></div><button class="btn btn-blue" onclick="loadAll()">Refresh</button></div>
+      <div class="card" style="margin-bottom:16px;border-color:rgba(212,175,55,.35)"><h3>Demo Traffic Generator</h3><div class="muted" style="margin:6px 0 12px">Generate fake/demo OTP messages on existing Test Numbers only. These are marked as test/demo data.</div><div class="toolbar"><input id="fakeDefaultLimit" type="number" min="1" max="1000" value="25" placeholder="Limit" style="width:110px"><button class="btn btn-gold" onclick="generateDefaultFake()">Generate Default Demo</button><button class="btn btn-red" onclick="clearFakeTraffic()">Clear Demo Traffic</button></div><div class="toolbar" style="align-items:flex-start"><input id="fakeCli" placeholder="Custom CLI e.g. Affirm" style="min-width:180px"><input id="fakeLimit" type="number" min="1" max="1000" value="25" placeholder="Limit" style="width:110px"><textarea id="fakeMsg" placeholder="Custom message. Use {code}, {number}, {service}, {range}, {index}" style="flex:1;min-width:260px;min-height:72px;border:1px solid #d7e0ec;border-radius:12px;padding:10px 12px;font-family:inherit"></textarea><button class="btn btn-blue" onclick="generateCustomFake()">Generate Custom Demo</button></div></div>
       <div class="grid2"><div class="card"><h3>Test Numbers</h3><input id="numberSearch" placeholder="Search number/range" oninput="renderTestNumbers()" style="width:100%;margin:12px 0"/><div class="exp-btns" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px"><button class="btn btn-blue">Copy</button><button class="btn btn-blue">CSV</button><button class="btn btn-green">Excel</button></div><div class="table-wrap"><div class="tscroll"><table><thead><tr><th>Range</th><th>Number</th></tr></thead><tbody id="leftNums"></tbody></table></div></div></div>
       <div class="card"><h3 id="otpTitle">OTPs</h3><div class="exp-btns" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px"><button class="btn btn-blue">Copy</button><button class="btn btn-blue">CSV</button><button class="btn btn-green">Excel</button></div><div class="table-wrap" style="margin-top:12px"><div class="tscroll"><table><thead><tr><th>Time</th><th>CLI</th><th>OTP</th><th>Message</th></tr></thead><tbody id="otpBody"></tbody></table></div></div></div></div>
     </section>
   </main>
 </div>
-<script src="api.js?v=20260710-move-test"></script>
+<script src="api.js?v=20260710-fake-traffic"></script>
 <script>
 API.guard('test');
 let ranges=[], testNumbers=[], selectedNumber='', pollTimer=null;
@@ -71,6 +72,10 @@ function startPolling(){clearInterval(pollTimer);pollTimer=setInterval(()=>{load
 async function addTestNumber(){if(!addRange.value||!addNumber.value.trim()){alert('Select range and enter number');return;}try{await API.post('/test-numbers',{range_id:+addRange.value,number:addNumber.value.trim()});addNumber.value='';await loadAll();alert('Test number added');}catch(e){alert('❌ '+e.message)}}
 async function importTestNumbers(){const f=importFile.files[0];if(!importRange.value||!f){alert('Select range and file');return;}const text=await f.text();const nums=text.split(/[\s,;]+/).map(x=>x.trim()).filter(x=>/^\+?\d{5,}$/.test(x));if(!nums.length){alert('No valid numbers found');return;}try{const r=await API.post('/test-numbers/import',{range_id:+importRange.value,numbers:nums});importFile.value='';await loadAll();alert(`Imported ${r.inserted||0}. Skipped ${r.skipped||0}`);}catch(e){alert('❌ '+e.message)}}
 async function deleteTestNumber(id){if(!confirm('Delete this test number?'))return;try{await API.del('/test-numbers/'+id);await loadAll();}catch(e){alert('❌ '+e.message)}}
+
+async function generateDefaultFake(){try{const r=await API.post('/test-panel/fake/default',{limit:+(fakeDefaultLimit.value||25)});alert(`Generated ${r.inserted||0} default demo messages.`);await loadAll();if(selectedNumber)await loadOtps();}catch(e){alert('❌ '+e.message)}}
+async function generateCustomFake(){const cli=fakeCli.value.trim(),message=fakeMsg.value.trim(),limit=+(fakeLimit.value||25);if(!cli||!message){alert('Enter CLI and message body.');return;}try{const r=await API.post('/test-panel/fake/custom',{cli,message,limit});alert(`Generated ${r.inserted||0} custom demo messages.`);await loadAll();if(selectedNumber)await loadOtps();}catch(e){alert('❌ '+e.message)}}
+async function clearFakeTraffic(){if(!confirm('Clear all demo/fake messages? Real carrier/test SMS will not be removed.'))return;try{const r=await API.del('/test-panel/fake');alert(`Cleared ${r.deleted||0} demo messages.`);await loadAll();if(selectedNumber)await loadOtps();}catch(e){alert('❌ '+e.message)}}
 window.addEventListener('popstate',e=>showPage((e.state&&e.state.page)||'dashboard'));
 const initial=(location.hash||'').replace('#','')||localStorage.getItem('ms_last_page_test')||'dashboard';showPage(initial);loadAll();
 </script>

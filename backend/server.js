@@ -452,6 +452,76 @@ app.get('/api/test-panel/sms', authRequired, requireRole('admin','test'), (req, 
   res.json(rows);
 });
 
+function testPanelNumbersPool() {
+  return db.all(`SELECT t.id, t.range_id, t.test_number AS number, r.name AS range_name,
+      COALESCE(NULLIF(r.rate_30_45,''), NULLIF(r.rate_7_1,''), NULLIF(r.rate_7_7,''), NULLIF(r.rate_1_1,''), '0') AS payout_rate
+    FROM range_test_numbers t
+    LEFT JOIN ranges r ON r.id=t.range_id
+    WHERE t.active=1
+    ORDER BY t.id ASC`);
+}
+function demoSqlDate(minutesAgo) {
+  const d = new Date(Date.now() - (Number(minutesAgo)||0) * 60000);
+  const p = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+}
+function generateTestPanelFakeMessages({ limit=25, cli='', message='' }, req) {
+  const pool = testPanelNumbersPool();
+  if (!pool.length) return { ok:false, error:'No test numbers found. Add/import test numbers first.' };
+  const max = Math.max(1, Math.min(1000, parseInt(limit || 25, 10)));
+  const defaultClis = ['Affirm','TikTok','WhatsApp','Google','Telegram','JD STATUS','Amazon','Facebook','Binance','Verify'];
+  const defaultTemplates = [
+    '{service}: Your verification code is {code}. Do not share it with anyone.',
+    'Your {service} code is {code}. This code will expire in 3 minutes.',
+    '{code} is your {service} OTP. Never share this code.',
+    'Use {code} to verify your {service} login request.',
+    '{service} security code: {code}. If this was not you, ignore this message.'
+  ];
+  let inserted = 0;
+  for (let i=0; i<max; i++) {
+    const n = pool[i % pool.length];
+    const service = cli || defaultClis[i % defaultClis.length];
+    const code = String(100000 + Math.floor(Math.random() * 900000));
+    const tpl = message || defaultTemplates[i % defaultTemplates.length];
+    const body = String(tpl)
+      .replaceAll('{code}', code)
+      .replaceAll('{number}', n.number)
+      .replaceAll('{service}', service)
+      .replaceAll('{range}', n.range_name || 'Test Range')
+      .replaceAll('{index}', String(i+1));
+    const senderType = classifySender(service);
+    const otpCode = extractOtpCode(body) || code;
+    const when = demoSqlDate(Math.floor(Math.random() * 360));
+    db.run(`INSERT INTO sms_records (number_id,number,range_id,cli,sender_type,message,otp_code,client_id,agent_id,manager_id,is_test,test_batch_id,source,payout_rate,payout_amount,received_at)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      [null, n.number, n.range_id, service, senderType, body, otpCode, null, null, null, 1, 'DEMO-' + Date.now(), 'test_panel_fake', n.payout_rate || '0', n.payout_rate || '0', when]);
+    inserted++;
+  }
+  logAction(req, 'generate_test_panel_fake_sms', 'test_panel', { inserted, mode: message || cli ? 'custom' : 'default' });
+  return { ok:true, inserted, available_test_numbers: pool.length };
+}
+app.post('/api/test-panel/fake/default', authRequired, requireRole('admin','test'), (req, res) => {
+  const result = generateTestPanelFakeMessages({ limit: req.body?.limit || 25 }, req);
+  if (!result.ok) return res.status(400).json({ error: result.error });
+  res.json(result);
+});
+app.post('/api/test-panel/fake/custom', authRequired, requireRole('admin','test'), (req, res) => {
+  const b = req.body || {};
+  const cli = String(b.cli || '').trim();
+  const message = String(b.message || '').trim();
+  if (!cli) return res.status(400).json({ error:'CLI is required' });
+  if (!message) return res.status(400).json({ error:'Message body is required' });
+  const result = generateTestPanelFakeMessages({ limit: b.limit || 25, cli, message }, req);
+  if (!result.ok) return res.status(400).json({ error: result.error });
+  res.json(result);
+});
+app.delete('/api/test-panel/fake', authRequired, requireRole('admin','test'), (req, res) => {
+  const count = db.get("SELECT COUNT(*) c FROM sms_records WHERE source='test_panel_fake'")?.c || 0;
+  db.run("DELETE FROM sms_records WHERE source='test_panel_fake'");
+  logAction(req, 'clear_test_panel_fake_sms', 'test_panel', { count });
+  res.json({ ok:true, deleted: count });
+});
+
 
 /* ============ NUMBERS ============ */
 function numberOwnerColumnForRole(role) {
