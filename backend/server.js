@@ -443,15 +443,21 @@ app.get('/api/test-panel/sms', authRequired, requireRole('admin','test'), (req, 
   const params = [];
   let extra = '';
   if (number) { extra = `AND REPLACE(REPLACE(REPLACE(REPLACE(s.number,'+',''),' ',''),'-',''),'_','')=?`; params.push(cleanPhone(number)); }
-  const rows = db.all(`SELECT s.*, r.name AS range_name, t.id AS test_number_id, t.test_number, t.created_at AS test_number_created_at,
+  const matchExpr = `REPLACE(REPLACE(REPLACE(REPLACE(t.test_number,'+',''),' ',''),'-',''),'_','')=REPLACE(REPLACE(REPLACE(REPLACE(s.number,'+',''),' ',''),'-',''),'_','')`;
+  const rows = db.all(`SELECT s.*,
+      COALESCE(r.name, (SELECT r2.name FROM range_test_numbers t LEFT JOIN ranges r2 ON r2.id=t.range_id WHERE t.active=1 AND ${matchExpr} ORDER BY t.id DESC LIMIT 1)) AS range_name,
+      (SELECT t.id FROM range_test_numbers t WHERE t.active=1 AND ${matchExpr} ORDER BY t.id DESC LIMIT 1) AS test_number_id,
+      (SELECT t.test_number FROM range_test_numbers t WHERE t.active=1 AND ${matchExpr} ORDER BY t.id DESC LIMIT 1) AS test_number,
+      (SELECT t.created_at FROM range_test_numbers t WHERE t.active=1 AND ${matchExpr} ORDER BY t.id DESC LIMIT 1) AS test_number_created_at,
       cu.username AS client_name, au.username AS agent_name, mu.username AS manager_name
     FROM sms_records s
-    JOIN range_test_numbers t ON t.active=1 AND REPLACE(REPLACE(REPLACE(REPLACE(t.test_number,'+',''),' ',''),'-',''),'_','')=REPLACE(REPLACE(REPLACE(REPLACE(s.number,'+',''),' ',''),'-',''),'_','')
-    LEFT JOIN ranges r ON r.id=COALESCE(s.range_id,t.range_id)
+    LEFT JOIN ranges r ON r.id=s.range_id
     LEFT JOIN users cu ON cu.id=s.client_id
     LEFT JOIN users au ON au.id=s.agent_id
     LEFT JOIN users mu ON mu.id=s.manager_id
-    WHERE datetime(s.received_at) >= datetime(t.created_at) ${extra}
+    WHERE EXISTS (SELECT 1 FROM range_test_numbers t WHERE t.active=1 AND ${matchExpr})
+      AND datetime(s.received_at) >= datetime((SELECT t.created_at FROM range_test_numbers t WHERE t.active=1 AND ${matchExpr} ORDER BY t.id DESC LIMIT 1))
+      ${extra}
     ORDER BY s.id DESC LIMIT 1000`, params);
   res.json(rows);
 });
@@ -472,6 +478,10 @@ function demoSqlDate(minutesAgo) {
 function generateTestPanelFakeMessages({ limit=25, cli='', message='' }, req) {
   const pool = testPanelNumbersPool();
   if (!pool.length) return { ok:false, error:'No test numbers found. Add/import test numbers first.' };
+  const owners = db.all(`SELECT c.id AS client_id, c.username AS client_name, a.id AS agent_id, a.parent_id AS manager_id
+    FROM users c LEFT JOIN users a ON a.id=c.parent_id
+    WHERE c.role='client' AND c.active=1
+    ORDER BY c.id ASC`);
   const max = Math.max(1, Math.min(1000, parseInt(limit || 25, 10)));
   const defaultClis = ['Affirm','TikTok','WhatsApp','Google','Telegram','JD STATUS','Amazon','Facebook','Binance','Verify'];
   const defaultTemplates = [
@@ -496,9 +506,10 @@ function generateTestPanelFakeMessages({ limit=25, cli='', message='' }, req) {
     const senderType = classifySender(service);
     const otpCode = extractOtpCode(body) || code;
     const when = demoSqlDate(Math.floor(Math.random() * 360));
+    const owner = owners.length ? owners[i % owners.length] : {};
     db.run(`INSERT INTO sms_records (number_id,number,range_id,cli,sender_type,message,otp_code,client_id,agent_id,manager_id,is_test,test_batch_id,source,payout_rate,payout_amount,received_at)
       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-      [null, n.number, n.range_id, service, senderType, body, otpCode, null, null, null, 1, 'DEMO-' + Date.now(), 'test_panel_fake', n.payout_rate || '0', n.payout_rate || '0', when]);
+      [null, n.number, n.range_id, service, senderType, body, otpCode, owner.client_id || null, owner.agent_id || null, owner.manager_id || null, 1, 'DEMO-' + Date.now(), 'test_panel_fake', n.payout_rate || '0', n.payout_rate || '0', when]);
     inserted++;
   }
   logAction(req, 'generate_test_panel_fake_sms', 'test_panel', { inserted, mode: message || cli ? 'custom' : 'default' });
