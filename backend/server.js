@@ -443,10 +443,14 @@ app.get('/api/test-panel/sms', authRequired, requireRole('admin','test'), (req, 
   const params = [];
   let extra = '';
   if (number) { extra = `AND REPLACE(REPLACE(REPLACE(REPLACE(s.number,'+',''),' ',''),'-',''),'_','')=?`; params.push(cleanPhone(number)); }
-  const rows = db.all(`SELECT s.*, r.name AS range_name, t.id AS test_number_id, t.test_number, t.created_at AS test_number_created_at
+  const rows = db.all(`SELECT s.*, r.name AS range_name, t.id AS test_number_id, t.test_number, t.created_at AS test_number_created_at,
+      cu.username AS client_name, au.username AS agent_name, mu.username AS manager_name
     FROM sms_records s
     JOIN range_test_numbers t ON t.active=1 AND REPLACE(REPLACE(REPLACE(REPLACE(t.test_number,'+',''),' ',''),'-',''),'_','')=REPLACE(REPLACE(REPLACE(REPLACE(s.number,'+',''),' ',''),'-',''),'_','')
     LEFT JOIN ranges r ON r.id=COALESCE(s.range_id,t.range_id)
+    LEFT JOIN users cu ON cu.id=s.client_id
+    LEFT JOIN users au ON au.id=s.agent_id
+    LEFT JOIN users mu ON mu.id=s.manager_id
     WHERE datetime(s.received_at) >= datetime(t.created_at) ${extra}
     ORDER BY s.id DESC LIMIT 1000`, params);
   res.json(rows);
