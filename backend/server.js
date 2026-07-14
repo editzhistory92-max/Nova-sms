@@ -122,7 +122,16 @@ function decimalMulInt(a,n){
   return total;
 }
 function payoutRateFromRow(r){
-  const candidates=[r.payout_rate,r.sms_payout_rate,r.number_payout,r.number_rate,r.rate_30_45,r.rate_7_1,r.rate_7_7,r.rate_1_1];
+  // sms_records payout snapshot must be final, including explicit zero from limits/external payout.
+  if (r && Object.prototype.hasOwnProperty.call(r, 'payout_amount')) {
+    const v = normalizeDecimalString(r.payout_amount);
+    if (v !== '') return v;
+  }
+  if (r && Object.prototype.hasOwnProperty.call(r, 'payout_rate')) {
+    const v = normalizeDecimalString(r.payout_rate);
+    if (v !== '') return v;
+  }
+  const candidates=[r.sms_payout_rate,r.number_payout,r.number_rate,r.rate_30_45,r.rate_7_1,r.rate_7_7,r.rate_1_1];
   for(const c of candidates){ const v=normalizeDecimalString(c); if(isPositiveDecimal(v)) return v; }
   return '0';
 }
@@ -985,8 +994,9 @@ function hasCustomDate(q){ return !!(q.from || q.to); }
 function dateRangeWhere(q, alias='s') {
   const p = alias ? alias + '.' : '';
   const where=[]; const params=[];
-  if(q.from){ where.push(`date(${p}received_at) >= date(?)`); params.push(q.from); }
-  if(q.to){ where.push(`date(${p}received_at) <= date(?)`); params.push(q.to); }
+  const dExpr=ukDateExpr(`${p}received_at`);
+  if(q.from){ where.push(`${dExpr} >= date(?)`); params.push(q.from); }
+  if(q.to){ where.push(`${dExpr} <= date(?)`); params.push(q.to); }
   return { where: where.length ? where.join(' AND ') : '1=1', params };
 }
 function cliBaseWhere(user, cli, q, alias='s') {
@@ -1021,10 +1031,10 @@ app.get('/api/cli-search', authRequired, requireRole('admin','manager'), (req,re
     summary={ selected_period: countWhere(''), from:req.query.from||'', to:req.query.to||'' };
   } else {
     summary={
-      today: countWhere(`date(s.received_at)=date('now')`),
-      yesterday: countWhere(`date(s.received_at)=date('now','-1 day')`),
-      last7: countWhere(`s.received_at >= datetime('now','-7 days')`),
-      month: countWhere(`strftime('%Y-%m',s.received_at)=strftime('%Y-%m','now')`)
+      today: countWhere(`${ukDateExpr('s.received_at')}=${ukDateNowSql()}`),
+      yesterday: countWhere(`${ukDateExpr('s.received_at')}=${ukDateNowSql('-1 day')}`),
+      last7: countWhere(`${ukDateExpr('s.received_at')} >= ${ukDateNowSql('-6 days')}`),
+      month: countWhere(`strftime('%Y-%m',${ukDateTimeExpr('s.received_at')})=strftime('%Y-%m',datetime('now','${ukSqlModifier()}'))`)
     };
   }
   let rangeRows;
@@ -1035,8 +1045,8 @@ app.get('/api/cli-search', authRequired, requireRole('admin','manager'), (req,re
       GROUP BY s.range_id, r.name ORDER BY total_count DESC`, base.params);
   } else {
     rangeRows=db.all(`SELECT COALESCE(r.name,'Unknown') AS range_name,
-      SUM(CASE WHEN date(s.received_at)=date('now') THEN 1 ELSE 0 END) AS today_count,
-      SUM(CASE WHEN date(s.received_at)=date('now','-1 day') THEN 1 ELSE 0 END) AS yesterday_count
+      SUM(CASE WHEN ${ukDateExpr('s.received_at')}=${ukDateNowSql()} THEN 1 ELSE 0 END) AS today_count,
+      SUM(CASE WHEN ${ukDateExpr('s.received_at')}=${ukDateNowSql('-1 day')} THEN 1 ELSE 0 END) AS yesterday_count
       FROM sms_records s LEFT JOIN ranges r ON r.id=s.range_id
       WHERE ${base.where}
       GROUP BY s.range_id, r.name ORDER BY today_count DESC, yesterday_count DESC`, base.params);
@@ -1223,6 +1233,47 @@ app.post('/api/cli-limits', authRequired, requireRole('admin'), (req, res) => {
 app.delete('/api/cli-limits/:id', authRequired, requireRole('admin'), (req, res) => {
   db.run('DELETE FROM cli_limits WHERE id=?', [+req.params.id]);
   res.json({ ok: true });
+});
+
+/* ============ LIMIT MANAGEMENT (Admin only, payout-zero after daily UK limits) ============ */
+function dailyLimitUsage(row){
+  if(!row || !row.limit_type) return 0;
+  if(row.limit_type==='range') return countTodayUk('s.range_id=?', [row.range_id]);
+  if(row.limit_type==='number') return countTodayUk(`REPLACE(REPLACE(REPLACE(REPLACE(s.number,'+',''),' ',''),'-',''),'_','')=?`, [cleanPhone(row.number)]);
+  if(row.limit_type==='cli') return countTodayUk('LOWER(s.cli)=LOWER(?)', [row.cli||'']);
+  return 0;
+}
+app.get('/api/limit-management', authRequired, requireRole('admin'), (req,res)=>{
+  const rows=db.all(`SELECT l.*, r.name AS range_name FROM daily_limit_rules l LEFT JOIN ranges r ON r.id=l.range_id ORDER BY l.id DESC`);
+  res.json(rows.map(r=>{ const used=dailyLimitUsage(r); const limit=Number(r.daily_limit||0); return {...r, used_today:used, remaining_today:Math.max(0,limit-used), reporting_timezone:'Europe/London'}; }));
+});
+app.post('/api/limit-management', authRequired, requireRole('admin'), (req,res)=>{
+  const b=req.body||{};
+  const type=String(b.limit_type||'').toLowerCase();
+  const dailyLimit=Math.max(1, parseInt(b.daily_limit||0,10));
+  if(!['range','number','cli'].includes(type)) return res.status(400).json({error:'limit_type must be range, number, or cli'});
+  if(!dailyLimit) return res.status(400).json({error:'daily_limit required'});
+  let rangeId=null, cli='', number='';
+  if(type==='range'){
+    rangeId=parseInt(b.range_id||0,10); if(!rangeId) return res.status(400).json({error:'range_id required'});
+    if(!db.get('SELECT id FROM ranges WHERE id=?',[rangeId])) return res.status(404).json({error:'Range not found'});
+    db.run("DELETE FROM daily_limit_rules WHERE limit_type='range' AND range_id=?",[rangeId]);
+  } else if(type==='cli'){
+    cli=String(b.cli||'').trim(); if(!cli) return res.status(400).json({error:'cli required'});
+    db.run("DELETE FROM daily_limit_rules WHERE limit_type='cli' AND LOWER(cli)=LOWER(?)",[cli]);
+  } else if(type==='number'){
+    number=String(b.number||'').trim(); if(!number) return res.status(400).json({error:'number required'});
+    db.run("DELETE FROM daily_limit_rules WHERE limit_type='number' AND REPLACE(REPLACE(REPLACE(REPLACE(number,'+',''),' ',''),'-',''),'_','')=?",[cleanPhone(number)]);
+  }
+  db.run(`INSERT INTO daily_limit_rules (limit_type,range_id,cli,number,daily_limit,active) VALUES (?,?,?,?,?,1)`,[type,rangeId,cli,number,dailyLimit]);
+  logAction(req,'set_daily_limit','limit_management',{type,rangeId,cli,number,dailyLimit});
+  res.json({ok:true});
+});
+app.delete('/api/limit-management/:id', authRequired, requireRole('admin'), (req,res)=>{
+  const id=+req.params.id;
+  db.run('DELETE FROM daily_limit_rules WHERE id=?',[id]);
+  logAction(req,'delete_daily_limit','limit_management',{id});
+  res.json({ok:true});
 });
 
 /* ============ NEWS ============ */
@@ -1703,6 +1754,43 @@ function extractOtpCode(message) {
   const alphaNum = text.match(/\b(?=[A-Za-z0-9]*\d)[A-Za-z0-9]{4,12}\b/);
   return alphaNum ? alphaNum[0] : '';
 }
+function incomingHasZeroPayout(payload) {
+  if (!payload || typeof payload !== 'object') return false;
+  const raw = firstVal(payload, ['payout','Payout','payout_amount','payoutAmount','rate_payout']);
+  return raw !== '' && normalizeDecimalString(raw) === '0';
+}
+function countTodayUk(whereSql, params=[]) {
+  return db.get(`SELECT COUNT(*) c FROM sms_records s WHERE COALESCE(s.is_test,0)=0 AND ${ukDateExpr('s.received_at')}=${ukDateNowSql()} AND ${whereSql}`, params)?.c || 0;
+}
+function activeLimitRules(type) {
+  return db.all('SELECT * FROM daily_limit_rules WHERE active=1 AND limit_type=? ORDER BY id ASC', [type]);
+}
+function evaluateDailyPayoutLimits(n, cli) {
+  const reasons = [];
+  const cleanN = cleanPhone(n.number);
+  if (n.range_id) {
+    for (const rule of activeLimitRules('range').filter(r => Number(r.range_id) === Number(n.range_id))) {
+      const used = countTodayUk('s.range_id=?', [n.range_id]);
+      if (used >= Number(rule.daily_limit || 0)) reasons.push(`range:${n.range_id}:${used}/${rule.daily_limit}`);
+    }
+  }
+  if (cleanN) {
+    for (const rule of activeLimitRules('number')) {
+      if (cleanPhone(rule.number) !== cleanN) continue;
+      const used = countTodayUk(`REPLACE(REPLACE(REPLACE(REPLACE(s.number,'+',''),' ',''),'-',''),'_','')=?`, [cleanN]);
+      if (used >= Number(rule.daily_limit || 0)) reasons.push(`number:${n.number}:${used}/${rule.daily_limit}`);
+    }
+  }
+  const cliVal = String(cli || '').trim();
+  if (cliVal) {
+    for (const rule of activeLimitRules('cli')) {
+      if (String(rule.cli || '').trim().toLowerCase() !== cliVal.toLowerCase()) continue;
+      const used = countTodayUk('LOWER(s.cli)=LOWER(?)', [cliVal]);
+      if (used >= Number(rule.daily_limit || 0)) reasons.push(`cli:${cliVal}:${used}/${rule.daily_limit}`);
+    }
+  }
+  return { exceeded: reasons.length > 0, reason: reasons.join('; ') };
+}
 function findNumber(rawNumber) {
   const exact = String(rawNumber || '').trim();
   let n = db.get('SELECT * FROM numbers WHERE number=?', [exact]);
@@ -1757,10 +1845,18 @@ function processIncomingSmsPayload(req, payload, sourceIp='', opts={}) {
   }
 
   const rangeForSms=db.get('SELECT * FROM ranges WHERE id=?',[n.range_id])||{};
-  const smsPayoutRate=payoutRateFromRow({...rangeForSms, number_rate:n.rate, number_payout:n.payout});
-  db.run(`INSERT INTO sms_records (number_id,number,range_id,cli,sender_type,message,otp_code,client_id,agent_id,manager_id,is_test,test_batch_id,source,payout_rate,payout_amount)
-          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-    [n.id, n.number, n.range_id, cli || '', senderType, message || '', otpCode, n.client_id, n.agent_id, n.manager_id, opts.isTest?1:0, opts.testBatchId||'', opts.source||'carrier', smsPayoutRate, smsPayoutRate]);
+  let smsPayoutRate=payoutRateFromRow({...rangeForSms, number_rate:n.rate, number_payout:n.payout});
+  let limitReason = '';
+  if (incomingHasZeroPayout(b)) {
+    smsPayoutRate = '0';
+    limitReason = 'external_payout_zero';
+  } else if (!opts.isTest) {
+    const limitStatus = evaluateDailyPayoutLimits(n, cli || '');
+    if (limitStatus.exceeded) { smsPayoutRate = '0'; limitReason = limitStatus.reason; }
+  }
+  db.run(`INSERT INTO sms_records (number_id,number,range_id,cli,sender_type,message,otp_code,client_id,agent_id,manager_id,is_test,test_batch_id,source,payout_rate,payout_amount,limit_reason)
+          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    [n.id, n.number, n.range_id, cli || '', senderType, message || '', otpCode, n.client_id, n.agent_id, n.manager_id, opts.isTest?1:0, opts.testBatchId||'', opts.source||'carrier', smsPayoutRate, smsPayoutRate, limitReason]);
   const saved = db.get('SELECT id, received_at FROM sms_records ORDER BY id DESC LIMIT 1');
   const smsRow = { number_id:n.id, number:n.number, range_id:n.range_id, cli:cli||'', sender_type:senderType, message:message||'', otp_code:otpCode, client_id:n.client_id, agent_id:n.agent_id, manager_id:n.manager_id, is_test: opts.isTest?1:0 };
   logWebhook('success', b, number, n.number, cli, message, '', sourceIp);

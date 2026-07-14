@@ -26,7 +26,7 @@
     if(!token || role!==expected){ location.replace('/login'); return; }
     fetch('/api/me',{headers:{Authorization:'Bearer '+token}})
       .then(function(r){ if(!r.ok) throw new Error('auth'); return r.json(); })
-      .then(function(u){ if(!u || u.role!==expected) throw new Error('role'); if(!localStorage.getItem('ms_last_page_'+expected)||localStorage.getItem('ms_last_page_'+expected)==='dashboard'){document.documentElement.style.visibility='visible';} })
+      .then(function(u){ if(!u || u.role!==expected) throw new Error('role'); document.documentElement.style.visibility='visible'; })
       .catch(function(){ sessionStorage.clear(); ['ms_token','ms_role','ms_user','ms_name'].forEach(k=>localStorage.removeItem(k)); location.replace('/login'); });
   }catch(e){ sessionStorage.clear(); ['ms_token','ms_role','ms_user','ms_name'].forEach(k=>localStorage.removeItem(k)); location.replace('/login'); }
 })();
@@ -427,6 +427,7 @@
       <div class="submenu" id="sysSub">
         <div class="sub-item" data-page="news"><span class="dot"></span> News for Users</div>
         <div class="sub-item" data-page="cliLimit"><span class="dot"></span> SMS CLI Limit</div>
+        <div class="sub-item" data-page="limitManagement"><span class="dot"></span> Limit Management</div>
         <div class="sub-item" data-page="carrierIntegration"><span class="dot"></span> Carrier Integration</div>
         <div class="sub-item" data-page="testGenerator"><span class="dot"></span> Test SMS Generator</div>
         <div class="sub-item" data-page="integrations"><span class="dot"></span> Integration Layer</div>
@@ -997,6 +998,24 @@
         </table></div><div class="table-foot"><div class="info" id="climInfo"></div></div></div>
       </section>
 
+      <!-- ========== LIMIT MANAGEMENT ========== -->
+      <section class="page" id="page-limitManagement">
+        <div class="page-head"><div><h2>Limit Management</h2><div class="breadcrumb"><b>System Master</b> › Daily Payout Limits (UK Time)</div></div></div>
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-head"><div><h3>Add / Update Daily Limit</h3><div class="sub">Limits never block OTPs. After a limit is reached, only payout becomes 0. Reset window is 00:00–23:59 UK time.</div></div></div>
+          <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr 1fr;gap:14px">
+            <div class="form-group"><label>Limit Type</label><select id="lmType" onchange="lmTypeChange()"><option value="range">Range</option><option value="number">Number</option><option value="cli">CLI</option></select></div>
+            <div class="form-group lm-field lm-range"><label>Range</label><select id="lmRange"><option value="">Select Range</option></select></div>
+            <div class="form-group lm-field lm-number" style="display:none"><label>Number</label><input id="lmNumber" placeholder="Phone number"/></div>
+            <div class="form-group lm-field lm-cli" style="display:none"><label>CLI / Sender</label><input id="lmCli" placeholder="e.g. Microsoft"/></div>
+            <div class="form-group"><label>Daily OTP Limit</label><input id="lmLimit" type="number" placeholder="e.g. 5000"/></div>
+          </div>
+          <button class="btn btn-purple" onclick="saveDailyLimit()">Save Limit</button>
+          <div class="hint" style="margin-top:10px">If Range, Number, or CLI limit is exceeded, the OTP is still stored but payout_rate/payout_amount is saved as 0. Incoming <b>payout=0</b> also forces payout 0.</div>
+        </div>
+        <div class="table-wrap"><div class="tscroll"><table><thead><tr><th>Type</th><th>Target</th><th>Daily Limit</th><th>Used Today (UK)</th><th>Remaining</th><th>Action</th></tr></thead><tbody id="lmBody"></tbody></table></div><div class="table-foot"><div class="info" id="lmInfo"></div></div></div>
+      </section>
+
     </div>
   </div>
 </div>
@@ -1076,7 +1095,7 @@
   <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal('newsModal')">Cancel</button><button class="btn btn-purple" onclick="saveNews()">Save</button></div>
 </div></div>
 
-<script src="api.js?v=20260710-routes-uk-time"></script>
+<script src="api.js?v=20260714-limit-management"></script>
 <script>
 /* auth guard — admin only */
 if(window.API){ API.guard('admin'); }
@@ -1788,6 +1807,41 @@ async function addCliLimit(){
 }
 async function delCliLimit(id){if(confirm('Remove this limit?')){try{await API.del('/cli-limits/'+id);loadCliLimits();}catch(e){alert('❌ '+e.message);}}}
 
+/* =============== LIMIT MANAGEMENT =============== */
+let dailyLimits=[];
+function lmTypeChange(){
+  const t=document.getElementById('lmType')?.value||'range';
+  document.querySelectorAll('.lm-field').forEach(el=>el.style.display='none');
+  const active=document.querySelector('.lm-'+t); if(active) active.style.display='block';
+}
+async function loadLimitManagement(){
+  try{ dailyLimits=await API.get('/limit-management'); }catch(e){ dailyLimits=[]; }
+  const sel=document.getElementById('lmRange');
+  if(sel) sel.innerHTML='<option value="">Select Range</option>'+((ratesData||[]).map(r=>`<option value="${r.id}">${r.name}</option>`).join(''));
+  renderLimitManagement();
+}
+function limitTarget(r){
+  if(r.limit_type==='range') return r.range_name || ('Range #'+r.range_id);
+  if(r.limit_type==='cli') return r.cli || '—';
+  if(r.limit_type==='number') return `<span class="mono">${r.number||'—'}</span>`;
+  return '—';
+}
+function renderLimitManagement(){
+  const b=document.getElementById('lmBody'); if(!b) return;
+  b.innerHTML=(dailyLimits||[]).map(r=>`<tr><td><span class="tag tag-blue">${r.limit_type}</span></td><td>${limitTarget(r)}</td><td class="cell-money">${Number(r.daily_limit||0).toLocaleString()}</td><td>${Number(r.used_today||0).toLocaleString()}</td><td class="cell-money">${Number(r.remaining_today||0).toLocaleString()}</td><td><button class="btn btn-red btn-sm" onclick="deleteDailyLimit(${r.id})">Delete</button></td></tr>`).join('')||`<tr><td colspan="6" class="muted" style="text-align:center;padding:24px">No daily limits configured</td></tr>`;
+  const info=document.getElementById('lmInfo'); if(info) info.textContent=`${(dailyLimits||[]).length} rules · Reporting timezone: UK / Europe-London`;
+}
+async function saveDailyLimit(){
+  const type=document.getElementById('lmType').value;
+  const body={limit_type:type,daily_limit:+document.getElementById('lmLimit').value};
+  if(type==='range') body.range_id=+document.getElementById('lmRange').value;
+  if(type==='number') body.number=document.getElementById('lmNumber').value.trim();
+  if(type==='cli') body.cli=document.getElementById('lmCli').value.trim();
+  if(!body.daily_limit){alert('Enter daily limit.');return;}
+  try{await API.post('/limit-management',body);document.getElementById('lmLimit').value='';alert('✅ Daily limit saved.');loadLimitManagement();}catch(e){alert('❌ '+e.message)}
+}
+async function deleteDailyLimit(id){if(confirm('Delete this daily limit?')){try{await API.del('/limit-management/'+id);loadLimitManagement();}catch(e){alert('❌ '+e.message)}}}
+
 
 /* =============== LIVE API OVERRIDES (no dummy data) =============== */
 function money(v){return '$ '+cleanDec(v);}
@@ -1821,7 +1875,7 @@ async function loadRates(){ try{ ratesData=await API.get('/ranges'); }catch(e){ 
   if(delSel) delSel.innerHTML='<option value="">Select Range</option>'+((ratesData||[]).map(r=>`<option value="${r.id}">${r.name}</option>`).join(''));
   try{ testNumbers=(await API.get('/test-numbers')).map(t=>({range:t.range_name,prefix:t.prefix||'',num:t.number,payout:t.payout||'Ask',created_at:t.created_at||''})); }
   catch(e){ testNumbers=[]; }
-  renderRates(); rebuildAllocData(); renderAlloc(); renderTest();
+  renderRates(); rebuildAllocData(); renderAlloc(); renderTest(); if(typeof loadLimitManagement==='function') loadLimitManagement();
 }
 async function loadNumbers(){ try{ numbersData=await API.get('/numbers'); }catch(e){ numbersData=[]; }
   rebuildAllocData(); renderNumbers(); renderAlloc(); populateTestGeneratorNumbers();
@@ -2340,7 +2394,7 @@ renderAlloc();                     // range allocation live counts
 buildSmsReport();buildSmsDetail();
 buildEntityStats('client');buildEntityStats('agent');buildEntityStats('manager');
 buildDrillStats('range');buildDrillStats('number');
-loadPayments();loadAdminPayout();loadPaymentConfig();loadCarrierSettings();loadIntegrations();loadNotificationRules();loadSystemLogs();loadTestGeneratorSettings();loadBackups();renderTest();
+loadPayments();loadAdminPayout();loadPaymentConfig();loadCarrierSettings();loadIntegrations();loadNotificationRules();loadSystemLogs();loadTestGeneratorSettings();loadBackups();loadLimitManagement();renderTest();
 /* System Master selects + render (API) */
 fillSelect('climCli',cliPool,false);
 loadNews();
@@ -2351,6 +2405,6 @@ loadNews();
   loadCliLimits();
 })();
 </script>
-<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a18d85456e6bf875',t:'MTc4MzY2NTAzNQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1b10500faf8aa81',t:'MTc4NDAzNzI2OA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body>
 </html>

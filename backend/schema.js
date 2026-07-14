@@ -338,6 +338,7 @@ function createTables() {
   ensureColumn('numbers', 'imported_at', "TEXT DEFAULT ''");
   ensureColumn('sms_records', 'payout_rate', "TEXT DEFAULT ''");
   ensureColumn('sms_records', 'payout_amount', "TEXT DEFAULT ''");
+  ensureColumn('sms_records', 'limit_reason', "TEXT DEFAULT ''");
 
   const cs = db.get('SELECT COUNT(*) AS c FROM carrier_settings');
   if (!cs || cs.c === 0) {
@@ -360,6 +361,18 @@ function createTables() {
     db.run(`INSERT INTO qa_test_settings (enabled,max_batch_size,default_cli,default_message)
             VALUES (0,100,'TestCLI','Your test verification code is {code}')`);
   }
+
+  db.run(`CREATE TABLE IF NOT EXISTS daily_limit_rules (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    limit_type TEXT NOT NULL, -- range | number | cli
+    range_id INTEGER,
+    cli TEXT DEFAULT '',
+    number TEXT DEFAULT '',
+    daily_limit INTEGER NOT NULL DEFAULT 0,
+    active INTEGER DEFAULT 1,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+  )`);
 
 
   db.run(`CREATE TABLE IF NOT EXISTS system_security (
@@ -393,6 +406,10 @@ function createTables() {
   db.run(`CREATE INDEX IF NOT EXISTS idx_numbers_manager ON numbers(manager_id)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_numbers_agent ON numbers(agent_id)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_numbers_client ON numbers(client_id)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_limit_rules_type_active ON daily_limit_rules(limit_type, active)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_limit_rules_range ON daily_limit_rules(range_id)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_limit_rules_cli ON daily_limit_rules(cli)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_limit_rules_number ON daily_limit_rules(number)`);
 
 }
 
