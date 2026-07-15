@@ -516,7 +516,7 @@
   </div>
 </div>
 
-<script src="/api.js?v=20260714-limit-ui"></script>
+<script src="/api.js?v=20260715-mask-scope-fix"></script>
 <script>
 if(window.API){ API.guard('client'); }
 /* NAV */
@@ -601,9 +601,9 @@ function renderNumbers(){const rf=document.getElementById('numRange').value,len=
 /* SMS STATS (API) */
 async function loadStats(){ try{ smsRecords=await API.get('/sms'); stats=smsRecords.map(r=>{const msg=r.message||'';return {range:r.range_name||'',number:r.number,cli:r.cli||'',msg,date:(r.received_at||'').slice(0,19),otp:extractOTP(msg)};}); }catch(e){ smsRecords=[]; stats=[]; } renderStats(); renderNumbers(); }
 function renderStats(){const rf=document.getElementById('stRange').value,cf=(document.getElementById('stCliFilter').value||'').toLowerCase(),len=document.getElementById('stLen').value,q=(document.getElementById('stSearch').value||'').toLowerCase();
-  let rows=stats.filter(r=>(!rf||r.range===rf)&&(!cf||r.cli.toLowerCase().includes(cf))&&[r.range,r.number,r.cli,r.otp].join(' ').toLowerCase().includes(q));
+  let rows=stats.filter(r=>(!rf||r.range===rf)&&(!cf||r.cli.toLowerCase().includes(cf))&&[r.range,r.number,r.cli,r.otp,r.msg].join(' ').toLowerCase().includes(q));
   const pag=API.paginateRows('cliStats',rows,len,'statsInfo',renderStats);const t=pag.total;rows=pag.rows;
-  document.getElementById('statsBody').innerHTML=rows.map(r=>`<tr><td class="muted">${r.date}</td><td>${r.range}</td><td class="mono">${r.number}</td><td class="mono">${maskCLI(r.cli)}</td><td>${r.otp?`<span class="otp-code">${r.otp}</span>`:'<span class="otp-empty">—</span>'}</td><td>${r.otp?`<button class="copy-otp-btn" onclick="copyText('${r.otp}')">Copy OTP</button>`:'—'}</td><td class="msg-body"><span class="tag tag-gray">Hidden</span></td></tr>`).join('')||`<tr><td colspan="7" class="muted" style="text-align:center;padding:24px">No records found</td></tr>`;
+  document.getElementById('statsBody').innerHTML=rows.map(r=>`<tr><td class="muted">${r.date}</td><td>${r.range}</td><td class="mono">${r.number}</td><td class="mono">${r.cli}</td><td>${r.otp?`<span class="otp-code">${r.otp}</span>`:'<span class="otp-empty">—</span>'}</td><td>${r.otp?`<button class="copy-otp-btn" onclick="copyText('${r.otp}')">Copy OTP</button>`:'—'}</td><td class="msg-body">${r.msg}</td></tr>`).join('')||`<tr><td colspan="7" class="muted" style="text-align:center;padding:24px">No records found</td></tr>`;
   document.getElementById('statsInfo').textContent=`Showing ${rows.length} of ${t} records`;}
 
 /* TEST PANEL (masked CLI + masked SMS; range filter only on test numbers) */
@@ -637,5 +637,5 @@ async function loadStats(){ try{ const sms=await API.get('/sms'); stats=sms.map(
 loadProfile();loadDashboard();loadRanges();loadNumbers();loadStats();renderTest();loadNews();setTimeout(showClientWelcome,700);
 </script>
 
-</body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1b9d0445811f462',t:'MTc4NDEyOTQ4MA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
