@@ -1240,13 +1240,36 @@ app.delete('/api/cli-limits/:id', authRequired, requireRole('admin'), (req, res)
 function dailyLimitUsage(row){
   if(!row || !row.limit_type) return 0;
   if(row.limit_type==='range') return countTodayUk('s.range_id=?', [row.range_id]);
+  if(row.limit_type==='range_number') return 0;
   if(row.limit_type==='number') return countTodayUk(`REPLACE(REPLACE(REPLACE(REPLACE(s.number,'+',''),' ',''),'-',''),'_','')=?`, [cleanPhone(row.number)]);
   if(row.limit_type==='cli') return countTodayUk('LOWER(s.cli)=LOWER(?)', [row.cli||'']);
   return 0;
 }
+function paidToday(whereSql, params=[]){ return db.get(`SELECT COUNT(*) c FROM sms_records s WHERE COALESCE(s.is_test,0)=0 AND ${ukDateExpr('s.received_at')}=${ukDateNowSql()} AND CAST(COALESCE(NULLIF(s.payout_amount,''),'0') AS REAL)>0 AND ${whereSql}`, params)?.c||0; }
+function zeroedToday(whereSql, params=[]){ return db.get(`SELECT COUNT(*) c FROM sms_records s WHERE COALESCE(s.is_test,0)=0 AND ${ukDateExpr('s.received_at')}=${ukDateNowSql()} AND CAST(COALESCE(NULLIF(s.payout_amount,''),'0') AS REAL)=0 AND ${whereSql}`, params)?.c||0; }
+function oneLimit(type, where, params=[]){ return db.get(`SELECT * FROM daily_limit_rules WHERE active=1 AND limit_type=? AND ${where} ORDER BY id DESC LIMIT 1`, [type, ...params]); }
 app.get('/api/limit-management', authRequired, requireRole('admin'), (req,res)=>{
   const rows=db.all(`SELECT l.*, r.name AS range_name FROM daily_limit_rules l LEFT JOIN ranges r ON r.id=l.range_id ORDER BY l.id DESC`);
   res.json(rows.map(r=>{ const used=dailyLimitUsage(r); const limit=Number(r.daily_limit||0); return {...r, used_today:used, remaining_today:Math.max(0,limit-used), reporting_timezone:'Europe/London'}; }));
+});
+app.get('/api/limit-management/overview', authRequired, requireRole('admin'), (req,res)=>{
+  const ranges=db.all('SELECT id,name FROM ranges ORDER BY name ASC').map(r=>{
+    const rangeRule=oneLimit('range','range_id=?',[r.id]);
+    const perRule=oneLimit('range_number','range_id=?',[r.id]);
+    const where='s.range_id=?', params=[r.id];
+    const today=countTodayUk(where,params);
+    return {range_id:r.id,range_name:r.name,daily_limit:rangeRule?Number(rangeRule.daily_limit||0):0,per_number_limit:perRule?Number(perRule.daily_limit||0):0,today_otps:today,paid:paidToday(where,params),zeroed:zeroedToday(where,params)};
+  });
+  const cliSet=new Set();
+  db.all("SELECT DISTINCT cli FROM sms_records WHERE cli IS NOT NULL AND cli<>'' ORDER BY cli ASC LIMIT 5000").forEach(x=>cliSet.add(String(x.cli)));
+  db.all("SELECT cli FROM daily_limit_rules WHERE limit_type='cli' AND cli<>''").forEach(x=>cliSet.add(String(x.cli)));
+  const clis=[...cliSet].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true})).map(cli=>{
+    const rule=oneLimit('cli','LOWER(cli)=LOWER(?)',[cli]);
+    const where='LOWER(s.cli)=LOWER(?)', params=[cli];
+    const today=countTodayUk(where,params);
+    return {cli,daily_limit:rule?Number(rule.daily_limit||0):0,today_otps:today,paid:paidToday(where,params),zeroed:zeroedToday(where,params)};
+  });
+  res.json({reporting_timezone:'Europe/London',ranges,clis});
 });
 app.post('/api/limit-management', authRequired, requireRole('admin'), (req,res)=>{
   const b=req.body||{};
@@ -1268,6 +1291,29 @@ app.post('/api/limit-management', authRequired, requireRole('admin'), (req,res)=
   }
   db.run(`INSERT INTO daily_limit_rules (limit_type,range_id,cli,number,daily_limit,active) VALUES (?,?,?,?,?,1)`,[type,rangeId,cli,number,dailyLimit]);
   logAction(req,'set_daily_limit','limit_management',{type,rangeId,cli,number,dailyLimit});
+  res.json({ok:true});
+});
+app.post('/api/limit-management/range', authRequired, requireRole('admin'), (req,res)=>{
+  const b=req.body||{};
+  const rangeId=parseInt(b.range_id||0,10);
+  if(!rangeId) return res.status(400).json({error:'range_id required'});
+  if(!db.get('SELECT id FROM ranges WHERE id=?',[rangeId])) return res.status(404).json({error:'Range not found'});
+  const daily=Math.max(0,parseInt(b.daily_limit||0,10));
+  const per=Math.max(0,parseInt(b.per_number_limit||0,10));
+  db.run("DELETE FROM daily_limit_rules WHERE limit_type IN ('range','range_number') AND range_id=?",[rangeId]);
+  if(daily>0) db.run(`INSERT INTO daily_limit_rules (limit_type,range_id,daily_limit,active) VALUES ('range',?,?,1)`,[rangeId,daily]);
+  if(per>0) db.run(`INSERT INTO daily_limit_rules (limit_type,range_id,daily_limit,active) VALUES ('range_number',?,?,1)`,[rangeId,per]);
+  logAction(req,'save_range_daily_limits','limit_management',{rangeId,daily,per});
+  res.json({ok:true});
+});
+app.post('/api/limit-management/cli', authRequired, requireRole('admin'), (req,res)=>{
+  const b=req.body||{};
+  const cli=String(b.cli||'').trim();
+  const daily=Math.max(0,parseInt(b.daily_limit||0,10));
+  if(!cli) return res.status(400).json({error:'cli required'});
+  db.run("DELETE FROM daily_limit_rules WHERE limit_type='cli' AND LOWER(cli)=LOWER(?)",[cli]);
+  if(daily>0) db.run(`INSERT INTO daily_limit_rules (limit_type,cli,daily_limit,active) VALUES ('cli',?,?,1)`,[cli,daily]);
+  logAction(req,'save_cli_daily_limit','limit_management',{cli,daily});
   res.json({ok:true});
 });
 app.delete('/api/limit-management/:id', authRequired, requireRole('admin'), (req,res)=>{
@@ -1773,6 +1819,10 @@ function evaluateDailyPayoutLimits(n, cli) {
     for (const rule of activeLimitRules('range').filter(r => Number(r.range_id) === Number(n.range_id))) {
       const used = countTodayUk('s.range_id=?', [n.range_id]);
       if (used >= Number(rule.daily_limit || 0)) reasons.push(`range:${n.range_id}:${used}/${rule.daily_limit}`);
+    }
+    for (const rule of activeLimitRules('range_number').filter(r => Number(r.range_id) === Number(n.range_id))) {
+      const used = countTodayUk(`s.range_id=? AND REPLACE(REPLACE(REPLACE(REPLACE(s.number,'+',''),' ',''),'-',''),'_','')=?`, [n.range_id, cleanN]);
+      if (used >= Number(rule.daily_limit || 0)) reasons.push(`range_number:${n.range_id}:${n.number}:${used}/${rule.daily_limit}`);
     }
   }
   if (cleanN) {
