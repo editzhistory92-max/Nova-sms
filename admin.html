@@ -652,7 +652,7 @@
             <button class="btn btn-red" onclick="deleteNumbersByRange()">Delete Selected Range Numbers</button>
             <button class="btn btn-red" onclick="deleteAllNumbersFromDb()">Delete ALL Numbers</button>
           </div>
-          <div class="hint" style="margin-top:10px;color:#b91c1c"><b>Warning:</b> This is permanent hard delete. Linked SMS records for deleted numbers are also removed so dashboard, reports and stats update immediately. Take backup before using Delete ALL.</div>
+          <div class="hint" style="margin-top:10px;color:#b91c1c"><b>Warning:</b> This is permanent hard delete for numbers. Before deleting, the panel will ask whether you also want to delete OTP/SMS history or keep it.</div>
         </div>
       </section>
 
@@ -1361,13 +1361,20 @@ function getSelectedIds(){return [...document.querySelectorAll('.rowchk:checked'
 async function unallocateSelected(){const ids=getSelectedIds();if(!ids.length){alert('Please select numbers first.');return;}
   try{ await API.post('/numbers/unallocate',{ids}); alert(`✅ ${ids.length} numbers unallocated.`); loadNumbers(); }catch(e){ alert('❌ '+e.message); }}
 async function unassignOne(id){if(confirm('Unallocate this number?')){try{await API.post('/numbers/unallocate',{ids:[id]});loadNumbers();}catch(e){alert('❌ '+e.message);}}}
+function askDeleteSmsHistory(){
+  return confirm('Do you also want to delete OTP/SMS history for these number(s)?\n\nOK = Delete OTP/SMS history too\nCancel = Keep OTP/SMS history');
+}
+function deleteResultText(r){
+  return `✅ Deleted ${r.deleted||0} numbers. OTP deleted: ${r.deleted_sms||0}. OTP kept: ${r.preserved_sms||0}. Database optimized.`;
+}
 async function deleteSelectedNumbers(){
   const ids=getSelectedIds();
   if(!ids.length){alert('Please select numbers first.');return;}
-  if(!confirm(`Delete ${ids.length} selected number(s)?\nLinked SMS records will also be removed.`))return;
+  if(!confirm(`Delete ${ids.length} selected number(s)?`))return;
+  const delete_sms=askDeleteSmsHistory();
   try{
-    const r=await API.post('/numbers/delete',{ids});
-    alert(`✅ Deleted ${r.deleted||0} numbers. Linked SMS removed: ${r.deleted_sms||0}. Database optimized.`);
+    const r=await API.post('/numbers/delete',{ids,delete_sms});
+    alert(deleteResultText(r));
     if(typeof refreshNumberDependentViews==='function') await refreshNumberDependentViews(); else loadNumbers();
   }catch(e){ alert('❌ '+e.message); }
 }
@@ -2325,13 +2332,15 @@ async function loadImportBatches(){
 }
 async function deleteImportBatch(batchId){
   if(!confirm('Delete all numbers imported in this batch?\n'+batchId))return;
-  try{const r=await API.del('/number-import-batches/'+encodeURIComponent(batchId));alert(`✅ Deleted ${r.deleted||0} numbers. Linked SMS removed: ${r.deleted_sms||0}. Database optimized.`);if(typeof refreshNumberDependentViews==='function')await refreshNumberDependentViews();else await loadNumbers();await loadImportBatches();}catch(e){alert('❌ '+e.message)}
+  const deleteSms=askDeleteSmsHistory();
+  try{const r=await API.del('/number-import-batches/'+encodeURIComponent(batchId)+'?delete_sms='+(deleteSms?1:0));alert(deleteResultText(r));if(typeof refreshNumberDependentViews==='function')await refreshNumberDependentViews();else await loadNumbers();await loadImportBatches();}catch(e){alert('❌ '+e.message)}
 }
 async function deleteAllImportedNumbers(){
   const confirmText='DELETE IMPORTED';
-  const v=prompt(`This will delete all numbers imported from files/batches and linked SMS records. Type ${confirmText} to continue:`);
+  const v=prompt(`This will delete all numbers imported from files/batches. Type ${confirmText} to continue:`);
   if(v!==confirmText)return;
-  try{const r=await API.del('/numbers/imported-all');alert(`✅ Deleted ${r.deleted||0} imported numbers. Linked SMS removed: ${r.deleted_sms||0}. Database optimized.`);if(typeof refreshNumberDependentViews==='function')await refreshNumberDependentViews();else await loadNumbers();await loadImportBatches();await refreshNumberDbTools();}catch(e){alert('❌ '+e.message)}
+  const deleteSms=askDeleteSmsHistory();
+  try{const r=await API.del('/numbers/imported-all?delete_sms='+(deleteSms?1:0));alert(deleteResultText(r));if(typeof refreshNumberDependentViews==='function')await refreshNumberDependentViews();else await loadNumbers();await loadImportBatches();await refreshNumberDbTools();}catch(e){alert('❌ '+e.message)}
 }
 async function refreshNumberDbTools(){
   try{
@@ -2355,15 +2364,17 @@ async function deleteNumbersByRange(){
   const rangeId=sel&&sel.value;
   if(!rangeId){alert('Please select a range first.');return;}
   const rangeName=sel.options[sel.selectedIndex]?.textContent||rangeId;
-  if(!confirm(`Delete ALL numbers in range: ${rangeName}?\nLinked SMS records will also be removed.`))return;
-  try{const r=await API.del('/numbers/range/'+encodeURIComponent(rangeId));alert(`✅ Range deleted: ${r.deleted||0} numbers. Linked SMS removed: ${r.deleted_sms||0}.`);await afterNumberHardDelete();}catch(e){alert('❌ '+e.message)}
+  if(!confirm(`Delete ALL numbers in range: ${rangeName}?`))return;
+  const deleteSms=askDeleteSmsHistory();
+  try{const r=await API.del('/numbers/range/'+encodeURIComponent(rangeId)+'?delete_sms='+(deleteSms?1:0));alert(deleteResultText(r));await afterNumberHardDelete();}catch(e){alert('❌ '+e.message)}
 }
 async function deleteAllNumbersFromDb(){
   const d=await API.get('/numbers?paged=1&page=1&limit=1').catch(()=>({total:0}));
   const total=Number(d.total||0);
   if(!total){alert('No numbers found in database.');return;}
-  if(!confirm(`Delete ALL ${total.toLocaleString()} numbers from the database?\nLinked SMS records will also be removed and stats will reset accordingly.`))return;
-  try{const r=await API.del('/numbers/all');alert(`✅ Deleted ${r.deleted||0} numbers. Linked SMS removed: ${r.deleted_sms||0}. Database optimized.`);await afterNumberHardDelete();}catch(e){alert('❌ '+e.message)}
+  if(!confirm(`Delete ALL ${total.toLocaleString()} numbers from the database?`))return;
+  const deleteSms=askDeleteSmsHistory();
+  try{const r=await API.del('/numbers/all?delete_sms='+(deleteSms?1:0));alert(deleteResultText(r));await afterNumberHardDelete();}catch(e){alert('❌ '+e.message)}
 }
 async function deleteCurrentFilteredNumbers(){
   const q=(document.getElementById('numSearch')?.value||'').trim();
@@ -2380,7 +2391,8 @@ async function deleteCurrentFilteredNumbers(){
   const total=Number(d.total||0);
   if(!total){alert('No numbers match current filter.');return;}
   if(!confirm(`Delete ${total.toLocaleString()} number(s) matching current filters?\nOnly current page selection is NOT used; this deletes all matching DB records.`))return;
-  try{const r=await API.post('/numbers/delete-filtered',body);alert(`✅ Deleted ${r.deleted||0} filtered numbers. Linked SMS removed: ${r.deleted_sms||0}.`);await afterNumberHardDelete();}catch(e){alert('❌ '+e.message)}
+  body.delete_sms=askDeleteSmsHistory();
+  try{const r=await API.post('/numbers/delete-filtered',body);alert(deleteResultText(r));await afterNumberHardDelete();}catch(e){alert('❌ '+e.message)}
 }
 
 

@@ -755,12 +755,13 @@ app.post('/api/numbers/unallocate', authRequired, (req, res) => {
   res.json({ ok: true, count: beforeRows.length });
 });
 
-function deleteNumbersFromRows(rows, req, action, details = {}) {
+function truthy(v) { return v === true || v === 1 || v === '1' || String(v || '').toLowerCase() === 'true' || String(v || '').toLowerCase() === 'yes'; }
+function deleteNumbersFromRows(rows, req, action, details = {}, deleteSms = false) {
   const cleanRows = (rows || [])
     .map(r => ({ id: parseInt(r.id, 10), number: String(r.number || '') }))
     .filter(r => Number.isFinite(r.id) && r.id > 0);
   const count = cleanRows.length;
-  if (!count) return { deleted: 0, deleted_sms: 0, vacuum: false };
+  if (!count) return { deleted: 0, deleted_sms: 0, preserved_sms: 0, vacuum: false };
 
   let smsCount = 0;
   try {
@@ -769,14 +770,16 @@ function deleteNumbersFromRows(rows, req, action, details = {}) {
     db.execNoSave('CREATE TEMP TABLE tmp_delete_numbers (id INTEGER PRIMARY KEY, number TEXT)');
     for (const r of cleanRows) db.runNoSave('INSERT OR IGNORE INTO tmp_delete_numbers (id,number) VALUES (?,?)', [r.id, r.number]);
 
-    // Remove linked SMS records too so dashboard/report/statistics refresh from actual DB immediately.
+    // Count linked SMS records. Delete them only when the caller explicitly asks.
     // number text match covers old SMS rows where number_id was not populated.
     smsCount = db.get(`SELECT COUNT(*) c FROM sms_records
       WHERE number_id IN (SELECT id FROM tmp_delete_numbers)
          OR number IN (SELECT number FROM tmp_delete_numbers WHERE number<>'')`)?.c || 0;
-    db.runNoSave(`DELETE FROM sms_records
-      WHERE number_id IN (SELECT id FROM tmp_delete_numbers)
-         OR number IN (SELECT number FROM tmp_delete_numbers WHERE number<>'')`);
+    if (deleteSms) {
+      db.runNoSave(`DELETE FROM sms_records
+        WHERE number_id IN (SELECT id FROM tmp_delete_numbers)
+           OR number IN (SELECT number FROM tmp_delete_numbers WHERE number<>'')`);
+    }
     db.runNoSave('DELETE FROM numbers WHERE id IN (SELECT id FROM tmp_delete_numbers)');
     db.execNoSave('DROP TABLE IF EXISTS tmp_delete_numbers');
     db.execNoSave('COMMIT');
@@ -787,15 +790,15 @@ function deleteNumbersFromRows(rows, req, action, details = {}) {
   }
 
   const vacuum = db.vacuum();
-  logAction(req, action, 'numbers', { ...details, count, smsCount });
-  return { deleted: count, deleted_sms: smsCount, vacuum };
+  logAction(req, action, 'numbers', { ...details, count, linkedSms: smsCount, deleteSms: !!deleteSms });
+  return { deleted: count, deleted_sms: deleteSms ? smsCount : 0, preserved_sms: deleteSms ? 0 : smsCount, vacuum };
 }
-function deleteNumbersFromSelect(selectSql, params = [], req, action, details = {}) {
+function deleteNumbersFromSelect(selectSql, params = [], req, action, details = {}, deleteSms = false) {
   const rows = db.all(selectSql, params);
-  return deleteNumbersFromRows(rows, req, action, details);
+  return deleteNumbersFromRows(rows, req, action, details, deleteSms);
 }
-function deleteNumbersWhere(whereSql, params = [], req, action, details = {}) {
-  return deleteNumbersFromSelect(`SELECT id, number FROM numbers WHERE ${whereSql}`, params, req, action, details);
+function deleteNumbersWhere(whereSql, params = [], req, action, details = {}, deleteSms = false) {
+  return deleteNumbersFromSelect(`SELECT id, number FROM numbers WHERE ${whereSql}`, params, req, action, details, deleteSms);
 }
 
 // hard delete selected numbers (Admin only). This is not a soft-delete, so no "Deleted" rows remain in lists.
@@ -805,7 +808,7 @@ app.post('/api/numbers/delete', authRequired, requireRole('admin'), (req, res) =
   if (!ids.length) return res.status(400).json({ error: 'ids[] required' });
   const uniqueIds = [...new Set(ids)];
   const ph = uniqueIds.map(() => '?').join(',');
-  const result = deleteNumbersWhere(`id IN (${ph})`, uniqueIds, req, 'delete_selected_numbers', { requested: ids.length });
+  const result = deleteNumbersWhere(`id IN (${ph})`, uniqueIds, req, 'delete_selected_numbers', { requested: ids.length }, truthy(req.body?.delete_sms));
   res.json({ ok: true, ...result });
 });
 
@@ -852,13 +855,13 @@ app.post('/api/numbers/move-to-test', authRequired, requireRole('admin'), (req, 
 app.post('/api/numbers/delete-filtered', authRequired, requireRole('admin'), (req, res) => {
   const query = buildNumberQuery(req.user, req.body || {});
   const baseSql = numberSelectSql(query.where);
-  const result = deleteNumbersFromSelect(`SELECT id, number FROM (${baseSql}) x`, query.params, req, 'delete_filtered_numbers', req.body || {});
+  const result = deleteNumbersFromSelect(`SELECT id, number FROM (${baseSql}) x`, query.params, req, 'delete_filtered_numbers', req.body || {}, truthy(req.body?.delete_sms));
   res.json({ ok: true, ...result });
 });
 
 // hard delete every number in the database (Admin only)
 app.delete('/api/numbers/all', authRequired, requireRole('admin'), (req, res) => {
-  const result = deleteNumbersWhere('1=1', [], req, 'delete_all_numbers', {});
+  const result = deleteNumbersWhere('1=1', [], req, 'delete_all_numbers', {}, truthy(req.query.delete_sms));
   db.run(`UPDATE number_import_batches SET status='deleted', deleted_at=datetime('now') WHERE status<>'deleted'`);
   res.json({ ok: true, ...result });
 });
@@ -869,7 +872,7 @@ app.delete('/api/numbers/range/:rangeId', authRequired, requireRole('admin'), (r
   if (!rangeId) return res.status(400).json({ error: 'Valid range id required' });
   const range = db.get('SELECT id,name FROM ranges WHERE id=?', [rangeId]);
   if (!range) return res.status(404).json({ error: 'Range not found' });
-  const result = deleteNumbersWhere('range_id=?', [rangeId], req, 'delete_range_numbers', { rangeId, range: range.name });
+  const result = deleteNumbersWhere('range_id=?', [rangeId], req, 'delete_range_numbers', { rangeId, range: range.name }, truthy(req.query.delete_sms));
   db.run(`UPDATE number_import_batches SET status='deleted', deleted_at=datetime('now') WHERE range_id=? AND status<>'deleted'`, [rangeId]);
   res.json({ ok: true, range_id: rangeId, range_name: range.name, ...result });
 });
@@ -1196,12 +1199,12 @@ app.get('/api/number-import-batches', authRequired, requireRole('admin'), (req,r
 });
 app.delete('/api/number-import-batches/:batchId', authRequired, requireRole('admin'), (req,res)=>{
   const batchId=req.params.batchId;
-  const result = deleteNumbersWhere('import_batch_id=?', [batchId], req, 'delete_import_batch', { batchId });
+  const result = deleteNumbersWhere('import_batch_id=?', [batchId], req, 'delete_import_batch', { batchId }, truthy(req.query.delete_sms));
   db.run(`UPDATE number_import_batches SET status='deleted', deleted_at=datetime('now') WHERE batch_id=?`,[batchId]);
   res.json({ok:true,...result});
 });
 app.delete('/api/numbers/imported-all', authRequired, requireRole('admin'), (req,res)=>{
-  const result = deleteNumbersWhere(`import_source='file' OR import_batch_id<>''`, [], req, 'delete_all_imported_numbers', {});
+  const result = deleteNumbersWhere(`import_source='file' OR import_batch_id<>''`, [], req, 'delete_all_imported_numbers', {}, truthy(req.query.delete_sms));
   db.run(`UPDATE number_import_batches SET status='deleted', deleted_at=datetime('now') WHERE status<>'deleted'`);
   res.json({ok:true,...result});
 });
