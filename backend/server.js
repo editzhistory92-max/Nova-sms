@@ -1075,10 +1075,11 @@ app.get('/api/dashboard', authRequired, (req, res) => {
   const numScope = numberScopeWhere(u);
   const dExpr = ukDateExpr('received_at');
   const dtExpr = ukDateTimeExpr('received_at');
-  const today = db.get(`SELECT COUNT(*) c FROM sms_records WHERE ${smsScope.where} AND ${dExpr}=${ukDateNowSql()}`, smsScope.params)?.c || 0;
-  const yesterday = db.get(`SELECT COUNT(*) c FROM sms_records WHERE ${smsScope.where} AND ${dExpr}=${ukDateNowSql('-1 day')}`, smsScope.params)?.c || 0;
-  const d7 = db.get(`SELECT COUNT(*) c FROM sms_records WHERE ${smsScope.where} AND ${dExpr} >= ${ukDateNowSql('-6 days')}`, smsScope.params)?.c || 0;
-  const month = db.get(`SELECT COUNT(*) c FROM sms_records WHERE ${smsScope.where} AND strftime('%Y-%m',${dtExpr})=strftime('%Y-%m',datetime('now','${ukSqlModifier()}'))`, smsScope.params)?.c || 0;
+  const normalSms = 'COALESCE(is_test,0)=0';
+  const today = db.get(`SELECT COUNT(*) c FROM sms_records WHERE ${smsScope.where} AND ${normalSms} AND ${dExpr}=${ukDateNowSql()}`, smsScope.params)?.c || 0;
+  const yesterday = db.get(`SELECT COUNT(*) c FROM sms_records WHERE ${smsScope.where} AND ${normalSms} AND ${dExpr}=${ukDateNowSql('-1 day')}`, smsScope.params)?.c || 0;
+  const d7 = db.get(`SELECT COUNT(*) c FROM sms_records WHERE ${smsScope.where} AND ${normalSms} AND ${dExpr} >= ${ukDateNowSql('-6 days')}`, smsScope.params)?.c || 0;
+  const month = db.get(`SELECT COUNT(*) c FROM sms_records WHERE ${smsScope.where} AND ${normalSms} AND strftime('%Y-%m',${dtExpr})=strftime('%Y-%m',datetime('now','${ukSqlModifier()}'))`, smsScope.params)?.c || 0;
   const numbers = db.get(`SELECT COUNT(*) c FROM numbers WHERE ${numScope.where}`, numScope.params)?.c || 0;
   const managers = u.role === 'admin' ? (db.get(`SELECT COUNT(*) c FROM users WHERE role='manager'`)?.c || 0) : 0;
   let agents = 0, clients = 0;
@@ -1099,7 +1100,7 @@ app.get('/api/dashboard', authRequired, (req, res) => {
   const rowsMonth = smsRowsForScope(u, `strftime('%Y-%m',${ukDateTimeExpr('s.received_at')})=strftime('%Y-%m',datetime('now','${ukSqlModifier()}'))`);
   const daily7 = [];
   for (let i = 6; i >= 0; i--) {
-    const r = db.get(`SELECT ${ukDateNowSql('-'+i+' days')} d, COUNT(*) c FROM sms_records WHERE ${smsScope.where} AND ${ukDateExpr('received_at')}=${ukDateNowSql('-'+i+' days')}`, smsScope.params);
+    const r = db.get(`SELECT ${ukDateNowSql('-'+i+' days')} d, COUNT(*) c FROM sms_records WHERE ${smsScope.where} AND ${normalSms} AND ${ukDateExpr('received_at')}=${ukDateNowSql('-'+i+' days')}`, smsScope.params);
     daily7.push({ date: r?.d || '', count: r?.c || 0 });
   }
   const recent = smsRowsForScope(u).slice(0,5).map(r=>({received_at:r.received_at,number:r.number,cli:r.cli,message:r.message,range_name:r.range_name,payout_rate:r.payout_rate}));
