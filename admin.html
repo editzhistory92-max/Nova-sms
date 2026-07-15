@@ -1095,7 +1095,7 @@
   <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal('newsModal')">Cancel</button><button class="btn btn-purple" onclick="saveNews()">Save</button></div>
 </div></div>
 
-<script src="/api.js?v=20260714-final-fix"></script>
+<script src="/api.js?v=20260714-cdr-uk-fix"></script>
 <script>
 /* auth guard — admin only */
 if(window.API){ API.guard('admin'); }
@@ -1178,11 +1178,12 @@ function cleanDec(v){let s=String(v??'').replace(/[$,\s]/g,'');const m=s.match(/
 function decAdd(a,b){a=cleanDec(a);b=cleanDec(b);const[ai,af='']=a.split('.'),[bi,bf='']=b.split('.');const sc=Math.max(af.length,bf.length);let sum=(BigInt(ai+af.padEnd(sc,'0'))+BigInt(bi+bf.padEnd(sc,'0'))).toString();let neg=sum.startsWith('-');if(neg)sum=sum.slice(1);if(!sc)return(neg?'-':'')+sum;sum=sum.padStart(sc+1,'0');let out=sum.slice(0,-sc)+'.'+sum.slice(-sc);out=out.replace(/\.0+$/,'').replace(/(\.\d*?)0+$/,'$1');return(neg?'-':'')+out;}
 function sumPay(rows){return (rows||[]).reduce((a,r)=>decAdd(a,r.pay||r.payout_amount||r.payout_rate||0),'0');}
 function money(v){return '$ '+cleanDec(v);}
-function smsToCdr(r){return {manager:r.manager_name||'—',agent:r.agent_name||'—',client:r.client_name||'—',range:r.range_name||'—',number:r.number||'',sms:1,pay:cleanDec(r.payout_amount||r.payout_rate||0),payout_rate:cleanDec(r.payout_rate||0),cli:r.cli||'',msg:r.message||'',date:(r.received_at||'').slice(0,16)};}
+function smsToCdr(r){return {manager:r.manager_name||'—',agent:r.agent_name||'—',client:r.client_name||'—',range:r.range_name||'—',number:r.number||'',sms:1,pay:cleanDec(r.payout_amount||r.payout_rate||0),payout_rate:cleanDec(r.payout_rate||0),cli:r.cli||'',msg:r.message||'',date:(r.received_at||'').slice(0,19)};}
 
-function todayStr(){return new Date().toISOString().slice(0,10);}
+function todayStr(){return (window.API&&API.ukToday)?API.ukToday():new Date().toISOString().slice(0,10);}
 function setDefaultDates(fromId,toId){const f=document.getElementById(fromId),t=document.getElementById(toId);if(f&&!f.value)f.value=todayStr();if(t&&!t.value)t.value=todayStr();}
-function dateInRange(dateText,fromId,toId){const d=String(dateText||'').slice(0,10);const f=(document.getElementById(fromId)?.value)||todayStr();const t=(document.getElementById(toId)?.value)||todayStr();return (!f||d>=f)&&(!t||d<=t);}
+function ukDateOf(dateText){return (window.API&&API.ukDate)?API.ukDate(dateText):String(dateText||'').slice(0,10);}
+function dateInRange(dateText,fromId,toId){const d=ukDateOf(dateText);const f=(document.getElementById(fromId)?.value)||todayStr();const t=(document.getElementById(toId)?.value)||todayStr();return (!f||d>=f)&&(!t||d<=t);}
 function dateFiltered(records,fromId,toId){return (records||[]).filter(r=>dateInRange(r.received_at||r.date,fromId,toId));}
 function uniqueVals(arr){return [...new Set((arr||[]).filter(Boolean))];}
 function selectedMulti(id){const el=document.getElementById(id);return el?[...el.selectedOptions].map(o=>o.value).filter(Boolean):[];}
@@ -1487,7 +1488,7 @@ function renderSmsReport(){
   const byMgr={};base.forEach(r=>{const m=r.manager_name||'—';byMgr[m]=(byMgr[m]||0)+1;});const sumBody=document.getElementById('mgrSumBody');if(sumBody)sumBody.innerHTML=Object.keys(byMgr).map(m=>`<tr><td><span class="tag tag-mgr">${m}</span></td><td><span class="tag tag-agt">—</span></td><td><span class="tag tag-cli">—</span></td><td class="cell-money">${byMgr[m].toLocaleString()}</td></tr>`).join('')||`<tr><td colspan="4" class="muted" style="text-align:center;padding:16px">No records found</td></tr>`;
   let filtered=base.filter(r=>[r.manager_name,r.range_name,r.number,r.cli,r.message,r.payout_rate].join(' ').toLowerCase().includes(q));
   const pag=API.paginateRows('adminSmsReport',filtered,len,'srInfo',renderSmsReport);const total=pag.total;let rows=pag.rows;
-  document.getElementById('srBody').innerHTML=rows.map(r=>`<tr><td class="muted">${(r.received_at||'').slice(0,16)}</td><td><span class="tag tag-mgr">${r.manager_name||'—'}</span></td><td>${r.range_name||'—'}</td><td class="mono">${r.number||''}</td><td class="mono">${r.cli||''}</td><td class="cell-money">${cleanDec(r.payout_rate||0)}</td><td class="msg-body">${r.message||''}</td></tr>`).join('')||`<tr><td colspan="7" class="muted" style="text-align:center;padding:24px">No records found</td></tr>`;
+  document.getElementById('srBody').innerHTML=rows.map(r=>`<tr><td class="muted">${(r.received_at||'').slice(0,19)}</td><td><span class="tag tag-mgr">${r.manager_name||'—'}</span></td><td>${r.range_name||'—'}</td><td class="mono">${r.number||''}</td><td class="mono">${r.cli||''}</td><td class="cell-money">${cleanDec(r.payout_rate||0)}</td><td class="msg-body">${r.message||''}</td></tr>`).join('')||`<tr><td colspan="7" class="muted" style="text-align:center;padding:24px">No records found</td></tr>`;
   document.getElementById('srInfo').textContent=`Showing ${rows.length} of ${total} records`;
   const pi=document.getElementById('srPayoutInfo'); if(pi) pi.textContent=`Visible total payout: ${money(sumPay(rows))}`;
 }
@@ -1546,20 +1547,20 @@ function buildSummaryRows(rows){
   if(sdUseNumber.checked) dims.push({key:'number',label:'Number',cls:'tag-gray'});
   if(sdUseUser.checked) dims.push({key:'manager_name',label:'Manager',cls:'tag-mgr'});
   const map={};
-  rows.forEach(r=>{const o={...r,_date:String(r.received_at||'').slice(0,10)};const key=dims.map(d=>o[d.key]||'—').join('|');if(!map[key])map[key]={vals:dims.map(d=>o[d.key]||'—'),sms:0,pay:'0'};map[key].sms++;map[key].pay=decAdd(map[key].pay,r.payout_amount||r.payout_rate||0);});
+  rows.forEach(r=>{const o={...r,_date:ukDateOf(r.received_at||'')};const key=dims.map(d=>o[d.key]||'—').join('|');if(!map[key])map[key]={vals:dims.map(d=>o[d.key]||'—'),sms:0,pay:'0'};map[key].sms++;map[key].pay=decAdd(map[key].pay,r.payout_amount||r.payout_rate||0);});
   const head='<tr>'+dims.map(d=>`<th>${d.label}</th>`).join('')+'<th>Total OTPs</th><th>Total Payout</th></tr>';
   const out=Object.values(map).map(x=>`<tr>${x.vals.map((v,i)=>`<td><span class="tag ${dims[i].cls}">${v}</span></td>`).join('')}<td class="cell-money">${x.sms}</td><td class="cell-money">${money(x.pay)}</td></tr>`);
   return {head,rows:out};
 }
 function renderSmsDetail(){
   const q=(sdSearch.value||'').toLowerCase();
-  let base=(smsRecords||[]).filter(r=>!sdUseDate.checked||String(r.received_at||'').slice(0,10)===(sdDate.value||todayStr()));
+  let base=(smsRecords||[]).filter(r=>!sdUseDate.checked||ukDateOf(r.received_at||'')===(sdDate.value||todayStr()));
   populateSmsDetailFilterLists(base);
   let filtered=base.filter(r=>(!sdUseRange.checked||!sdRange.value||r.range_name===sdRange.value)&&(!sdUseNumber.checked||!sdNumber.value||r.number===sdNumber.value)&&(!sdUseUser.checked||!sdUser.value||r.manager_name===sdUser.value)&&[r.manager_name,r.range_name,r.number,r.cli,r.message,r.payout_rate].join(' ').toLowerCase().includes(q));
   let head='',body=[];
   const summaryMode=sdUseRange.checked||sdUseNumber.checked||sdUseUser.checked;
   if(summaryMode){const g=buildSummaryRows(filtered);head=g.head;body=g.rows;}
-  else{head='<tr><th>Date</th><th>Manager</th><th>Range</th><th>Number</th><th>CLI</th><th>Payout Rate</th><th>SMS (Message Body)</th></tr>';body=filtered.map(r=>`<tr><td class="muted">${(r.received_at||'').slice(0,16)}</td><td><span class="tag tag-mgr">${r.manager_name||'—'}</span></td><td><span class="tag tag-blue">${r.range_name||'—'}</span></td><td><span class="tag tag-gray mono">${r.number}</span></td><td class="mono">${r.cli||''}</td><td class="cell-money payout-rate">${cleanDec(r.payout_rate||0)}</td><td class="msg-body">${r.message||''}</td></tr>`);}
+  else{head='<tr><th>Date</th><th>Manager</th><th>Range</th><th>Number</th><th>CLI</th><th>Payout Rate</th><th>SMS (Message Body)</th></tr>';body=filtered.map(r=>`<tr><td class="muted">${(r.received_at||'').slice(0,19)}</td><td><span class="tag tag-mgr">${r.manager_name||'—'}</span></td><td><span class="tag tag-blue">${r.range_name||'—'}</span></td><td><span class="tag tag-gray mono">${r.number}</span></td><td class="mono">${r.cli||''}</td><td class="cell-money payout-rate">${cleanDec(r.payout_rate||0)}</td><td class="msg-body">${r.message||''}</td></tr>`);}
   const len=sdLen.value;const pag=API.paginateRows('adminSmsDetail',body,len,'sdInfo',renderSmsDetail);const total=pag.total;body=pag.rows;
   sdHead.innerHTML=head;sdBody.innerHTML=body.join('')||`<tr><td colspan="7" class="muted" style="text-align:center;padding:24px">No records found</td></tr>`;
   sdInfo.textContent=`Showing ${body.length} of ${total} rows`;sdPayoutInfo.textContent=`Filtered total payout: ${money(sumPay(filtered))}`;
@@ -1743,7 +1744,7 @@ async function renderTest(){
   const rq=(document.getElementById('testRecSearch').value||'').toLowerCase();
   const cliF=(document.getElementById('testCliFilter').value||'').toLowerCase();
   const apiRows=await API.get('/test-panel/sms').catch(()=>[]);
-  let rRows=(apiRows||[]).map(r=>({date:(r.received_at||'').slice(0,16),range:r.range_name||'',num:r.number||'',cli:r.cli||'',msg:r.message||''}))
+  let rRows=(apiRows||[]).map(r=>({date:(r.received_at||'').slice(0,19),range:r.range_name||'',num:r.number||'',cli:r.cli||'',msg:r.message||''}))
     .filter(r=>(!rangeF||r.range===rangeF)&&(!cliF||r.cli.toLowerCase().includes(cliF))&&[r.range,r.num,r.cli,r.msg].join(' ').toLowerCase().includes(rq));
   const rLen=document.getElementById('testRecLen').value; if(rLen!=='All')rRows=rRows.slice(0,parseInt(rLen));
   document.getElementById('testRecBody').innerHTML=rRows.map(r=>{
@@ -1758,7 +1759,7 @@ const audLabel={all:'All Users',manager:'Managers',agent:'Agents',client:'Client
 async function loadNews(){ try{ newsData=await API.get('/news'); }catch(e){ newsData=[]; } renderNews(); }
 function renderNews(){
   document.getElementById('newsBody2').innerHTML=(newsData||[]).map(n=>`<tr>
-    <td class="muted">${(n.created_at||'').slice(0,16)}</td><td><b>${n.title}</b></td><td class="msg-body">${n.body}</td>
+    <td class="muted">${(n.created_at||'').slice(0,19)}</td><td><b>${n.title}</b></td><td class="msg-body">${n.body}</td>
     <td><span class="tag tag-blue">${audLabel[n.audience]||n.audience}</span></td>
     <td>${n.active?'<span class="tag tag-green">Published</span>':'<span class="tag tag-gray">Draft</span>'}</td>
     <td style="white-space:nowrap">
@@ -1857,7 +1858,7 @@ async function loadDashboard(){
     const recentCard=[...document.querySelectorAll('#page-dashboard .card')].find(c=>c.textContent.includes('Recent Activity'));
     if(recentCard){
       const head=recentCard.querySelector('.card-head')?.outerHTML||'';
-      recentCard.innerHTML=head+((d.recent||[]).map(r=>`<div class="payout-item"><div class="pl"><div class="pi si-blue"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div><div><div class="pt">SMS received — ${r.number||'—'}</div><div class="ps">${(r.received_at||'').slice(0,16)} · ${r.cli||'—'}</div></div></div></div>`).join('')||'<div class="muted" style="padding:18px">No recent activity yet</div>');
+      recentCard.innerHTML=head+((d.recent||[]).map(r=>`<div class="payout-item"><div class="pl"><div class="pi si-blue"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div><div><div class="pt">SMS received — ${r.number||'—'}</div><div class="ps">${(r.received_at||'').slice(0,19)} · ${r.cli||'—'}</div></div></div></div>`).join('')||'<div class="muted" style="padding:18px">No recent activity yet</div>');
     }
   }catch(e){ console.warn(e); }
 }
@@ -1898,7 +1899,7 @@ async function importFile(type){
 async function loadSmsRecords(){
   try{ smsRecords=await API.get('/sms'); }catch(e){ smsRecords=[]; }
   cdrData=(smsRecords||[]).map(smsToCdr);
-  recentTests=(smsRecords||[]).slice(0,50).map(r=>({date:(r.received_at||'').slice(0,16),range:r.range_name||'—',num:r.number||'',cli:r.cli||'',msg:r.message||''}));
+  recentTests=(smsRecords||[]).slice(0,50).map(r=>({date:(r.received_at||'').slice(0,19),range:r.range_name||'—',num:r.number||'',cli:r.cli||'',msg:r.message||''}));
   cliPool=unique((smsRecords||[]).map(r=>r.cli));
   refreshHierarchy();
   const sumBody=document.getElementById('mgrSumBody');
@@ -1973,10 +1974,10 @@ function showLogTab(t){
   const el=document.getElementById(map[t]); if(el)el.style.display='block';
 }
 async function loadSystemLogs(){
-  try{const rows=await API.get('/logs/activity');const b=document.getElementById('actLogBody');if(b)b.innerHTML=rows.map(r=>`<tr><td>${(r.created_at||'').slice(0,16)}</td><td>${miniEsc(r.username)||'—'}</td><td>${r.role||'—'}</td><td><b>${r.action}</b></td><td>${r.module}</td><td class="msg-body">${miniEsc(r.details)}</td><td>${r.ip||'—'}</td></tr>`).join('')||`<tr><td colspan="7" class="muted" style="text-align:center;padding:20px">No logs</td></tr>`;}catch(e){}
-  try{const rows=await API.get('/logs/number-history');const b=document.getElementById('numHistBody');if(b)b.innerHTML=rows.map(r=>`<tr><td>${(r.created_at||'').slice(0,16)}</td><td class="mono">${r.number}</td><td><b>${r.action}</b></td><td>${miniEsc(r.from_owner)}</td><td>${miniEsc(r.to_owner)}</td><td class="msg-body">${miniEsc(r.details)}</td></tr>`).join('')||`<tr><td colspan="6" class="muted" style="text-align:center;padding:20px">No history</td></tr>`;}catch(e){}
-  try{const rows=await API.get('/logs/webhooks');const b=document.getElementById('webLogBody');if(b)b.innerHTML=rows.map(r=>`<tr><td>${(r.created_at||'').slice(0,16)}</td><td>${r.status==='success'?'<span class="tag tag-green">Success</span>':'<span class="tag tag-red">Failed</span>'}</td><td class="mono">${r.number}</td><td class="mono">${r.matched_number||'—'}</td><td>${miniEsc(r.cli)}</td><td class="msg-body">${miniEsc(r.message)}</td><td class="msg-body">${miniEsc(r.error)}</td></tr>`).join('')||`<tr><td colspan="7" class="muted" style="text-align:center;padding:20px">No webhooks</td></tr>`;}catch(e){}
-  try{const rows=await API.get('/failed-sms');const b=document.getElementById('failedSmsBody');if(b)b.innerHTML=rows.map(r=>`<tr><td>${(r.created_at||'').slice(0,16)}</td><td class="mono">${r.number}</td><td>${miniEsc(r.cli)}</td><td class="msg-body">${miniEsc(r.message)}</td><td class="msg-body">${miniEsc(r.error)}</td><td>${r.status}</td><td>${r.status==='Pending'?`<button class="btn btn-blue btn-sm" onclick="retryFailedSms(${r.id})">Retry</button> <button class="btn btn-red btn-sm" onclick="ignoreFailedSms(${r.id})">Ignore</button>`:'—'}</td></tr>`).join('')||`<tr><td colspan="7" class="muted" style="text-align:center;padding:20px">No failed SMS</td></tr>`;}catch(e){}
+  try{const rows=await API.get('/logs/activity');const b=document.getElementById('actLogBody');if(b)b.innerHTML=rows.map(r=>`<tr><td>${(r.created_at||'').slice(0,19)}</td><td>${miniEsc(r.username)||'—'}</td><td>${r.role||'—'}</td><td><b>${r.action}</b></td><td>${r.module}</td><td class="msg-body">${miniEsc(r.details)}</td><td>${r.ip||'—'}</td></tr>`).join('')||`<tr><td colspan="7" class="muted" style="text-align:center;padding:20px">No logs</td></tr>`;}catch(e){}
+  try{const rows=await API.get('/logs/number-history');const b=document.getElementById('numHistBody');if(b)b.innerHTML=rows.map(r=>`<tr><td>${(r.created_at||'').slice(0,19)}</td><td class="mono">${r.number}</td><td><b>${r.action}</b></td><td>${miniEsc(r.from_owner)}</td><td>${miniEsc(r.to_owner)}</td><td class="msg-body">${miniEsc(r.details)}</td></tr>`).join('')||`<tr><td colspan="6" class="muted" style="text-align:center;padding:20px">No history</td></tr>`;}catch(e){}
+  try{const rows=await API.get('/logs/webhooks');const b=document.getElementById('webLogBody');if(b)b.innerHTML=rows.map(r=>`<tr><td>${(r.created_at||'').slice(0,19)}</td><td>${r.status==='success'?'<span class="tag tag-green">Success</span>':'<span class="tag tag-red">Failed</span>'}</td><td class="mono">${r.number}</td><td class="mono">${r.matched_number||'—'}</td><td>${miniEsc(r.cli)}</td><td class="msg-body">${miniEsc(r.message)}</td><td class="msg-body">${miniEsc(r.error)}</td></tr>`).join('')||`<tr><td colspan="7" class="muted" style="text-align:center;padding:20px">No webhooks</td></tr>`;}catch(e){}
+  try{const rows=await API.get('/failed-sms');const b=document.getElementById('failedSmsBody');if(b)b.innerHTML=rows.map(r=>`<tr><td>${(r.created_at||'').slice(0,19)}</td><td class="mono">${r.number}</td><td>${miniEsc(r.cli)}</td><td class="msg-body">${miniEsc(r.message)}</td><td class="msg-body">${miniEsc(r.error)}</td><td>${r.status}</td><td>${r.status==='Pending'?`<button class="btn btn-blue btn-sm" onclick="retryFailedSms(${r.id})">Retry</button> <button class="btn btn-red btn-sm" onclick="ignoreFailedSms(${r.id})">Ignore</button>`:'—'}</td></tr>`).join('')||`<tr><td colspan="7" class="muted" style="text-align:center;padding:20px">No failed SMS</td></tr>`;}catch(e){}
 }
 async function retryFailedSms(id){try{await API.post('/failed-sms/'+id+'/retry',{});loadSystemLogs();}catch(e){alert('❌ '+e.message)}}
 async function ignoreFailedSms(id){try{await API.del('/failed-sms/'+id);loadSystemLogs();}catch(e){alert('❌ '+e.message)}}
@@ -2154,7 +2155,7 @@ async function loadBackups(){
     backupRows=data.backups||[];
     const latest=backupRows[0];
     const bt=document.getElementById('bkTotal'); if(bt)bt.textContent=backupRows.length;
-    const bl=document.getElementById('bkLatest'); if(bl)bl.textContent=latest?(latest.modified_at||latest.created_at||'').slice(0,16):'—';
+    const bl=document.getElementById('bkLatest'); if(bl)bl.textContent=latest?(latest.modified_at||latest.created_at||'').slice(0,19):'—';
     const bf=document.getElementById('bkFolder'); if(bf)bf.textContent=(data.backup_dir||'—').split('/').slice(-2).join('/');
     const bd=document.getElementById('bkDbFile'); if(bd)bd.textContent=(data.db_file||'—').split('/').slice(-2).join('/');
     const body=document.getElementById('backupBody'); if(!body)return;
@@ -2246,7 +2247,7 @@ async function pollImportJob(jobId){
 }
 async function loadImportBatches(){
   try{const rows=await API.get('/number-import-batches');const b=document.getElementById('importBatchBody');if(!b)return;
-    b.innerHTML=(rows||[]).map(r=>`<tr><td class="mono">${r.batch_id}</td><td>${r.range_name||'—'}</td><td>${r.total||0}</td><td>${r.inserted||0}</td><td>${r.skipped||0}</td><td><span class="tag tag-gray">${r.status}</span></td><td>${(r.created_at||'').slice(0,16)}</td><td>${r.status!=='deleted'?`<button class="btn btn-red btn-sm" onclick="deleteImportBatch('${r.batch_id}')">Delete Batch</button>`:'—'}</td></tr>`).join('')||`<tr><td colspan="8" class="muted" style="text-align:center;padding:20px">No import batches found</td></tr>`;
+    b.innerHTML=(rows||[]).map(r=>`<tr><td class="mono">${r.batch_id}</td><td>${r.range_name||'—'}</td><td>${r.total||0}</td><td>${r.inserted||0}</td><td>${r.skipped||0}</td><td><span class="tag tag-gray">${r.status}</span></td><td>${(r.created_at||'').slice(0,19)}</td><td>${r.status!=='deleted'?`<button class="btn btn-red btn-sm" onclick="deleteImportBatch('${r.batch_id}')">Delete Batch</button>`:'—'}</td></tr>`).join('')||`<tr><td colspan="8" class="muted" style="text-align:center;padding:20px">No import batches found</td></tr>`;
   }catch(e){console.warn(e)}
 }
 async function deleteImportBatch(batchId){
@@ -2405,6 +2406,5 @@ loadNews();
   loadCliLimits();
 })();
 </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1b60b2afe290b03',t:'MTc4NDA4OTk0OQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 </html>

@@ -100,7 +100,7 @@
     if (notifState.unread !== 0 && unread > notifState.unread && notifState.prefs.notification_sound) beep();
     notifState.unread = unread; updateBadge(unread);
     const list=document.getElementById('msNotifList');
-    list.innerHTML = rows.map(r=>`<div class="ms-notif-item ${r.read_at?'':'unread'}" onclick="API.markNotificationRead(${r.user_notification_id})"><div class="m">${r.message}</div><div class="d">${(r.created_at||'').slice(0,16)} · ${r.scope} · ${Number(r.count||0).toLocaleString()} SMS</div></div>`).join('') || '<div class="ms-notif-item"><div class="d">No notifications yet</div></div>';
+    list.innerHTML = rows.map(r=>`<div class="ms-notif-item ${r.read_at?'':'unread'}" onclick="API.markNotificationRead(${r.user_notification_id})"><div class="m">${r.message}</div><div class="d">${(r.created_at||'').slice(0,19)} · ${r.scope} · ${Number(r.count||0).toLocaleString()} SMS</div></div>`).join('') || '<div class="ms-notif-item"><div class="d">No notifications yet</div></div>';
     if(openPanel) document.getElementById('msNotifPanel').classList.add('show');
   }
   async function toggleNotifications(){ await loadNotifications(true); }
@@ -512,14 +512,27 @@
     reset();
   }
 
-  function formatLocalFromDb(value){
+  function dbDateToUtcDate(value){
     const s=String(value||'').trim();
-    const m=s.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/);
-    if(!m) return '';
+    const m=s.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2})?\:?(\d{2})?(?::(\d{2}))?/);
+    if(!m) return null;
+    return new Date(Date.UTC(+m[1], +m[2]-1, +m[3], +(m[4]||0), +(m[5]||0), +(m[6]||0)));
+  }
+  function ukPartsFromDate(d, withSeconds=true){
+    return new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',hour12:false,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:withSeconds?'2-digit':undefined}).formatToParts(d).reduce((a,p)=>(a[p.type]=p.value,a),{});
+  }
+  function ukDateString(value=new Date()){
+    const d=value instanceof Date ? value : dbDateToUtcDate(value);
+    if(!d) return '';
+    const p=ukPartsFromDate(d,false);
+    return `${p.year}-${p.month}-${p.day}`;
+  }
+  function formatLocalFromDb(value){
+    const d=dbDateToUtcDate(value);
+    if(!d) return '';
     // Display all panel timestamps in UK time (Europe/London), not browser local time.
-    const d=new Date(Date.UTC(+m[1], +m[2]-1, +m[3], +m[4], +m[5], +(m[6]||0)));
-    const parts=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',hour12:false,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:m[6]?'2-digit':undefined}).formatToParts(d).reduce((a,p)=>(a[p.type]=p.value,a),{});
-    return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}${m[6]?':'+parts.second:''}`;
+    const p=ukPartsFromDate(d,true);
+    return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}:${p.second}`;
   }
   function localizeTimes(root=document){
     const els=[...root.querySelectorAll?.('td,.t2,.ps,.last-sms,.ms-time')||[]];
@@ -553,6 +566,9 @@
     role: ROLE,
     user: () => sessionStorage.getItem('ms_user'),
     name: () => sessionStorage.getItem('ms_name'),
+    ukDate: ukDateString,
+    ukToday: () => ukDateString(new Date()),
+    ukTimestamp: formatLocalFromDb,
     get: (p) => req('GET', p),
     post: (p, b) => req('POST', p, b),
     put: (p, b) => req('PUT', p, b),
