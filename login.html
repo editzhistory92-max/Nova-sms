@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<link rel="icon" type="image/png" href="assets/mufasa-favicon.png" />
+<link rel="icon" type="image/png" href="/assets/mufasa-favicon.png?v=20260714-purple" />
 <title>MUFASA SMS — Login</title>
 <style>
   :root{--bg:#f4f7fb;--panel:#ffffff;--border:#e4eaf3;--border2:#d7e0ec;--text:#0f2454;--muted:#64748b;--blue:#1d4ed8;--cyan:#0ea5e9;--purple:#7c3aed;--danger:#dc2626;--ok:#16a34a}
@@ -56,7 +56,7 @@
   .brand-panel.logo-only-panel::before,.brand-panel.logo-only-panel::after{display:none!important}
   .login-hero-logo{width:100%!important;height:100%!important;object-fit:contain!important;display:block!important;background:#050505!important;padding:26px!important}
   .login-panel{background:#ffffff!important}
-  @media(max-width:900px){.login-card:before{content:"";display:block;width:104px;height:104px;margin:0 auto 24px;background:url('assets/mufasa-logo.png') center/contain no-repeat;border-radius:22px;box-shadow:0 14px 30px rgba(15,23,42,.16)}}
+  @media(max-width:900px){.login-card:before{content:"";display:block;width:104px;height:104px;margin:0 auto 24px;background:url('/assets/mufasa-logo.png?v=20260714-purple') center/contain no-repeat;border-radius:22px;box-shadow:0 14px 30px rgba(15,23,42,.16)}}
 
 
 
@@ -67,7 +67,7 @@
     .brand-panel{display:none!important}
     .login-panel{padding:44px 38px 36px!important;min-height:auto!important;background:#FFFFFF!important;border-radius:30px!important}
     .login-card{max-width:none!important;width:100%!important}
-    .login-card:before{content:""!important;display:block!important;width:118px!important;height:118px!important;margin:0 auto 28px!important;background:url('assets/mufasa-logo.png') center/cover no-repeat!important;border-radius:24px!important;box-shadow:0 18px 36px rgba(15,23,42,.18)!important}
+    .login-card:before{content:""!important;display:block!important;width:118px!important;height:118px!important;margin:0 auto 28px!important;background:url('/assets/mufasa-logo.png?v=20260714-purple') center/cover no-repeat!important;border-radius:24px!important;box-shadow:0 18px 36px rgba(15,23,42,.18)!important}
     .login-head{margin-bottom:28px!important}.login-head .eyebrow{letter-spacing:.18em!important;color:#2563EB!important}.login-head h2{font-size:42px!important;line-height:1.05!important;color:#0F2454!important;letter-spacing:-.05em!important}.login-head p{font-size:16px!important;line-height:1.65!important;color:#64748B!important}
     .field{margin-bottom:22px!important}.field label{font-size:15px!important;color:#0F172A!important}.input-wrap input{height:58px!important;border-radius:18px!important;font-size:16px!important}.captcha-row{display:block!important}.captcha-box{width:100%!important;height:58px!important;margin-bottom:14px!important;border-radius:18px!important}.row-between{margin-top:8px!important;margin-bottom:24px!important}.btn{height:58px!important;border-radius:18px!important;font-size:16px!important;background:linear-gradient(135deg,#2563EB,#06B6D4)!important}.footer{font-size:13px!important;margin-top:28px!important;color:#94A3B8!important}
   }
@@ -102,12 +102,66 @@
   body.ms-dark-mode .msg.error{background:#450a0a!important;border-color:#991b1b!important;color:#FECACA!important}
 
 </style>
+
+<style id="mufasa-purple-theme">
+  /* ===== MUFASA SMS Purple Theme — matched to new logo ===== */
+  :root{
+    --mufasa-purple:#7C3AED;
+    --mufasa-purple-2:#A855F7;
+    --mufasa-purple-3:#C084FC;
+    --mufasa-ink:#160826;
+    --mufasa-ink-2:#24103A;
+    --mufasa-soft:#F5F0FF;
+    --mufasa-border:#E9D5FF;
+    --mufasa-text:#1F1735;
+    --mufasa-muted:#6B5D7D;
+  }
+  body{background:linear-gradient(180deg,#FBF8FF 0%,#F7F3FF 44%,#F8FAFC 100%)!important;color:var(--mufasa-text)!important;}
+  .sidebar,.rail,.appbar{background:linear-gradient(180deg,#0F0618 0%,#1B0A2E 52%,#0B0612 100%)!important;border-right:1px solid rgba(168,85,247,.34)!important;box-shadow:10px 0 30px rgba(76,29,149,.16)!important;}
+  .sb-brand,.rail-brand,.brand-text,.appbar-top{background:transparent!important;border-bottom:1px solid rgba(192,132,252,.22)!important;}
+  .sb-brand h1,.brand h1,.brand-text h1,.brand-logo h1,.sidebar h1,.appbar h1{color:#FFFFFF!important;font-weight:800!important;letter-spacing:.035em!important;}
+  .sb-brand small,.brand small,.brand-text small,.sidebar small,.appbar small{color:#D8B4FE!important;}
+  .sb-section,.sb-sec,.sec{color:#A78BFA!important;font-weight:900!important;letter-spacing:.10em!important;}
+  .sb-logo,.brand .logo,.rail .logo,.sb-brand .logo,.brand-logo .logo,.logo{background:#14031F!important;border:1px solid rgba(216,180,254,.45)!important;box-shadow:0 14px 32px rgba(168,85,247,.22)!important;overflow:hidden!important;}
+  .mufasa-logo-img,.logo img,.login-hero-logo{filter:saturate(1.08) contrast(1.03)!important;}
+  .nav-item,.sub-item,.tab,.ritem,.rsubitem,.navtab,.dropitem,.item{color:#DDD6FE!important;background:transparent!important;}
+  .nav-item svg,.tab svg,.ritem svg,.navtab svg,.item svg{stroke:currentColor!important;color:inherit!important;}
+  .nav-item:hover,.sub-item:hover,.tab:hover,.ritem:hover,.rsubitem:hover,.navtab:hover,.dropitem:hover,.item:hover{background:rgba(168,85,247,.16)!important;color:#FFFFFF!important;}
+  .nav-item.active,.tab.active,.ritem.active,.navtab.active,.item.active{background:linear-gradient(135deg,#7C3AED 0%,#A855F7 58%,#C084FC 100%)!important;color:#FFFFFF!important;box-shadow:0 14px 30px rgba(124,58,237,.30)!important;}
+  .nav-item.active svg,.tab.active svg,.ritem.active svg,.navtab.active svg,.item.active svg{stroke:#FFFFFF!important;color:#FFFFFF!important;}
+  .sub-item.active,.rsubitem.active,.dropitem.active{background:rgba(168,85,247,.22)!important;color:#F5F3FF!important;box-shadow:inset 3px 0 0 #C084FC!important;}
+  .topbar,.tb1,.mgr-topbar{background:rgba(255,255,255,.88)!important;border-bottom:1px solid rgba(196,181,253,.50)!important;box-shadow:0 8px 26px rgba(88,28,135,.06)!important;backdrop-filter:blur(16px)!important;}
+  .content,.main{background:linear-gradient(180deg,#FBF8FF 0%,#F8FAFC 100%)!important;}
+  .page-head h2,.head h2{color:#23133B!important;font-weight:900!important;letter-spacing:-.025em!important;}
+  .breadcrumb,.sub,.muted,.clock,.tb-date,.t2,.ps{color:var(--mufasa-muted)!important;}
+  .card,.toolbar,.table-wrap{background:rgba(255,255,255,.86)!important;border-color:rgba(196,181,253,.52)!important;box-shadow:0 16px 42px rgba(88,28,135,.07)!important;}
+  .card-head h3,.card h3{color:#24103A!important;font-weight:850!important;}
+  thead th{background:#F4EDFF!important;color:#35204F!important;border-color:#E9D5FF!important;}
+  table td{border-color:#F0E7FF!important;}
+  tbody tr:hover td{background:#FAF5FF!important;}
+  input,select,textarea{border-color:#DDD6FE!important;background:#FFFFFF!important;color:#211437!important;}
+  input:focus,select:focus,textarea:focus{border-color:#A855F7!important;box-shadow:0 0 0 4px rgba(168,85,247,.14)!important;outline:none!important;}
+  .btn-blue,.btn-purple,.btn-teal,.btn-rose,.ms-btn.primary,button.btn-gold{background:linear-gradient(135deg,#7C3AED,#A855F7)!important;color:#fff!important;border:0!important;box-shadow:0 12px 26px rgba(124,58,237,.22)!important;}
+  .btn-blue:hover,.btn-purple:hover,.btn-teal:hover,.btn-rose:hover,.ms-btn.primary:hover{filter:brightness(1.04)!important;transform:translateY(-1px)!important;}
+  .tb-btn,.hamburger,.mgr-topbar-menu{color:#6D5D7E!important;}
+  .tb-btn:hover,.hamburger:hover,.mgr-topbar-menu:hover{background:#F3E8FF!important;color:#6D28D9!important;}
+  .avatar,.av{background:linear-gradient(135deg,#6D28D9,#A855F7)!important;color:#fff!important;border-color:#DDD6FE!important;}
+  .tag,.tag-blue,.tag-green,.tag-amber,.tag-red,.tag-gray,.tag-mgr,.tag-agt,.tag-cli{border-radius:9px!important;box-shadow:none!important;}
+  .tag-blue,.tag-mgr{background:#EDE9FE!important;color:#5B21B6!important;border-color:#DDD6FE!important;}
+  .cell-money,.payout-rate,.rate-cell,.otp{color:#6D28D9!important;font-weight:900!important;}
+  .login-panel,.shell,.card{border-color:rgba(196,181,253,.55)!important;}
+  .brand-panel.logo-only-panel{background:radial-gradient(circle at center,#3B0764 0%,#1B0A2E 54%,#08030D 100%)!important;}
+  .login-head .eyebrow{color:#7C3AED!important;}
+  .btn,.login-panel .btn{background:linear-gradient(135deg,#7C3AED,#A855F7)!important;color:#fff!important;}
+  @media(max-width:900px){.sidebar,.rail,.appbar{box-shadow:14px 0 40px rgba(35,10,61,.28)!important;}.content{background:#FBF8FF!important;}}
+</style>
+
 </head>
 <body>
 <script id="login-dark-mode-init">try{if(localStorage.getItem('ms_dark_mode')==='1')document.body.classList.add('ms-dark-mode');}catch(e){}</script>
   <main class="shell">
     <section class="brand-panel logo-only-panel" aria-label="MUFASA SMS branding">
-      <img class="login-hero-logo" src="assets/mufasa-logo.png" alt="MUFASA SMS" />
+      <img class="login-hero-logo" src="/assets/mufasa-logo.png?v=20260714-purple" alt="MUFASA SMS" />
     </section>
     <section class="login-panel"><div class="login-card">
       <div class="login-head"><div class="eyebrow">Secure Login</div><h2>Welcome back</h2><p>Admin, Manager, Agent, Client and Test Panel users can login here.</p></div>
@@ -129,6 +183,6 @@
   function showMsg(text,type){const m=document.getElementById('msg');m.textContent=text;m.className='msg show '+type;}
   document.getElementById('loginForm').addEventListener('submit',function(e){e.preventDefault();const u=document.getElementById('username').value.trim(),p=document.getElementById('password').value,c=parseInt(document.getElementById('captcha').value,10);if(c!==captchaAnswer){showMsg('❌ Incorrect captcha answer. Please try again.','error');newCaptcha();return;}showMsg('⏳ Verifying...','success');fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})}).then(async r=>{const data=await r.json();if(!r.ok)throw new Error(data.error||'Login failed');return data;}).then(data=>{try{['ms_token','ms_role','ms_user','ms_name'].forEach(k=>localStorage.removeItem(k));sessionStorage.setItem('ms_token',data.token);sessionStorage.setItem('ms_role',data.user.role);sessionStorage.setItem('ms_user',data.user.username);sessionStorage.setItem('ms_name',data.user.name||data.user.username);localStorage.setItem('ms_last_page_'+data.user.role,'dashboard');}catch(e){}showMsg('✅ Welcome '+(data.user.name||data.user.username)+'! Redirecting...','success');setTimeout(()=>{window.location.href='/' + data.user.role.toLowerCase();},550);}).catch(err=>{showMsg('❌ '+err.message,'error');newCaptcha();});});
 </script>
-<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1b63581b9abdd5d',t:'MTc4NDA5MTY4NA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 </html>

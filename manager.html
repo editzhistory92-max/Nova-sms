@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<link rel="icon" type="image/png" href="/assets/mufasa-favicon.png" />
+<link rel="icon" type="image/png" href="/assets/mufasa-favicon.png?v=20260714-purple" />
 <title>MUFASA SMS — Manager Panel</title>
 <style id="route-auth-hide">html{visibility:hidden}
 
@@ -427,6 +427,60 @@
   .mgr-topbar{height:56px;margin-left:260px;width:calc(100% - 260px);background:#F8FAFC!important;border-bottom:1px solid #E2E8F0!important;display:flex;align-items:center;gap:14px;padding:0 22px;position:sticky;top:0;z-index:58}.mgr-topbar .tb-right{margin-left:auto;display:flex;align-items:center;gap:8px}.mgr-topbar-menu{display:none;align-items:center;justify-content:center;width:38px;height:38px;border:0;border-radius:10px;background:transparent;color:#64748B;font-size:22px;font-weight:900;cursor:pointer}.mgr-topbar-menu:hover{background:#FEF3C7;color:#92400E}.mgr-topbar .clock{background:transparent!important;border:0!important;color:#64748B!important;padding:0!important}
   @media(max-width:900px){.mgr-mobile-menu{display:none!important}.mgr-topbar{margin-left:0!important;width:100%!important;position:sticky!important;top:0!important;padding:0 12px!important}.mgr-topbar-menu{display:flex!important}body .content{padding:20px 14px!important}.mgr-topbar .who{display:none!important}}
 </style>
+
+<style id="mufasa-purple-theme">
+  /* ===== MUFASA SMS Purple Theme — matched to new logo ===== */
+  :root{
+    --mufasa-purple:#7C3AED;
+    --mufasa-purple-2:#A855F7;
+    --mufasa-purple-3:#C084FC;
+    --mufasa-ink:#160826;
+    --mufasa-ink-2:#24103A;
+    --mufasa-soft:#F5F0FF;
+    --mufasa-border:#E9D5FF;
+    --mufasa-text:#1F1735;
+    --mufasa-muted:#6B5D7D;
+  }
+  body{background:linear-gradient(180deg,#FBF8FF 0%,#F7F3FF 44%,#F8FAFC 100%)!important;color:var(--mufasa-text)!important;}
+  .sidebar,.rail,.appbar{background:linear-gradient(180deg,#0F0618 0%,#1B0A2E 52%,#0B0612 100%)!important;border-right:1px solid rgba(168,85,247,.34)!important;box-shadow:10px 0 30px rgba(76,29,149,.16)!important;}
+  .sb-brand,.rail-brand,.brand-text,.appbar-top{background:transparent!important;border-bottom:1px solid rgba(192,132,252,.22)!important;}
+  .sb-brand h1,.brand h1,.brand-text h1,.brand-logo h1,.sidebar h1,.appbar h1{color:#FFFFFF!important;font-weight:800!important;letter-spacing:.035em!important;}
+  .sb-brand small,.brand small,.brand-text small,.sidebar small,.appbar small{color:#D8B4FE!important;}
+  .sb-section,.sb-sec,.sec{color:#A78BFA!important;font-weight:900!important;letter-spacing:.10em!important;}
+  .sb-logo,.brand .logo,.rail .logo,.sb-brand .logo,.brand-logo .logo,.logo{background:#14031F!important;border:1px solid rgba(216,180,254,.45)!important;box-shadow:0 14px 32px rgba(168,85,247,.22)!important;overflow:hidden!important;}
+  .mufasa-logo-img,.logo img,.login-hero-logo{filter:saturate(1.08) contrast(1.03)!important;}
+  .nav-item,.sub-item,.tab,.ritem,.rsubitem,.navtab,.dropitem,.item{color:#DDD6FE!important;background:transparent!important;}
+  .nav-item svg,.tab svg,.ritem svg,.navtab svg,.item svg{stroke:currentColor!important;color:inherit!important;}
+  .nav-item:hover,.sub-item:hover,.tab:hover,.ritem:hover,.rsubitem:hover,.navtab:hover,.dropitem:hover,.item:hover{background:rgba(168,85,247,.16)!important;color:#FFFFFF!important;}
+  .nav-item.active,.tab.active,.ritem.active,.navtab.active,.item.active{background:linear-gradient(135deg,#7C3AED 0%,#A855F7 58%,#C084FC 100%)!important;color:#FFFFFF!important;box-shadow:0 14px 30px rgba(124,58,237,.30)!important;}
+  .nav-item.active svg,.tab.active svg,.ritem.active svg,.navtab.active svg,.item.active svg{stroke:#FFFFFF!important;color:#FFFFFF!important;}
+  .sub-item.active,.rsubitem.active,.dropitem.active{background:rgba(168,85,247,.22)!important;color:#F5F3FF!important;box-shadow:inset 3px 0 0 #C084FC!important;}
+  .topbar,.tb1,.mgr-topbar{background:rgba(255,255,255,.88)!important;border-bottom:1px solid rgba(196,181,253,.50)!important;box-shadow:0 8px 26px rgba(88,28,135,.06)!important;backdrop-filter:blur(16px)!important;}
+  .content,.main{background:linear-gradient(180deg,#FBF8FF 0%,#F8FAFC 100%)!important;}
+  .page-head h2,.head h2{color:#23133B!important;font-weight:900!important;letter-spacing:-.025em!important;}
+  .breadcrumb,.sub,.muted,.clock,.tb-date,.t2,.ps{color:var(--mufasa-muted)!important;}
+  .card,.toolbar,.table-wrap{background:rgba(255,255,255,.86)!important;border-color:rgba(196,181,253,.52)!important;box-shadow:0 16px 42px rgba(88,28,135,.07)!important;}
+  .card-head h3,.card h3{color:#24103A!important;font-weight:850!important;}
+  thead th{background:#F4EDFF!important;color:#35204F!important;border-color:#E9D5FF!important;}
+  table td{border-color:#F0E7FF!important;}
+  tbody tr:hover td{background:#FAF5FF!important;}
+  input,select,textarea{border-color:#DDD6FE!important;background:#FFFFFF!important;color:#211437!important;}
+  input:focus,select:focus,textarea:focus{border-color:#A855F7!important;box-shadow:0 0 0 4px rgba(168,85,247,.14)!important;outline:none!important;}
+  .btn-blue,.btn-purple,.btn-teal,.btn-rose,.ms-btn.primary,button.btn-gold{background:linear-gradient(135deg,#7C3AED,#A855F7)!important;color:#fff!important;border:0!important;box-shadow:0 12px 26px rgba(124,58,237,.22)!important;}
+  .btn-blue:hover,.btn-purple:hover,.btn-teal:hover,.btn-rose:hover,.ms-btn.primary:hover{filter:brightness(1.04)!important;transform:translateY(-1px)!important;}
+  .tb-btn,.hamburger,.mgr-topbar-menu{color:#6D5D7E!important;}
+  .tb-btn:hover,.hamburger:hover,.mgr-topbar-menu:hover{background:#F3E8FF!important;color:#6D28D9!important;}
+  .avatar,.av{background:linear-gradient(135deg,#6D28D9,#A855F7)!important;color:#fff!important;border-color:#DDD6FE!important;}
+  .tag,.tag-blue,.tag-green,.tag-amber,.tag-red,.tag-gray,.tag-mgr,.tag-agt,.tag-cli{border-radius:9px!important;box-shadow:none!important;}
+  .tag-blue,.tag-mgr{background:#EDE9FE!important;color:#5B21B6!important;border-color:#DDD6FE!important;}
+  .cell-money,.payout-rate,.rate-cell,.otp{color:#6D28D9!important;font-weight:900!important;}
+  .login-panel,.shell,.card{border-color:rgba(196,181,253,.55)!important;}
+  .brand-panel.logo-only-panel{background:radial-gradient(circle at center,#3B0764 0%,#1B0A2E 54%,#08030D 100%)!important;}
+  .login-head .eyebrow{color:#7C3AED!important;}
+  .btn,.login-panel .btn{background:linear-gradient(135deg,#7C3AED,#A855F7)!important;color:#fff!important;}
+  @media(max-width:900px){.sidebar,.rail,.appbar{box-shadow:14px 0 40px rgba(35,10,61,.28)!important;}.content{background:#FBF8FF!important;}}
+</style>
+
 </head>
 <body>
 <button class="mgr-mobile-menu" type="button" onclick="toggleManagerSidebar()">☰</button><div class="mgr-mobile-overlay" id="mgrMobileOverlay" onclick="closeManagerSidebar()"></div>
@@ -435,7 +489,7 @@
 <header class="appbar">
   <div class="appbar-top">
     <div class="brand">
-      <div class="logo"><img class="mufasa-logo-img" src="/assets/mufasa-logo.png" alt="MUFASA SMS" /></div>
+      <div class="logo"><img class="mufasa-logo-img" src="/assets/mufasa-logo.png?v=20260714-purple" alt="MUFASA SMS" /></div>
       <div><h1>MUFASA SMS</h1><small>Manager Panel</small></div>
     </div>
     <div class="spacer"></div>
@@ -704,7 +758,7 @@
   <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal('agentModal')">Cancel</button><button class="btn btn-teal" onclick="saveAgent()">Save</button></div>
 </div></div>
 
-<script src="/api.js?v=20260714-final-fix"></script>
+<script src="/api.js?v=20260714-cdr-uk-fix"></script>
 <script>
 if(window.API){ API.guard('manager'); }
 /* ===== NAV ===== */
@@ -760,7 +814,7 @@ function unique(arr){return [...new Set((arr||[]).filter(Boolean))];}
 function refreshAgentClientMaps(){myAgents=unique((agentsData||[]).map(a=>a.username).concat((smsRecords||[]).map(r=>r.agent_name)));agentClients={};myAgents.forEach(a=>agentClients[a]=[]);(clientsData||[]).forEach(c=>{const ag=(agentsData||[]).find(a=>a.id===c.parent_id);if(ag){if(!agentClients[ag.username])agentClients[ag.username]=[];agentClients[ag.username].push(c.username);}});(smsRecords||[]).forEach(r=>{if(r.agent_name&&r.client_name){if(!agentClients[r.agent_name])agentClients[r.agent_name]=[];if(!agentClients[r.agent_name].includes(r.client_name))agentClients[r.agent_name].push(r.client_name);}});}
 function myClients(agent){ if(agent)return agentClients[agent]||[]; return unique(Object.values(agentClients).flat()); }
 function agentOfClient(c){for(const a of myAgents){if((agentClients[a]||[]).includes(c))return a;}return '';}
-function smsToCdr(r){return {agent:r.agent_name||'—',client:r.client_name||'—',range:r.range_name||'—',number:r.number||'',sms:1,pay:cleanDec(r.payout_amount||r.payout_rate||0),payout_rate:cleanDec(r.payout_rate||0),cli:r.cli||'',msg:r.message||'',date:(r.received_at||'').slice(0,16)};}
+function smsToCdr(r){return {agent:r.agent_name||'—',client:r.client_name||'—',range:r.range_name||'—',number:r.number||'',sms:1,pay:cleanDec(r.payout_amount||r.payout_rate||0),payout_rate:cleanDec(r.payout_rate||0),cli:r.cli||'',msg:r.message||'',date:(r.received_at||'').slice(0,19)};}
 
 /* fill selects */
 function fillSel(id,arr,keep=true){const s=document.getElementById(id);if(!s)return;const f=keep?s.children[0].outerHTML:'';s.innerHTML=f+arr.map(x=>`<option>${x}</option>`).join('');}
@@ -905,7 +959,7 @@ async function loadSms(){ try{ smsRecords=await API.get('/sms'); }catch(e){ smsR
   renderSmsReport();if(document.getElementById('sdBody'))renderSmsDetail();}
 function renderSmsReport(){const len=document.getElementById('srLen').value,q=(document.getElementById('srSearch').value||'').toLowerCase();
   let rows=(smsRecords||[]).filter(r=>[r.agent_name,r.range_name,r.cli,r.message].join(' ').toLowerCase().includes(q));const pag=API.paginateRows('mgrSmsReport',rows,len,'srInfo',renderSmsReport);const t=pag.total;rows=pag.rows;
-  document.getElementById('srBody').innerHTML=rows.map(r=>`<tr><td class="muted">${(r.received_at||'').slice(0,16)}</td><td><span class="tag tag-agt">${r.agent_name||'—'}</span></td><td>${r.range_name||'—'}</td><td class="mono">${r.cli||''}</td><td class="msg-body">${r.message||''}</td></tr>`).join('')||`<tr><td colspan="5" class="muted" style="text-align:center;padding:24px">No records found</td></tr>`;
+  document.getElementById('srBody').innerHTML=rows.map(r=>`<tr><td class="muted">${(r.received_at||'').slice(0,19)}</td><td><span class="tag tag-agt">${r.agent_name||'—'}</span></td><td>${r.range_name||'—'}</td><td class="mono">${r.cli||''}</td><td class="msg-body">${r.message||''}</td></tr>`).join('')||`<tr><td colspan="5" class="muted" style="text-align:center;padding:24px">No records found</td></tr>`;
   document.getElementById('srInfo').textContent=`Showing ${rows.length} of ${t} records`;}
 
 /* ===== CDR: DETAILED (advanced filters) ===== */
@@ -927,7 +981,7 @@ function toggleDetailFilters(){document.getElementById('sdRange').disabled=!docu
 function populateSmsDetailFilterLists(base){const rs=document.getElementById('sdRange'),us=document.getElementById('sdUser');if(!rs||!us)return;const cr=rs.value,cu=us.value;const ranges=uniqueVals(base.map(r=>r.range_name)).sort();const users=uniqueVals(base.map(r=>r.agent_name)).sort();rs.innerHTML='<option value="">All Ranges</option>'+ranges.map(v=>`<option value="${v}">${v}</option>`).join('');us.innerHTML='<option value="">All</option>'+users.map(v=>`<option value="${v}">${v}</option>`).join('');if(ranges.includes(cr))rs.value=cr;if(users.includes(cu))us.value=cu;}
 function sdReset(){sdUseDate.checked=true;sdDate.value=todayStr();sdUseRange.checked=false;sdUseNumber.checked=false;sdUseUser.checked=false;sdSearch.value='';toggleDetailFilters();}
 function groupRows(rows,key,label){const map={};rows.forEach(r=>{const k=r[key]||'—';if(!map[k])map[k]={name:k,sms:0,pay:'0'};map[k].sms++;map[k].pay=decAdd(map[k].pay,r.payout_amount||r.payout_rate||0);});const arr=Object.values(map);return {head:`<tr><th>${label}</th><th>Total OTPs</th><th>Total Payout</th></tr>`,rows:arr.map(x=>`<tr><td><span class="tag tag-agt">${x.name}</span></td><td class="cell-money">${x.sms}</td><td class="cell-money">${money(x.pay)}</td></tr>`)};}
-function renderSmsDetail(){const dateVal=(document.getElementById('sdDate')?.value)||todayStr();let base=(smsRecords||[]).filter(r=>!sdUseDate.checked||String(r.received_at||'').slice(0,10)===dateVal);populateSmsDetailFilterLists(base);const rangeVal=sdRange.value,userVal=sdUser.value,q=(sdSearch.value||'').toLowerCase();let filtered=base.filter(r=>(!sdUseRange.checked||!rangeVal||r.range_name===rangeVal)&&(!sdUseUser.checked||!userVal||r.agent_name===userVal)&&[r.agent_name,r.range_name,r.number,r.cli,r.message,r.payout_rate].join(' ').toLowerCase().includes(q));let head='',body=[];if(sdUseNumber.checked){const g=groupRows(filtered,'number','Number');head=g.head;body=g.rows;}else if(sdUseRange.checked){const g=groupRows(filtered,'range_name','Range Name');head=g.head;body=g.rows;}else if(sdUseUser.checked){const g=groupRows(filtered,'agent_name','Agent');head=g.head;body=g.rows;}else{head='<tr><th>Date</th><th>Agent</th><th>Range</th><th>Number</th><th>CLI</th><th>Payout Rate</th><th>SMS (Message Body)</th></tr>';body=filtered.map(r=>`<tr><td class="muted">${(r.received_at||'').slice(0,16)}</td><td><span class="tag tag-agt">${r.agent_name||'—'}</span></td><td><b>${r.range_name||'—'}</b></td><td class="mono">${r.number}</td><td class="mono">${r.cli||''}</td><td class="cell-money">${cleanDec(r.payout_rate||0)}</td><td class="msg-body">${r.message||''}</td></tr>`);}const len=sdLen.value;const pag=API.paginateRows('mgrSmsDetail',body,len,'sdInfo',renderSmsDetail);const total=pag.total;body=pag.rows;sdHead.innerHTML=head;sdBody.innerHTML=body.join('')||`<tr><td colspan="7" class="muted" style="text-align:center;padding:24px">No records found</td></tr>`;sdInfo.textContent=`Showing ${body.length} of ${total} rows`;sdPayoutInfo.textContent=`Filtered total payout: ${money(sumPay(filtered))}`;}
+function renderSmsDetail(){const dateVal=(document.getElementById('sdDate')?.value)||todayStr();let base=(smsRecords||[]).filter(r=>!sdUseDate.checked||ukDateOf(r.received_at||'')===dateVal);populateSmsDetailFilterLists(base);const rangeVal=sdRange.value,userVal=sdUser.value,q=(sdSearch.value||'').toLowerCase();let filtered=base.filter(r=>(!sdUseRange.checked||!rangeVal||r.range_name===rangeVal)&&(!sdUseUser.checked||!userVal||r.agent_name===userVal)&&[r.agent_name,r.range_name,r.number,r.cli,r.message,r.payout_rate].join(' ').toLowerCase().includes(q));let head='',body=[];if(sdUseNumber.checked){const g=groupRows(filtered,'number','Number');head=g.head;body=g.rows;}else if(sdUseRange.checked){const g=groupRows(filtered,'range_name','Range Name');head=g.head;body=g.rows;}else if(sdUseUser.checked){const g=groupRows(filtered,'agent_name','Agent');head=g.head;body=g.rows;}else{head='<tr><th>Date</th><th>Agent</th><th>Range</th><th>Number</th><th>CLI</th><th>Payout Rate</th><th>SMS (Message Body)</th></tr>';body=filtered.map(r=>`<tr><td class="muted">${(r.received_at||'').slice(0,19)}</td><td><span class="tag tag-agt">${r.agent_name||'—'}</span></td><td><b>${r.range_name||'—'}</b></td><td class="mono">${r.number}</td><td class="mono">${r.cli||''}</td><td class="cell-money">${cleanDec(r.payout_rate||0)}</td><td class="msg-body">${r.message||''}</td></tr>`);}const len=sdLen.value;const pag=API.paginateRows('mgrSmsDetail',body,len,'sdInfo',renderSmsDetail);const total=pag.total;body=pag.rows;sdHead.innerHTML=head;sdBody.innerHTML=body.join('')||`<tr><td colspan="7" class="muted" style="text-align:center;padding:24px">No records found</td></tr>`;sdInfo.textContent=`Showing ${body.length} of ${total} rows`;sdPayoutInfo.textContent=`Filtered total payout: ${money(sumPay(filtered))}`;}
 
 /* ===== CDR: entity stats (client/agent) ===== */
 function buildEntity(kind){const titles={client:'Client Stats',agent:'Agent Stats'};
@@ -997,7 +1051,7 @@ function normPhone(v){return String(v||'').replace(/[^0-9]/g,'');}
 async function renderTest(){const rf=document.getElementById('testRange').value,cf=(document.getElementById('testCli').value||'').toLowerCase();
   document.getElementById('tnBody').innerHTML=testNumbers.filter(r=>!rf||r.range===rf).map(r=>`<tr><td>${r.range}</td><td class="mono">${r.num}</td></tr>`).join('');
   const apiRows=await API.get('/test-panel/sms').catch(()=>[]);
-  const rows=(apiRows||[]).map(r=>({date:(r.received_at||'').slice(0,16),range:r.range_name||'',num:r.number||'',cli:r.cli||'',msg:r.message||''})).filter(r=>(!rf||r.range===rf)&&(!cf||r.cli.toLowerCase().includes(cf)));
+  const rows=(apiRows||[]).map(r=>({date:(r.received_at||'').slice(0,19),range:r.range_name||'',num:r.number||'',cli:r.cli||'',msg:r.message||''})).filter(r=>(!rf||r.range===rf)&&(!cf||r.cli.toLowerCase().includes(cf)));
   document.getElementById('trBody').innerHTML=rows.map(r=>`<tr><td class="muted">${r.date}</td><td>${r.range}</td><td class="mono">${r.num}</td><td class="mono">${r.cli}</td><td class="msg-body">${r.msg}</td></tr>`).join('')||`<tr><td colspan="5" class="muted" style="text-align:center;padding:22px">No test panel SMS found</td></tr>`;
 }
 
@@ -1019,7 +1073,7 @@ function renderClim(){
   document.getElementById('climInfo').textContent=`${(cliLimits||[]).length} CLI limits (assigned to you — set by Admin)`;}
 
 /* ===== NEWS FEED (API) ===== */
-async function loadNews(){ try{ newsFeed=(await API.get('/news')).map(n=>({title:n.title,body:n.body,by:n.created_by||'Admin',date:(n.created_at||'').slice(0,16)})); }catch(e){ newsFeed=[]; } renderNews(); }
+async function loadNews(){ try{ newsFeed=(await API.get('/news')).map(n=>({title:n.title,body:n.body,by:n.created_by||'Admin',date:(n.created_at||'').slice(0,19)})); }catch(e){ newsFeed=[]; } renderNews(); }
 function renderNews(){document.getElementById('newsFeed').innerHTML=newsFeed.map(n=>`<div class="news-item"><h4>${n.title}</h4><div class="meta">📢 ${n.by} · ${n.date}</div><p>${n.body}</p></div>`).join('')||'<div class="muted">No news yet</div>';}
 
 
@@ -1033,16 +1087,16 @@ function decAdd(a,b){a=cleanDec(a);b=cleanDec(b);const[ai,af='']=a.split('.'),[b
 function sumPay(rows){return (rows||[]).reduce((a,r)=>decAdd(a,r.pay||r.payout_amount||r.payout_rate||0),'0');}
 function money(v){return '$ '+cleanDec(v);}
 
-function todayStr(){return new Date().toISOString().slice(0,10);}
+function todayStr(){return (window.API&&API.ukToday)?API.ukToday():new Date().toISOString().slice(0,10);}function ukDateOf(v){return (window.API&&API.ukDate)?API.ukDate(v):String(v||'').slice(0,10);}
 function uniqueVals(arr){return [...new Set((arr||[]).filter(Boolean))];}
 async function loadProfile(){try{const me=await API.get('/me');MGR=me.name||me.username||MGR;document.querySelectorAll('.nm').forEach(e=>e.textContent=MGR);document.querySelectorAll('.av').forEach(e=>e.textContent=(MGR[0]||'M').toUpperCase());document.querySelectorAll('.breadcrumb b').forEach(e=>{if(e.textContent.startsWith('Manager:'))e.textContent='Manager: '+MGR;});}catch(e){}}
-async function loadDashboard(){try{const d=await API.get('/dashboard');const cards=document.querySelectorAll('#page-dashboard .stat-card .stat-info h3');[d.sms_today,d.sms_yesterday,d.sms_7d,money(d.payout_month)].forEach((v,i)=>{if(cards[i])cards[i].textContent=String(v)});const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];drawWeek((d.daily7||[]).map(x=>({l:days[new Date(x.date).getDay()]||'',v:x.count||0})));const recentCard=document.querySelector('#page-dashboard .dashboard-recent');if(recentCard){const head=recentCard.querySelector('.card-head')?.outerHTML||'';recentCard.innerHTML=head+((d.recent||[]).map(r=>`<div class="li"><div class="l"><div><div class="t1">SMS received — ${r.number||'—'}</div><div class="t2">${(r.received_at||'').slice(0,16)} · ${r.cli||'—'}</div></div></div></div>`).join('')||'<div class="muted" style="padding:18px">No recent activity yet</div>');}}catch(e){console.warn(e)}}
+async function loadDashboard(){try{const d=await API.get('/dashboard');const cards=document.querySelectorAll('#page-dashboard .stat-card .stat-info h3');[d.sms_today,d.sms_yesterday,d.sms_7d,money(d.payout_month)].forEach((v,i)=>{if(cards[i])cards[i].textContent=String(v)});const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];drawWeek((d.daily7||[]).map(x=>({l:days[new Date(x.date).getDay()]||'',v:x.count||0})));const recentCard=document.querySelector('#page-dashboard .dashboard-recent');if(recentCard){const head=recentCard.querySelector('.card-head')?.outerHTML||'';recentCard.innerHTML=head+((d.recent||[]).map(r=>`<div class="li"><div class="l"><div><div class="t1">SMS received — ${r.number||'—'}</div><div class="t2">${(r.received_at||'').slice(0,19)} · ${r.cli||'—'}</div></div></div></div>`).join('')||'<div class="muted" style="padding:18px">No recent activity yet</div>');}}catch(e){console.warn(e)}}
 function rebuildBa(){baData=(rateCard||[]).map(r=>{const nums=(numData||[]).filter(n=>n.range===r.range);const alloc=nums.filter(n=>n.agent).length;return{id:r.id,range:r.range,total:nums.length,alloc,avail:nums.length-alloc,rate:r.r4||r.r2||'NA'};});}
 async function loadRateCard(){ try{const ranges=await API.get('/ranges'); rateCard=ranges.map(r=>({id:r.id,range:r.name,prefix:r.prefix,cur:r.currency,r1:r.rate_1_1,r2:r.rate_7_1,r3:r.rate_7_7,r4:r.rate_30_45,test_number:r.test_number})); rangeNames=rateCard.map(r=>r.range); try{testNumbers=(await API.get('/test-numbers')).map(t=>({range:t.range_name,num:t.number,payout:t.payout||'Ask'}));}catch(e){testNumbers=[];} }catch(e){ rateCard=[]; rangeNames=[]; testNumbers=[]; } renderRateCard(); fillSel('numRange',rangeNames);fillSel('baRange',rangeNames);fillSel('testRange',rangeNames);rebuildBa();renderBulk();renderTest(); }
 async function loadNumbers(){ try{ numData=(await API.get('/numbers')).map(r=>({id:r.id,range_id:r.range_id,range:r.range_name||'',number:r.number,rate:r.effective_rate||r.rate||'',agent:r.agent_name||'',agent_id:r.agent_id,sd:r.sd_limit||0,sw:r.sw_limit||0})); }catch(e){ numData=[]; } rebuildBa(); renderNumbers(); renderBulk(); }
 async function loadAgents(){ try{ agentsData=await API.get('/users/agent'); }catch(e){ agentsData=[]; } refreshAgentClientMaps(); fillSel('numAgent',myAgents);fillSel('bulkAgent',myAgents);fillSel('baAgent',myAgents); renderAgents(); if(document.getElementById('clBody')) renderClients(); if(document.getElementById('sdAgent')){fillSel('sdAgent',myAgents);document.getElementById('sdAgent').children[0].textContent='Filter Agent';} }
 async function loadClients(){ try{ clientsData=await API.get('/users/client'); }catch(e){ clientsData=[]; } refreshAgentClientMaps(); if(document.getElementById('clBody')) {buildClients();} }
-async function loadSms(){ try{ smsRecords=await API.get('/sms'); }catch(e){ smsRecords=[]; } cdr=(smsRecords||[]).map(smsToCdr); recentTests=(smsRecords||[]).slice(0,50).map(r=>({date:(r.received_at||'').slice(0,16),range:r.range_name||'—',num:r.number||'',cli:r.cli||'',msg:r.message||''})); refreshAgentClientMaps(); const b=document.getElementById('agSumBody');if(b){const byAgt={};smsRecords.forEach(r=>{const a=r.agent_name||'—';byAgt[a]=(byAgt[a]||0)+1;});b.innerHTML=Object.keys(byAgt).map(a=>`<tr><td><span class="tag tag-agt">${a}</span></td><td><span class="tag tag-cli">${(agentClients[a]||[]).length}</span></td><td class="cell-money">${byAgt[a]}</td><td class="cell-money" style="color:#6ee7b7">$ ${sumPay((smsRecords||[]).filter(r=>r.agent_name===a))}</td></tr>`).join('')||`<tr><td colspan="4" class="muted" style="text-align:center;padding:16px">No records found</td></tr>`;} if(document.getElementById('srBody'))renderSmsReport(); if(document.getElementById('sdBody'))renderSmsDetail(); ['client','agent'].forEach(k=>{if(document.getElementById(k+'Body')){buildEntTot(k);renderEntity(k);}}); ['range','number'].forEach(k=>{if(document.getElementById(k+'Body')){buildDrillTot(k);renderDrill(k);}}); renderTest(); }
+async function loadSms(){ try{ smsRecords=await API.get('/sms'); }catch(e){ smsRecords=[]; } cdr=(smsRecords||[]).map(smsToCdr); recentTests=(smsRecords||[]).slice(0,50).map(r=>({date:(r.received_at||'').slice(0,19),range:r.range_name||'—',num:r.number||'',cli:r.cli||'',msg:r.message||''})); refreshAgentClientMaps(); const b=document.getElementById('agSumBody');if(b){const byAgt={};smsRecords.forEach(r=>{const a=r.agent_name||'—';byAgt[a]=(byAgt[a]||0)+1;});b.innerHTML=Object.keys(byAgt).map(a=>`<tr><td><span class="tag tag-agt">${a}</span></td><td><span class="tag tag-cli">${(agentClients[a]||[]).length}</span></td><td class="cell-money">${byAgt[a]}</td><td class="cell-money" style="color:#6ee7b7">$ ${sumPay((smsRecords||[]).filter(r=>r.agent_name===a))}</td></tr>`).join('')||`<tr><td colspan="4" class="muted" style="text-align:center;padding:16px">No records found</td></tr>`;} if(document.getElementById('srBody'))renderSmsReport(); if(document.getElementById('sdBody'))renderSmsDetail(); ['client','agent'].forEach(k=>{if(document.getElementById(k+'Body')){buildEntTot(k);renderEntity(k);}}); ['range','number'].forEach(k=>{if(document.getElementById(k+'Body')){buildDrillTot(k);renderDrill(k);}}); renderTest(); }
 function baRow(i){const q=parseInt(document.getElementById('bq'+i).value),a=document.getElementById('ba'+i).value;if(!q||!a){alert('Select agent and quantity.');return;}const row=baData[i],ag=(agentsData||[]).find(x=>x.username===a);if(!row||!ag)return;API.post('/numbers/smart-divide',{range_ids:[row.id],target_ids:[ag.id],qty:q}).then(res=>{alert(`✅ ${res.total||0} numbers allocated.`);loadNumbers();}).catch(e=>alert('❌ '+e.message));}
 function baUn(i){const q=parseInt(document.getElementById('bu'+i).value),row=baData[i];if(!q||!row){alert('Enter quantity.');return;}const ids=(numData||[]).filter(n=>n.range===row.range&&n.agent).slice(0,q).map(n=>n.id);if(!ids.length){alert('Allocated numbers were not found.');return;}API.post('/numbers/unallocate',{ids}).then(()=>{alert(`✅ ${ids.length} numbers unallocated.`);loadNumbers();}).catch(e=>alert('❌ '+e.message));}
 function doBulk(){const r=document.getElementById('baRange').value,a=document.getElementById('baAgent').value,q=parseInt(document.getElementById('baQty').value);if(!r||!a||!q){alert('Select range, agent and quantity.');return;}const row=(rateCard||[]).find(x=>x.range===r),ag=(agentsData||[]).find(x=>x.username===a);if(!row||!ag)return;API.post('/numbers/smart-divide',{range_ids:[row.id],target_ids:[ag.id],qty:q}).then(res=>{alert(`✅ ${res.total||0} numbers allocated.`);document.getElementById('baQty').value='';loadNumbers();}).catch(e=>alert('❌ '+e.message));}
@@ -1084,6 +1138,6 @@ function closeManagerSidebar(){document.querySelector('.appbar')?.classList.remo
 document.addEventListener('click',function(e){if(e.target.closest('[data-page]') && window.innerWidth<=900) setTimeout(closeManagerSidebar,80);},true);
 </script>
 
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1b60b4c49c80b03',t:'MTc4NDA4OTk1NQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1b635883b06dd5d',t:'MTc4NDA5MTY4NQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 </html>
