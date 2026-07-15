@@ -516,9 +516,10 @@
     const s=String(value||'').trim();
     const m=s.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/);
     if(!m) return '';
+    // Display all panel timestamps in UK time (Europe/London), not browser local time.
     const d=new Date(Date.UTC(+m[1], +m[2]-1, +m[3], +m[4], +m[5], +(m[6]||0)));
-    const p=n=>String(n).padStart(2,'0');
-    return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}${m[6]?':'+p(d.getSeconds()):''}`;
+    const parts=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',hour12:false,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:m[6]?'2-digit':undefined}).formatToParts(d).reduce((a,p)=>(a[p.type]=p.value,a),{});
+    return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}${m[6]?':'+parts.second:''}`;
   }
   function localizeTimes(root=document){
     const els=[...root.querySelectorAll?.('td,.t2,.ps,.last-sms,.ms-time')||[]];
@@ -527,7 +528,7 @@
       const raw=el.dataset.msUtc || el.textContent.trim();
       if(!/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2})?$/.test(raw)) return;
       const local=formatLocalFromDb(raw);
-      if(local){ el.dataset.msUtc=raw; el.textContent=local; el.title='Local time: '+local+' | UTC: '+raw; }
+      if(local){ el.dataset.msUtc=raw; el.textContent=local; el.title='UK time: '+local+' | Stored UTC: '+raw; }
     });
   }
   function initTimeLocalization(){
