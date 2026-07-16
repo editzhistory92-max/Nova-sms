@@ -516,12 +516,12 @@
   </div>
 </div>
 
-<script src="/api.js?v=20260715-mask-scope-fix"></script>
+<script src="/api.js?v=20260716-lazy-load"></script>
 <script>
 if(window.API){ API.guard('client'); }
 /* NAV */
 function showPage(id,el){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));const pg=document.getElementById('page-'+id);if(pg)pg.classList.add('active');
-  document.querySelectorAll('.tab').forEach(n=>n.classList.remove('active'));if(el)el.classList.add('active');window.scrollTo({top:0,behavior:'smooth'});}
+  document.querySelectorAll('.tab').forEach(n=>n.classList.remove('active'));if(el)el.classList.add('active');window.scrollTo({top:0,behavior:'smooth'});if(typeof loadClientPageData==='function')setTimeout(()=>loadClientPageData(id),0);}
 document.querySelectorAll('.tab[data-page]').forEach(n=>n.addEventListener('click',()=>{showPage(n.dataset.page,n);closeSb();}));
 function openSb(){document.getElementById('sidebar').classList.add('show');document.getElementById('sbOverlay').classList.add('show');}
 function closeSb(){document.getElementById('sidebar').classList.remove('show');document.getElementById('sbOverlay').classList.remove('show');}
@@ -633,9 +633,23 @@ async function loadProfile(){try{const me=await API.get('/me');CLIENT=me.name||m
 async function loadDashboard(){try{const d=await API.get('/dashboard');const cards=document.querySelectorAll('#page-dashboard .stat-card .stat-info h3');[d.sms_today,d.sms_yesterday,d.sms_7d,money(d.payout_month)].forEach((v,i)=>{if(cards[i])cards[i].textContent=String(v)});const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];drawWeek((d.daily7||[]).map(x=>({l:days[new Date(x.date).getDay()]||'',v:x.count||0})));const recentCard=[...document.querySelectorAll('#page-dashboard .card')].find(c=>c.textContent.includes('Recent Activity'));if(recentCard){const head=recentCard.querySelector('.card-head')?.outerHTML||'';recentCard.innerHTML=head+((d.recent||[]).map(r=>`<div class="li"><div class="l"><div class="ic si ro"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div><div><div class="t1">New SMS — ${r.number||'—'}</div><div class="t2">${(r.received_at||'').slice(0,19)} · ${r.cli||'—'}</div></div></div></div>`).join('')||'<div class="muted" style="padding:18px">No recent activity yet</div>');}}catch(e){console.warn(e)}}
 async function loadRanges(){try{const ranges=await API.get('/ranges');rangeNames=ranges.map(r=>r.name);try{testNumbers=(await API.get('/test-numbers')).map(t=>({range:t.range_name,num:t.number,payout:t.payout||'Ask'}));}catch(e){testNumbers=[];}}catch(e){rangeNames=[];testNumbers=[];}fillSel('numRange',rangeNames);fillSel('stRange',rangeNames);fillSel('testRange',rangeNames);renderTest();}
 async function loadStats(){ try{ const sms=await API.get('/sms'); stats=sms.map(r=>{const msg=r.message||'';return {range:r.range_name||'',number:r.number,cli:r.cli||'',msg,date:(r.received_at||'').slice(0,19),otp:r.otp_code||extractOTP(msg)}}); recentTests=sms.slice(0,50).map(r=>({date:(r.received_at||'').slice(0,19),range:r.range_name||'',num:r.number||'',cli:r.cli||''})); }catch(e){ stats=[]; recentTests=[]; } renderStats();renderTest();loadDashboard(); }
-/* INIT */
-loadProfile();loadDashboard();loadRanges();loadNumbers();loadStats();renderTest();loadNews();setTimeout(showClientWelcome,700);
+/* LAZY INIT (performance) */
+const clientLoadedPages=new Set();
+async function ensureClientRanges(){ if(!rangeNames || !rangeNames.length) await loadRanges(); }
+async function ensureClientStats(){ if(!stats || !stats.length) await loadStats(); }
+async function loadClientPageData(page){
+  try{
+    if(page==='dashboard'){ await loadDashboard(); return; }
+    if(clientLoadedPages.has(page) && page!=='numbers') return;
+    clientLoadedPages.add(page);
+    if(page==='numbers'){ await ensureClientRanges(); await loadNumbers(); return; }
+    if(page==='stats'){ await ensureClientRanges(); await loadStats(); return; }
+    if(page==='test'){ await ensureClientRanges(); await ensureClientStats(); renderTest(); return; }
+    if(page==='news'){ await loadNews(); return; }
+  }catch(e){ console.warn('client lazy page load failed', page, e); }
+}
+loadProfile();loadDashboard();setTimeout(showClientWelcome,700);
 </script>
 
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1b9d0445811f462',t:'MTc4NDEyOTQ4MA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1bf8a9aa8e70a9d',t:'MTc4NDE4OTU0MQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
