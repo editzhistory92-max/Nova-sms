@@ -483,6 +483,7 @@
         <div class="sub-item" data-page="cliLimit"><span class="dot"></span> SMS CLI Limit</div>
         <div class="sub-item" data-page="limitManagement"><span class="dot"></span> Limit Management</div>
         <div class="sub-item" data-page="carrierIntegration"><span class="dot"></span> Carrier Integration</div>
+        <div class="sub-item" data-page="smppServer"><span class="dot"></span> SMPP Server</div>
         <div class="sub-item" data-page="testGenerator"><span class="dot"></span> Test SMS Generator</div>
         <div class="sub-item" data-page="integrations"><span class="dot"></span> Integration Layer</div>
         <div class="sub-item" data-page="notificationRules"><span class="dot"></span> Notification Rules</div>
@@ -847,7 +848,7 @@
             <div class="form-group"><label>Future Auth Token</label><input id="ciToken" placeholder="Optional / future" /></div>
           </div>
           <div class="card" style="margin:10px 0 14px;padding:14px;background:#F8FAFC!important">
-            <div class="card-head" style="margin-bottom:8px"><div><h3 style="font-size:14px">HTTP Integration Active</h3><div class="sub">SMPP is fully disabled. Only HTTP carrier callback is used.</div></div></div>
+            <div class="card-head" style="margin-bottom:8px"><div><h3 style="font-size:14px">HTTP Integration Active</h3><div class="sub">HTTP callback is active. SMPP Server is available separately in System Master → SMPP Server.</div></div></div>
             <div class="hint"><b>Production endpoint:</b> <code>POST /api/incoming-sms</code></div>
             <div class="hint" style="margin-top:6px"><b>Accepted content types:</b> application/json, application/x-www-form-urlencoded, multipart/form-data</div>
           </div></div>
@@ -863,6 +864,33 @@
           </table></div><div class="table-foot"><div class="info" id="ciLogInfo"></div></div></div>
         </div>
         </div>
+      </section>
+
+      <section class="page" id="page-smppServer">
+        <div class="page-head"><div><h2>SMPP Server</h2><div class="breadcrumb"><b>System Master</b> › Incoming SMPP Server</div></div><div class="head-actions"><button class="btn btn-blue" onclick="loadSmppServer()">Refresh</button><button class="btn btn-purple" onclick="restartSmppServer()">Restart SMPP Server</button></div></div>
+        <div class="stats-grid">
+          <div class="stat-card dash-metric d-blue"><div class="stat-info"><p>Host</p><h3 id="smppHost">—</h3><span>Give this host/IP to carrier</span></div><div class="dash-go">IP</div></div>
+          <div class="stat-card dash-metric d-green"><div class="stat-info"><p>Listening Ports</p><h3 id="smppPorts">—</h3><span>SMPP server ports</span></div><div class="dash-go">P</div></div>
+          <div class="stat-card dash-metric d-orange"><div class="stat-info"><p>Active Sessions</p><h3 id="smppSessionCount">0</h3><span>Connected carriers</span></div><div class="dash-go">↔</div></div>
+        </div>
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-head"><div><h3>Create / Update SMPP User</h3><div class="sub">Carrier will bind to our SMPP server using System ID and Password. Supports transceiver/transmitter/receiver and submit_sm/deliver_sm/data_sm.</div></div><button class="btn btn-green" onclick="createSmppUser()">Create User</button></div>
+          <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr 1fr;gap:14px">
+            <div class="form-group"><label>Username / System ID</label><input id="smppUsername" placeholder="auto or e.g. carrier1"></div>
+            <div class="form-group"><label>Password</label><input id="smppPassword" placeholder="auto if blank"></div>
+            <div class="form-group"><label>Port</label><input id="smppPort" type="number" value="2775"></div>
+            <div class="form-group"><label>Bind Type</label><select id="smppBindType"><option value="any">Any</option><option value="transceiver">Transceiver</option><option value="transmitter">Transmitter</option><option value="receiver">Receiver</option></select></div>
+          </div>
+          <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr;gap:14px">
+            <div class="form-group"><label>Mapping</label><select id="smppMapping"><option value="destination_to_number">destination_addr = Number, source_addr = CLI</option><option value="source_to_number">source_addr = Number, destination_addr = CLI</option></select></div>
+            <div class="form-group"><label>Allowed IP(s)</label><input id="smppAllowedIp" placeholder="optional: 1.2.3.4, 5.6.7.8"></div>
+            <div class="form-group"><label>Notes</label><input id="smppNotes" placeholder="optional"></div>
+          </div>
+          <div class="hint">Default Host/IP: your VPS public IP/domain. Default port: <b>2775</b>. Open firewall port if needed: <code>ufw allow 2775/tcp</code></div>
+        </div>
+        <div class="table-wrap" style="margin-bottom:16px"><div class="tscroll"><table><thead><tr><th>User</th><th>Port</th><th>Bind</th><th>Mapping</th><th>Allowed IP</th><th>Enabled</th><th>Sessions</th><th>Action</th></tr></thead><tbody id="smppUserBody"></tbody></table></div><div class="table-foot"><div class="info" id="smppUserInfo"></div></div></div>
+        <div class="card" style="margin-bottom:16px"><div class="card-head"><div><h3>Active Connections</h3><div class="sub">Connected / disconnected carrier sessions.</div></div></div><div class="table-wrap"><div class="tscroll"><table><thead><tr><th>Session</th><th>User</th><th>IP</th><th>Port</th><th>Bind</th><th>Status</th><th>Connected</th><th>Last Seen</th></tr></thead><tbody id="smppSessionBody"></tbody></table></div></div></div>
+        <div class="card"><div class="card-head"><div><h3>SMPP Logs</h3><div class="sub">Bind, connection and incoming SMS logs.</div></div></div><div class="table-wrap"><div class="tscroll"><table><thead><tr><th>Time</th><th>User</th><th>IP</th><th>Event</th><th>Status</th><th>Number</th><th>CLI</th><th>Error</th></tr></thead><tbody id="smppLogBody"></tbody></table></div></div></div>
       </section>
 
       <section class="page" id="page-integrations">
@@ -1153,7 +1181,7 @@
   <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal('newsModal')">Cancel</button><button class="btn btn-purple" onclick="saveNews()">Save</button></div>
 </div></div>
 
-<script src="/api.js?v=20260716-lazy-load"></script>
+<script src="/api.js?v=20260717-smpp-server"></script>
 <script>
 /* auth guard — admin only */
 if(window.API){ API.guard('admin'); }
@@ -2180,6 +2208,42 @@ function exportCarrierLogsCsv(){
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='carrier-webhook-logs.csv';a.click();URL.revokeObjectURL(a.href);
 }
 
+/* =============== SMPP SERVER =============== */
+let smppUsers=[];
+function smppHostGuess(){ return location.hostname || 'YOUR_VPS_IP'; }
+async function loadSmppServer(){
+  try{
+    const st=await API.get('/smpp-server/status');
+    if(document.getElementById('smppHost')) smppHost.textContent=smppHostGuess();
+    if(document.getElementById('smppPorts')) smppPorts.textContent=(st.ports||[]).join(', ')||'2775';
+    if(document.getElementById('smppSessionCount')) smppSessionCount.textContent=(st.sessions||[]).length||0;
+  }catch(e){console.warn(e)}
+  try{ smppUsers=await API.get('/smpp-server/users'); renderSmppUsers(); }catch(e){smppUsers=[];renderSmppUsers();}
+  try{ const sessions=await API.get('/smpp-server/sessions'); renderSmppSessions(sessions||[]); }catch(e){renderSmppSessions([])}
+  try{ const logs=await API.get('/smpp-server/logs?limit=300'); renderSmppLogs(logs||[]); }catch(e){renderSmppLogs([])}
+}
+function renderSmppUsers(){
+  const b=document.getElementById('smppUserBody'); if(!b)return;
+  b.innerHTML=(smppUsers||[]).map(u=>`<tr><td><b>${u.username}</b></td><td>${u.port||2775}</td><td><span class="tag tag-blue">${u.bind_type||'any'}</span></td><td>${u.mapping||'destination_to_number'}</td><td class="mono">${u.allowed_ip||'Any'}</td><td>${u.enabled?'<span class="tag tag-green">Enabled</span>':'<span class="tag tag-gray">Disabled</span>'}</td><td>${u.active_sessions||0}</td><td style="white-space:nowrap"><button class="btn btn-blue btn-sm" onclick="toggleSmppUser(${u.id},${u.enabled?0:1})">${u.enabled?'Disable':'Enable'}</button> <button class="btn btn-amber btn-sm" onclick="changeSmppPassword(${u.id})">Password</button> <button class="btn btn-red btn-sm" onclick="deleteSmppUser(${u.id})">Delete</button></td></tr>`).join('')||`<tr><td colspan="8" class="muted" style="text-align:center;padding:20px">No SMPP users yet</td></tr>`;
+  smppUserInfo.textContent=`${(smppUsers||[]).length} SMPP users`;
+}
+function renderSmppSessions(rows){
+  const b=document.getElementById('smppSessionBody'); if(!b)return;
+  b.innerHTML=(rows||[]).map(s=>`<tr><td class="mono">${s.session_id||'—'}</td><td>${s.username||'—'}</td><td class="mono">${s.ip||'—'}</td><td>${s.port||'—'}</td><td>${s.bind_type||'—'}</td><td>${s.status==='connected'?'<span class="tag tag-green">Connected</span>':'<span class="tag tag-gray">Disconnected</span>'}</td><td>${(s.connected_at||'').slice(0,19)}</td><td>${(s.last_seen||'').slice(0,19)}</td></tr>`).join('')||`<tr><td colspan="8" class="muted" style="text-align:center;padding:20px">No sessions</td></tr>`;
+}
+function renderSmppLogs(rows){
+  const b=document.getElementById('smppLogBody'); if(!b)return;
+  b.innerHTML=(rows||[]).map(l=>`<tr><td>${(l.created_at||'').slice(0,19)}</td><td>${l.username||'—'}</td><td class="mono">${l.ip||'—'}</td><td>${l.event||''}</td><td>${l.status||''}</td><td class="mono">${l.number||''}</td><td>${l.cli||''}</td><td class="msg-body">${l.error||''}</td></tr>`).join('')||`<tr><td colspan="8" class="muted" style="text-align:center;padding:20px">No SMPP logs</td></tr>`;
+}
+async function createSmppUser(){
+  const body={username:smppUsername.value.trim(),password:smppPassword.value,port:+(smppPort.value||2775),bind_type:smppBindType.value,mapping:smppMapping.value,allowed_ip:smppAllowedIp.value.trim(),notes:smppNotes.value.trim(),enabled:true};
+  try{const r=await API.post('/smpp-server/users',body);alert(`✅ SMPP user created\n\nHost: ${smppHostGuess()}\nPort: ${r.user.port}\nUsername: ${r.user.username}\nPassword: ${r.password}\n\nSave this password now.`);smppUsername.value='';smppPassword.value='';smppAllowedIp.value='';smppNotes.value='';loadSmppServer();}catch(e){alert('❌ '+e.message)}
+}
+async function toggleSmppUser(id,en){const u=(smppUsers||[]).find(x=>x.id===id);if(!u)return;try{await API.put('/smpp-server/users/'+id,{...u,enabled:!!en});loadSmppServer();}catch(e){alert('❌ '+e.message)}}
+async function changeSmppPassword(id){const p=prompt('New SMPP password (blank = auto generate):','')||'';try{const r=await API.post('/smpp-server/users/'+id+'/password',{password:p});alert('✅ New password: '+r.password);loadSmppServer();}catch(e){alert('❌ '+e.message)}}
+async function deleteSmppUser(id){if(!confirm('Delete this SMPP user?'))return;try{await API.del('/smpp-server/users/'+id);loadSmppServer();}catch(e){alert('❌ '+e.message)}}
+async function restartSmppServer(){try{const r=await API.post('/smpp-server/restart',{});alert('✅ SMPP server restarted. Ports: '+((r.ports||[]).join(', ')||'—'));loadSmppServer();}catch(e){alert('❌ '+e.message)}}
+
 /* =============== TEST SMS GENERATOR (QA) =============== */
 async function loadTestGeneratorSettings(){
   try{
@@ -2500,6 +2564,7 @@ async function loadAdminPageData(page){
     if(page==='cliLimit'){ await ensureAdminSms(); fillSelect('climCli',cliPool,false); await ensureAdminManagers(); fillSelect('climMgr',(usersData.manager||[]).map(m=>m.username),false); await loadCliLimits(); return; }
     if(page==='limitManagement'){ await ensureAdminRates(); await loadLimitManagement(); return; }
     if(page==='carrierIntegration'){ await loadCarrierSettings(); return; }
+    if(page==='smppServer'){ await loadSmppServer(); return; }
     if(page==='testGenerator'){ await loadTestGeneratorSettings(); await populateTestGeneratorNumbers(); return; }
     if(page==='integrations'){ await loadIntegrations(); return; }
     if(page==='notificationRules'){ await loadNotificationRules(); return; }
@@ -2507,8 +2572,23 @@ async function loadAdminPageData(page){
     if(page==='backupManagement'){ await loadBackups(); return; }
   }catch(e){ console.warn('lazy page load failed', page, e); }
 }
-loadDashboard();
+
+function warmDelay(ms){return new Promise(r=>setTimeout(r,ms));}
+async function startAdminBackgroundWarmup(){
+  if(window.__adminWarmupStarted) return;
+  window.__adminWarmupStarted=true;
+  try{
+    await warmDelay(700); await loadRates();
+    await warmDelay(500); buildUserPage('manager');
+    await warmDelay(500); buildUserPage('agent');
+    await warmDelay(500); buildUserPage('client');
+    await warmDelay(700); await loadNumberSummary();
+    await warmDelay(700); await loadImportBatches(); await refreshNumberDbTools();
+    await warmDelay(1000); await loadSmsRecords();
+  }catch(e){console.warn('admin background warmup failed', e);}
+}
+loadDashboard();setTimeout(()=>startAdminBackgroundWarmup(),900);
 </script>
-<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1bf8a4cc8c70a9d',t:'MTc4NDE4OTUyOQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1ca4c75fffd9ca7',t:'MTc4NDMwMjMzOQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body>
 </html>

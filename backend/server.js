@@ -6,6 +6,7 @@ const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
+const crypto = require('crypto');
 try { require('dotenv').config({ path: path.join(__dirname, '..', '.env') }); require('dotenv').config({ path: path.join(__dirname, '.env') }); } catch (_) {}
 const bcrypt = require('bcryptjs');
 const db = require('./db');
@@ -13,6 +14,7 @@ const { createTables } = require('./schema');
 const { seed } = require('./seed');
 const { sign, authRequired, requireRole, descendantIds } = require('./auth');
 const backup = require('./backup');
+const smppServer = require('./smppServer');
 
 const app = express();
 app.set('trust proxy', true);
@@ -1618,6 +1620,75 @@ app.delete('/api/carrier-webhook-logs', authRequired, requireRole('admin'), (req
   res.json({ok:true,deleted:count});
 });
 
+/* ============ SMPP SERVER (incoming SMPP channel) ============ */
+function smppPublicUser(row){
+  if(!row) return row;
+  const {password_hash, ...rest}=row;
+  return rest;
+}
+function randomPassword(len=14){ return crypto.randomBytes(Math.ceil(len*0.75)).toString('base64').replace(/[^A-Za-z0-9]/g,'').slice(0,len) || Math.random().toString(36).slice(2,2+len); }
+function normalizeSmppBind(v){ v=String(v||'any').toLowerCase(); return ['any','transceiver','transmitter','receiver'].includes(v)?v:'any'; }
+function normalizeSmppMapping(v){ v=String(v||'destination_to_number').toLowerCase(); return ['destination_to_number','source_to_number'].includes(v)?v:'destination_to_number'; }
+function restartSmppServerSafe(){ try { return smppServer.restart({db, processIncomingSmsPayload, logger: console}); } catch(e){ console.warn('[SMPP_SERVER] restart failed:', e.message); return {ok:false,error:e.message}; } }
+app.get('/api/smpp-server/status', authRequired, requireRole('admin'), (req,res)=>{
+  res.json({...smppServer.status(), users: db.get('SELECT COUNT(*) c FROM smpp_users')?.c||0});
+});
+app.get('/api/smpp-server/users', authRequired, requireRole('admin'), (req,res)=>{
+  const rows=db.all(`SELECT u.*, (SELECT COUNT(*) FROM smpp_sessions s WHERE s.user_id=u.id AND s.status='connected') AS active_sessions FROM smpp_users u ORDER BY u.id DESC`);
+  res.json(rows.map(smppPublicUser));
+});
+app.post('/api/smpp-server/users', authRequired, requireRole('admin'), (req,res)=>{
+  const b=req.body||{};
+  const username=String(b.username||'').trim() || ('smpp_' + crypto.randomBytes(4).toString('hex'));
+  const password=String(b.password||'') || randomPassword(14);
+  if(db.get('SELECT id FROM smpp_users WHERE username=?',[username])) return res.status(409).json({error:'SMPP username already exists'});
+  const port=Math.max(1, Math.min(65535, parseInt(b.port||2775,10)));
+  db.run(`INSERT INTO smpp_users (username,password_hash,enabled,bind_type,mapping,allowed_ip,port,notes) VALUES (?,?,?,?,?,?,?,?)`,
+    [username,bcrypt.hashSync(password,10),b.enabled===false?0:1,normalizeSmppBind(b.bind_type),normalizeSmppMapping(b.mapping),String(b.allowed_ip||''),port,String(b.notes||'')]);
+  logAction(req,'create_smpp_user','smpp_server',{username,port});
+  const restart=restartSmppServerSafe();
+  const user=smppPublicUser(db.get('SELECT * FROM smpp_users WHERE username=?',[username]));
+  res.json({ok:true,user,password,restart});
+});
+app.put('/api/smpp-server/users/:id', authRequired, requireRole('admin'), (req,res)=>{
+  const id=+req.params.id; const b=req.body||{};
+  const existing=db.get('SELECT * FROM smpp_users WHERE id=?',[id]); if(!existing) return res.status(404).json({error:'SMPP user not found'});
+  const username=String(b.username||existing.username).trim();
+  const other=db.get('SELECT id FROM smpp_users WHERE username=? AND id<>?',[username,id]); if(other) return res.status(409).json({error:'SMPP username already exists'});
+  const port=Math.max(1, Math.min(65535, parseInt(b.port||existing.port||2775,10)));
+  db.run(`UPDATE smpp_users SET username=?,enabled=?,bind_type=?,mapping=?,allowed_ip=?,port=?,notes=?,updated_at=datetime('now') WHERE id=?`,
+    [username,b.enabled?1:0,normalizeSmppBind(b.bind_type),normalizeSmppMapping(b.mapping),String(b.allowed_ip||''),port,String(b.notes||''),id]);
+  logAction(req,'update_smpp_user','smpp_server',{id,username,port});
+  const restart=restartSmppServerSafe();
+  res.json({ok:true,user:smppPublicUser(db.get('SELECT * FROM smpp_users WHERE id=?',[id])),restart});
+});
+app.post('/api/smpp-server/users/:id/password', authRequired, requireRole('admin'), (req,res)=>{
+  const id=+req.params.id; const u=db.get('SELECT * FROM smpp_users WHERE id=?',[id]); if(!u) return res.status(404).json({error:'SMPP user not found'});
+  const password=String((req.body||{}).password||'') || randomPassword(14);
+  db.run('UPDATE smpp_users SET password_hash=?,updated_at=datetime(\'now\') WHERE id=?',[bcrypt.hashSync(password,10),id]);
+  logAction(req,'change_smpp_password','smpp_server',{id,username:u.username});
+  res.json({ok:true,password});
+});
+app.delete('/api/smpp-server/users/:id', authRequired, requireRole('admin'), (req,res)=>{
+  const id=+req.params.id;
+  db.run('DELETE FROM smpp_users WHERE id=?',[id]);
+  logAction(req,'delete_smpp_user','smpp_server',{id});
+  const restart=restartSmppServerSafe();
+  res.json({ok:true,restart});
+});
+app.get('/api/smpp-server/sessions', authRequired, requireRole('admin'), (req,res)=>{
+  res.json(db.all('SELECT * FROM smpp_sessions ORDER BY id DESC LIMIT 500'));
+});
+app.get('/api/smpp-server/logs', authRequired, requireRole('admin'), (req,res)=>{
+  const limit=Math.min(1000,parseInt(req.query.limit||500,10));
+  res.json(db.all(`SELECT * FROM smpp_logs ORDER BY id DESC LIMIT ${limit}`));
+});
+app.post('/api/smpp-server/restart', authRequired, requireRole('admin'), (req,res)=>{
+  const restart=restartSmppServerSafe();
+  logAction(req,'restart_smpp_server','smpp_server',restart);
+  res.json(restart);
+});
+
 /* ============ LOGS / FAILED QUEUE ============ */
 app.get('/api/logs/activity', authRequired, requireRole('admin'), (req,res)=>{
   res.json(db.all('SELECT * FROM audit_logs ORDER BY id DESC LIMIT 500'));
@@ -2119,5 +2190,6 @@ const PORT = process.env.PORT || 4000;
   createTables();
   seed();
   if (backup && backup.startAutomaticBackups) backup.startAutomaticBackups(db, console);
+  try { smppServer.start({db, processIncomingSmsPayload, logger: console}); } catch(e) { console.warn('[SMPP_SERVER] startup failed:', e.message); }
   app.listen(PORT, () => console.log(`\n✅ Mufasa SMS backend running: http://localhost:${PORT}\n`));
 })();

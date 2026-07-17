@@ -374,6 +374,49 @@ function createTables() {
     updated_at TEXT DEFAULT (datetime('now'))
   )`);
 
+  db.run(`CREATE TABLE IF NOT EXISTS smpp_users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    enabled INTEGER DEFAULT 1,
+    bind_type TEXT DEFAULT 'any', -- any | transceiver | transmitter | receiver
+    mapping TEXT DEFAULT 'destination_to_number', -- destination_to_number | source_to_number
+    allowed_ip TEXT DEFAULT '',
+    port INTEGER DEFAULT 2775,
+    notes TEXT DEFAULT '',
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+  )`);
+  db.run(`CREATE TABLE IF NOT EXISTS smpp_sessions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT UNIQUE,
+    user_id INTEGER,
+    username TEXT DEFAULT '',
+    ip TEXT DEFAULT '',
+    port INTEGER,
+    bind_type TEXT DEFAULT '',
+    status TEXT DEFAULT 'connected',
+    connected_at TEXT,
+    last_seen TEXT,
+    disconnected_at TEXT
+  )`);
+  db.run(`CREATE TABLE IF NOT EXISTS smpp_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    username TEXT DEFAULT '',
+    ip TEXT DEFAULT '',
+    port INTEGER,
+    event TEXT DEFAULT '',
+    command TEXT DEFAULT '',
+    status TEXT DEFAULT '',
+    number TEXT DEFAULT '',
+    cli TEXT DEFAULT '',
+    message TEXT DEFAULT '',
+    error TEXT DEFAULT '',
+    raw_json TEXT DEFAULT '',
+    created_at TEXT DEFAULT (datetime('now'))
+  )`);
+
 
   db.run(`CREATE TABLE IF NOT EXISTS system_security (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -410,6 +453,11 @@ function createTables() {
   db.run(`CREATE INDEX IF NOT EXISTS idx_limit_rules_range ON daily_limit_rules(range_id)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_limit_rules_cli ON daily_limit_rules(cli)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_limit_rules_number ON daily_limit_rules(number)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_smpp_users_username ON smpp_users(username)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_smpp_users_enabled_port ON smpp_users(enabled, port)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_smpp_sessions_status ON smpp_sessions(status)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_smpp_logs_created ON smpp_logs(created_at)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_smpp_logs_user ON smpp_logs(user_id)`);
 
 }
 
