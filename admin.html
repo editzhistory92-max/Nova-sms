@@ -1306,7 +1306,15 @@ async function saveRate(){if(!rName.value.trim()){alert('Range name is required.
   const body={name:rName.value.trim(),prefix:rPrefix.value.trim(),test_number:rTest.value.trim(),test_numbers:rTest.value.trim(),currency:rCur.value,rate_1_1:r1.value.trim()||'NA',rate_7_1:r2.value.trim()||'NA',rate_7_7:r3.value.trim()||'NA',rate_30_45:r4.value.trim()||'NA',memo:rMemo.value.trim()};
   try{ if(editRateId<0) await API.post('/ranges',body); else await API.put('/ranges/'+editRateId,body); closeModal('rateModal'); loadRates(); }catch(e){ alert('❌ '+e.message); }
 }
-async function delRate(id){if(confirm('Delete this range?')){try{await API.del('/ranges/'+id);loadRates();}catch(e){alert('❌ '+e.message);}}}
+async function delRate(id){
+  if(!confirm('Delete this range from active Range Management?')) return;
+  const deleteSms = (typeof askDeleteSmsHistory==='function') ? askDeleteSmsHistory() : false;
+  try{
+    const r=await API.del('/ranges/'+id+'?delete_sms='+(deleteSms?1:0));
+    alert(`✅ Range removed. Numbers deleted: ${r.deleted_numbers||0}. OTP deleted: ${r.deleted_sms||0}. OTP kept: ${r.preserved_sms||0}.`);
+    loadRates(); loadNumbers();
+  }catch(e){alert('❌ '+e.message);}
+}
 
 /* =============== ALLOCATION (working) =============== */
 function renderAlloc(){
@@ -2589,6 +2597,6 @@ async function startAdminBackgroundWarmup(){
 }
 loadDashboard();setTimeout(()=>startAdminBackgroundWarmup(),900);
 </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1ca4c75fffd9ca7',t:'MTc4NDMwMjMzOQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
-</body>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1cef6c63a9cfcea',t:'MTc4NDM1MTI1OA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>

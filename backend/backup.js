@@ -7,6 +7,7 @@
  */
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 
 function ts() {
   return new Date().toISOString().replace(/[:.]/g, '-');
@@ -18,7 +19,8 @@ function getBackupDir(db) {
   return process.env.BACKUP_DIR
     || (process.env.RAILWAY_VOLUME_MOUNT_PATH ? path.join(process.env.RAILWAY_VOLUME_MOUNT_PATH, 'backups') : null)
     || (process.env.DATA_DIR ? path.join(process.env.DATA_DIR, 'backups') : null)
-    || path.join(path.dirname(getDbFile(db)), 'backups');
+    // VPS-safe default: outside the application folder, so backups survive accidental app deletion.
+    || path.join(os.homedir(), 'mufasa-sms-backups');
 }
 function ensureBackupDir(db) {
   const dir = getBackupDir(db);

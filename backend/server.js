@@ -361,9 +361,11 @@ function syncRangeTestNumbers(rangeId, testValue) {
 
 /* ============ RANGES / RATE MANAGEMENT ============ */
 app.get('/api/ranges', authRequired, (req, res) => {
+  const includeDeleted = String(req.query.include_deleted || '').toLowerCase() === '1' || String(req.query.include_deleted || '').toLowerCase() === 'true';
+  const where = includeDeleted ? '1=1' : "COALESCE(r.deleted_at,'')=''";
   const rows = db.all(`SELECT r.*,
     COALESCE((SELECT GROUP_CONCAT(test_number, ', ') FROM range_test_numbers t WHERE t.range_id=r.id AND t.active=1), r.test_number, '') AS test_numbers
-    FROM ranges r ORDER BY r.id DESC`);
+    FROM ranges r WHERE ${where} ORDER BY r.id DESC`);
   rows.forEach(r => { if (r.test_numbers) r.test_number = r.test_numbers; });
   res.json(rows);
 });
@@ -390,10 +392,24 @@ app.put('/api/ranges/:id', authRequired, requireRole('admin'), (req, res) => {
   res.json({ ok: true });
 });
 app.delete('/api/ranges/:id', authRequired, requireRole('admin'), (req, res) => {
-  db.run('DELETE FROM range_test_numbers WHERE range_id=?', [+req.params.id]);
-  db.run('DELETE FROM ranges WHERE id=?', [+req.params.id]);
-  logAction(req,'delete_range','ranges',{id:+req.params.id});
-  res.json({ ok: true });
+  const rangeId = +req.params.id;
+  const range = db.get('SELECT * FROM ranges WHERE id=?', [rangeId]);
+  if (!range) return res.status(404).json({ error: 'Range not found' });
+  const deleteSms = truthy(req.query.delete_sms);
+  const numberResult = deleteNumbersWhere('range_id=?', [rangeId], req, 'delete_range_numbers_during_range_delete', { rangeId, range: range.name }, deleteSms);
+  let rangeSmsDeleted = 0, rangeSmsPreserved = 0;
+  const rangeSmsCount = db.get('SELECT COUNT(*) c FROM sms_records WHERE range_id=?', [rangeId])?.c || 0;
+  if (deleteSms) {
+    db.run('DELETE FROM sms_records WHERE range_id=?', [rangeId]);
+    rangeSmsDeleted = rangeSmsCount;
+  } else {
+    rangeSmsPreserved = rangeSmsCount;
+  }
+  db.run('DELETE FROM range_test_numbers WHERE range_id=?', [rangeId]);
+  // Soft-delete the range so historical SMS reports can still show the old range name via joins.
+  db.run("UPDATE ranges SET deleted_at=datetime('now') WHERE id=?", [rangeId]);
+  logAction(req,'delete_range','ranges',{id:rangeId,range:range.name,deleteSms,numberResult,rangeSmsDeleted,rangeSmsPreserved});
+  res.json({ ok: true, deleted_range: 1, deleted_numbers: numberResult.deleted || 0, deleted_sms: (numberResult.deleted_sms || 0) + rangeSmsDeleted, preserved_sms: (numberResult.preserved_sms || 0) + rangeSmsPreserved });
 });
 
 app.get('/api/test-numbers', authRequired, (req, res) => {

@@ -339,6 +339,7 @@ function createTables() {
   ensureColumn('sms_records', 'payout_rate', "TEXT DEFAULT ''");
   ensureColumn('sms_records', 'payout_amount', "TEXT DEFAULT ''");
   ensureColumn('sms_records', 'limit_reason', "TEXT DEFAULT ''");
+  ensureColumn('ranges', 'deleted_at', "TEXT DEFAULT ''");
 
   const cs = db.get('SELECT COUNT(*) AS c FROM carrier_settings');
   if (!cs || cs.c === 0) {
