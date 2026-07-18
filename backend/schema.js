@@ -418,6 +418,52 @@ function createTables() {
     created_at TEXT DEFAULT (datetime('now'))
   )`);
 
+  db.run(`CREATE TABLE IF NOT EXISTS api_integrations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    base_url TEXT NOT NULL,
+    enabled INTEGER DEFAULT 0,
+    method TEXT DEFAULT 'GET',
+    auth_type TEXT DEFAULT 'query_token', -- query_token | bearer | header | none
+    token TEXT DEFAULT '',
+    token_param TEXT DEFAULT 'token',
+    token_header TEXT DEFAULT 'Authorization',
+    dt1_param TEXT DEFAULT 'dt1',
+    dt2_param TEXT DEFAULT 'dt2',
+    records_param TEXT DEFAULT 'records',
+    records_limit INTEGER DEFAULT 100,
+    poll_interval_sec INTEGER DEFAULT 5,
+    response_format TEXT DEFAULT 'auto',
+    last_poll_at TEXT,
+    last_success_at TEXT,
+    last_error TEXT DEFAULT '',
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+  )`);
+  db.run(`CREATE TABLE IF NOT EXISTS api_integration_seen (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    integration_id INTEGER,
+    duplicate_key TEXT UNIQUE NOT NULL,
+    provider_message_id TEXT DEFAULT '',
+    first_seen_at TEXT DEFAULT (datetime('now'))
+  )`);
+  db.run(`CREATE TABLE IF NOT EXISTS api_integration_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    integration_id INTEGER,
+    integration_name TEXT DEFAULT '',
+    request_time TEXT DEFAULT (datetime('now')),
+    status TEXT DEFAULT '', -- success | failed | duplicate | ignored
+    reason TEXT DEFAULT '',
+    number TEXT DEFAULT '',
+    cli TEXT DEFAULT '',
+    message TEXT DEFAULT '',
+    provider_message_id TEXT DEFAULT '',
+    duplicate_key TEXT DEFAULT '',
+    raw_json TEXT DEFAULT '',
+    sms_record_id INTEGER,
+    created_at TEXT DEFAULT (datetime('now'))
+  )`);
+
 
   db.run(`CREATE TABLE IF NOT EXISTS system_security (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -459,6 +505,10 @@ function createTables() {
   db.run(`CREATE INDEX IF NOT EXISTS idx_smpp_sessions_status ON smpp_sessions(status)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_smpp_logs_created ON smpp_logs(created_at)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_smpp_logs_user ON smpp_logs(user_id)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_api_integrations_enabled ON api_integrations(enabled)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_api_seen_key ON api_integration_seen(duplicate_key)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_api_logs_integration ON api_integration_logs(integration_id, created_at)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_api_logs_status ON api_integration_logs(status)`);
 
 }
 

@@ -2047,6 +2047,160 @@ app.get('/api/incoming-sms', (req, res) => {
   return handleCarrierIncoming(req, res, normalizeIncomingPayload(req));
 });
 
+/* ============ API INTEGRATION POLLING (incoming API pull channel) ============ */
+let apiPollTimer = null;
+const apiPollInProgress = new Set();
+function maskToken(t){ t=String(t||''); if(!t) return ''; return t.length<=8 ? '********' : t.slice(0,4)+'********'+t.slice(-4); }
+function publicApiIntegration(row){ if(!row) return row; return {...row, token: undefined, token_masked: maskToken(row.token)}; }
+function ukDateStringJs(d=new Date()){
+  const parts=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(d).reduce((a,p)=>(a[p.type]=p.value,a),{});
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+function buildApiIntegrationRequest(row){
+  const url = new URL(row.base_url);
+  const today = ukDateStringJs();
+  const dt1 = `${today} 00:00:00`;
+  const dt2 = `${today} 23:59:59`;
+  if(row.auth_type === 'query_token' && row.token) url.searchParams.set(row.token_param || 'token', row.token);
+  if(row.dt1_param) url.searchParams.set(row.dt1_param, dt1);
+  if(row.dt2_param) url.searchParams.set(row.dt2_param, dt2);
+  if(row.records_param) url.searchParams.set(row.records_param, String(row.records_limit || 100));
+  const headers = { 'Accept': 'application/json,text/plain,text/html,*/*' };
+  if(row.auth_type === 'bearer' && row.token) headers.Authorization = 'Bearer ' + row.token;
+  if(row.auth_type === 'header' && row.token) headers[row.token_header || 'X-API-Key'] = row.token;
+  return { url: url.toString(), headers, dt1, dt2 };
+}
+function stripHtml(v){ return String(v||'').replace(/<[^>]+>/g,'').replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/&#39;/g,"'").replace(/&quot;/g,'"').trim(); }
+function parseDelimited(text){
+  const lines=String(text||'').trim().split(/\r?\n/).filter(Boolean);
+  if(lines.length<2) return [];
+  const delim=['|',',',';','\t'].sort((a,b)=>(lines[0].split(b).length-lines[0].split(a).length))[0];
+  const headers=lines[0].split(delim).map(h=>stripHtml(h).toLowerCase());
+  return lines.slice(1).map(line=>{ const vals=line.split(delim); const o={}; headers.forEach((h,i)=>o[h]=stripHtml(vals[i]||'')); return o; });
+}
+function parseHtmlTable(text){
+  const rows=[...String(text||'').matchAll(/<tr[\s\S]*?<\/tr>/gi)].map(m=>m[0]);
+  if(!rows.length) return [];
+  const parsed=rows.map(r=>[...r.matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi)].map(c=>stripHtml(c[1]))).filter(r=>r.length);
+  if(parsed.length<2) return [];
+  const headers=parsed[0].map(h=>h.toLowerCase());
+  return parsed.slice(1).map(vals=>{const o={};headers.forEach((h,i)=>o[h]=vals[i]||'');return o;});
+}
+function extractArrayFromJson(j){
+  if(Array.isArray(j)) return j;
+  if(!j || typeof j!=='object') return [];
+  for(const k of ['data','records','rows','result','results','messages','sms','items']) if(Array.isArray(j[k])) return j[k];
+  return [j];
+}
+function parseApiResponse(text, contentType=''){
+  const raw=String(text||'').trim();
+  if(!raw) return [];
+  if(contentType.includes('json') || raw.startsWith('{') || raw.startsWith('[')) {
+    try { return extractArrayFromJson(JSON.parse(raw)); } catch(_) {}
+  }
+  if(raw.includes('<table') || /<tr[\s\S]*?<\/tr>/i.test(raw)) return parseHtmlTable(raw);
+  return parseDelimited(raw);
+}
+function valAny(obj, keys){
+  if(!obj || typeof obj!=='object') return '';
+  const lower={}; Object.keys(obj).forEach(k=>lower[k.toLowerCase().replace(/[\s_-]+/g,'')]=obj[k]);
+  for(const k of keys){ const key=k.toLowerCase().replace(/[\s_-]+/g,''); if(lower[key]!==undefined && lower[key]!==null && String(lower[key]).trim()!=='') return lower[key]; }
+  return '';
+}
+function normalizeApiSmsRecord(r){
+  const id=valAny(r,['id','message_id','messageid','msgid','smsid','uuid','record_id']);
+  const dt=valAny(r,['dt','date','datetime','time','timestamp','received_at','receivedat']);
+  const number=valAny(r,['number','to','destination','destination_addr','msisdn','receiver','recipient','called']);
+  const cli=valAny(r,['cli','sender','from','source','source_addr','originator','shortcode','service']);
+  const message=valAny(r,['message','text','body','sms','content','msg','short_message']);
+  return { provider_message_id:String(id||''), dt:String(dt||''), number:String(number||'').trim(), cli:String(cli||'').trim(), message:String(message||'').trim(), raw:r };
+}
+function apiDuplicateKey(integrationId, rec){
+  const base = rec.provider_message_id ? `${integrationId}:id:${rec.provider_message_id}` : `${integrationId}:hash:${rec.number}|${rec.cli}|${rec.message}|${rec.dt}`;
+  return crypto.createHash('sha256').update(base).digest('hex');
+}
+function apiLog(row, status, reason, rec={}, smsId=null){
+  try{ db.run(`INSERT INTO api_integration_logs (integration_id,integration_name,status,reason,number,cli,message,provider_message_id,duplicate_key,raw_json,sms_record_id)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?)`, [row.id,row.name,status,reason||'',rec.number||'',rec.cli||'',rec.message||'',rec.provider_message_id||'',rec.duplicate_key||'',safeJson(rec.raw||{}),smsId]); }
+  catch(e){ console.warn('[API_INTEGRATION] log failed:', e.message); }
+}
+function apiSeen(key){ return !!db.get('SELECT id FROM api_integration_seen WHERE duplicate_key=?',[key]); }
+function markApiSeen(row, rec){ try{ db.run('INSERT OR IGNORE INTO api_integration_seen (integration_id,duplicate_key,provider_message_id) VALUES (?,?,?)',[row.id,rec.duplicate_key,rec.provider_message_id||'']); }catch(e){} }
+async function processApiIntegrationRow(row, rec){
+  rec.duplicate_key=apiDuplicateKey(row.id,rec);
+  if(apiSeen(rec.duplicate_key)) return {duplicate:1};
+  if(!rec.number || !rec.message){ markApiSeen(row,rec); apiLog(row,'failed','Invalid data',rec); return {failed:1}; }
+  if(!findNumber(rec.number) && !findTestNumber(rec.number)){ markApiSeen(row,rec); apiLog(row,'failed','Number not found',rec); return {failed:1}; }
+  const result=processIncomingSmsPayload({ip:'API_PULL', api_integration:row.name}, {number:rec.number, cli:rec.cli, message:rec.message, api_dt:rec.dt, api_message_id:rec.provider_message_id}, 'API_PULL', {source:'api_integration'});
+  markApiSeen(row,rec);
+  if(result.status===200){ apiLog(row,'success','Saved',rec,result.body?.id||null); return {success:1}; }
+  apiLog(row,'failed',result.body?.error||'Processing failed',rec); return {failed:1};
+}
+async function fetchApiIntegration(row, manual=false){
+  if(apiPollInProgress.has(row.id)) return {ok:false, skipped:true, reason:'Already running'};
+  apiPollInProgress.add(row.id);
+  let summary={ok:true,total:0,success:0,failed:0,duplicate:0};
+  try{
+    const reqInfo=buildApiIntegrationRequest(row);
+    db.run("UPDATE api_integrations SET last_poll_at=datetime('now') WHERE id=?",[row.id]);
+    const resp=await fetch(reqInfo.url,{method:row.method||'GET',headers:reqInfo.headers,signal:AbortSignal.timeout ? AbortSignal.timeout(15000) : undefined});
+    const text=await resp.text();
+    if(!resp.ok) throw new Error('HTTP '+resp.status+' '+text.slice(0,120));
+    const parsed=parseApiResponse(text, resp.headers.get('content-type')||'');
+    summary.total=parsed.length;
+    let dupLogged=0;
+    for(const raw of parsed){
+      const rec=normalizeApiSmsRecord(raw);
+      const r=await processApiIntegrationRow(row,rec);
+      summary.success+=r.success||0; summary.failed+=r.failed||0; summary.duplicate+=r.duplicate||0;
+      if(r.duplicate && dupLogged<3){ rec.duplicate_key=apiDuplicateKey(row.id,rec); apiLog(row,'duplicate','Duplicate message',rec); dupLogged++; }
+    }
+    db.run("UPDATE api_integrations SET last_success_at=datetime('now'), last_error='' WHERE id=?",[row.id]);
+    return summary;
+  }catch(e){
+    db.run("UPDATE api_integrations SET last_error=? WHERE id=?",[e.message,row.id]);
+    apiLog(row,'failed',e.message,{});
+    return {ok:false,error:e.message};
+  }finally{ apiPollInProgress.delete(row.id); }
+}
+async function pollApiIntegrations(){
+  const rows=db.all('SELECT * FROM api_integrations WHERE enabled=1 ORDER BY id ASC');
+  const now=Date.now();
+  for(const row of rows){
+    const interval=Math.max(5,parseInt(row.poll_interval_sec||5,10));
+    const last=row.last_poll_at ? new Date(row.last_poll_at.replace(' ','T')+'Z').getTime() : 0;
+    if(!last || now-last >= interval*1000) fetchApiIntegration(row,false).catch(e=>console.warn('[API_INTEGRATION] poll failed:',e.message));
+  }
+}
+function startApiIntegrationPoller(){ if(apiPollTimer) return; apiPollTimer=setInterval(()=>pollApiIntegrations().catch(()=>{}),5000); if(apiPollTimer.unref) apiPollTimer.unref(); }
+
+app.get('/api/api-integrations', authRequired, requireRole('admin'), (req,res)=>{
+  res.json(db.all('SELECT * FROM api_integrations ORDER BY id DESC').map(publicApiIntegration));
+});
+app.post('/api/api-integrations', authRequired, requireRole('admin'), (req,res)=>{
+  const b=req.body||{}; if(!b.name||!b.base_url) return res.status(400).json({error:'name and base_url required'});
+  db.run(`INSERT INTO api_integrations (name,base_url,enabled,method,auth_type,token,token_param,token_header,dt1_param,dt2_param,records_param,records_limit,poll_interval_sec,response_format)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [b.name,b.base_url,b.enabled?1:0,b.method||'GET',b.auth_type||'query_token',b.token||'',b.token_param||'token',b.token_header||'Authorization',b.dt1_param||'dt1',b.dt2_param||'dt2',b.records_param||'records',parseInt(b.records_limit||100,10),Math.max(5,parseInt(b.poll_interval_sec||5,10)),b.response_format||'auto']);
+  logAction(req,'create_api_integration','api_integration',{name:b.name});
+  res.json({ok:true});
+});
+app.put('/api/api-integrations/:id', authRequired, requireRole('admin'), (req,res)=>{
+  const id=+req.params.id; const old=db.get('SELECT * FROM api_integrations WHERE id=?',[id]); if(!old) return res.status(404).json({error:'API integration not found'});
+  const b=req.body||{}; const token=(b.token===undefined||b.token==='')?old.token:b.token;
+  db.run(`UPDATE api_integrations SET name=?,base_url=?,enabled=?,method=?,auth_type=?,token=?,token_param=?,token_header=?,dt1_param=?,dt2_param=?,records_param=?,records_limit=?,poll_interval_sec=?,response_format=?,updated_at=datetime('now') WHERE id=?`,
+    [b.name||old.name,b.base_url||old.base_url,b.enabled?1:0,b.method||old.method,b.auth_type||old.auth_type,token,b.token_param||old.token_param,b.token_header||old.token_header,b.dt1_param||old.dt1_param,b.dt2_param||old.dt2_param,b.records_param||old.records_param,parseInt(b.records_limit||old.records_limit||100,10),Math.max(5,parseInt(b.poll_interval_sec||old.poll_interval_sec||5,10)),b.response_format||old.response_format,id]);
+  res.json({ok:true});
+});
+app.delete('/api/api-integrations/:id', authRequired, requireRole('admin'), (req,res)=>{ db.run('DELETE FROM api_integrations WHERE id=?',[+req.params.id]); res.json({ok:true}); });
+app.post('/api/api-integrations/:id/fetch', authRequired, requireRole('admin'), async (req,res)=>{
+  const row=db.get('SELECT * FROM api_integrations WHERE id=?',[+req.params.id]); if(!row) return res.status(404).json({error:'API integration not found'});
+  res.json(await fetchApiIntegration(row,true));
+});
+app.get('/api/api-integration-logs', authRequired, requireRole('admin'), (req,res)=>{
+  const limit=Math.min(1000,parseInt(req.query.limit||500,10));
+  res.json(db.all(`SELECT * FROM api_integration_logs ORDER BY id DESC LIMIT ${limit}`));
+});
+
 
 
 
@@ -2207,5 +2361,6 @@ const PORT = process.env.PORT || 4000;
   seed();
   if (backup && backup.startAutomaticBackups) backup.startAutomaticBackups(db, console);
   try { smppServer.start({db, processIncomingSmsPayload, logger: console}); } catch(e) { console.warn('[SMPP_SERVER] startup failed:', e.message); }
+  try { startApiIntegrationPoller(); console.log('• API Integration poller enabled: every 5 seconds'); } catch(e) { console.warn('[API_INTEGRATION] poller startup failed:', e.message); }
   app.listen(PORT, () => console.log(`\n✅ Mufasa SMS backend running: http://localhost:${PORT}\n`));
 })();

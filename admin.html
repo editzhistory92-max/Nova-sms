@@ -484,6 +484,7 @@
         <div class="sub-item" data-page="limitManagement"><span class="dot"></span> Limit Management</div>
         <div class="sub-item" data-page="carrierIntegration"><span class="dot"></span> Carrier Integration</div>
         <div class="sub-item" data-page="smppServer"><span class="dot"></span> SMPP Server</div>
+        <div class="sub-item" data-page="apiIntegration"><span class="dot"></span> API Integration</div>
         <div class="sub-item" data-page="testGenerator"><span class="dot"></span> Test SMS Generator</div>
         <div class="sub-item" data-page="integrations"><span class="dot"></span> Integration Layer</div>
         <div class="sub-item" data-page="notificationRules"><span class="dot"></span> Notification Rules</div>
@@ -891,6 +892,35 @@
         <div class="table-wrap" style="margin-bottom:16px"><div class="tscroll"><table><thead><tr><th>User</th><th>Port</th><th>Bind</th><th>Mapping</th><th>Allowed IP</th><th>Enabled</th><th>Sessions</th><th>Action</th></tr></thead><tbody id="smppUserBody"></tbody></table></div><div class="table-foot"><div class="info" id="smppUserInfo"></div></div></div>
         <div class="card" style="margin-bottom:16px"><div class="card-head"><div><h3>Active Connections</h3><div class="sub">Connected / disconnected carrier sessions.</div></div></div><div class="table-wrap"><div class="tscroll"><table><thead><tr><th>Session</th><th>User</th><th>IP</th><th>Port</th><th>Bind</th><th>Status</th><th>Connected</th><th>Last Seen</th></tr></thead><tbody id="smppSessionBody"></tbody></table></div></div></div>
         <div class="card"><div class="card-head"><div><h3>SMPP Logs</h3><div class="sub">Bind, connection and incoming SMS logs.</div></div></div><div class="table-wrap"><div class="tscroll"><table><thead><tr><th>Time</th><th>User</th><th>IP</th><th>Event</th><th>Status</th><th>Number</th><th>CLI</th><th>Error</th></tr></thead><tbody id="smppLogBody"></tbody></table></div></div></div>
+      </section>
+
+      <section class="page" id="page-apiIntegration">
+        <div class="page-head"><div><h2>API Integration</h2><div class="breadcrumb"><b>System Master</b> › Polling API Incoming</div></div><div class="head-actions"><button class="btn btn-blue" onclick="loadApiIntegrations()">Refresh</button></div></div>
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-head"><div><h3>Add / Update API Connector</h3><div class="sub">Independent from HTTP and SMPP. The panel fetches API every 5 seconds and processes matched numbers like HTTP incoming SMS.</div></div><button class="btn btn-green" onclick="saveApiIntegration()">Save Connector</button></div>
+          <input type="hidden" id="apiIntId" value="">
+          <div class="form-grid" style="grid-template-columns:1fr 2fr 1fr 1fr;gap:14px">
+            <div class="form-group"><label>Name</label><input id="apiIntName" placeholder="e.g. Lamix API"></div>
+            <div class="form-group"><label>Base URL</label><input id="apiIntUrl" placeholder="http://provider/api/viewstats"></div>
+            <div class="form-group"><label>Auth Type</label><select id="apiIntAuth"><option value="query_token">Query token</option><option value="bearer">Bearer token</option><option value="header">Header token</option><option value="none">None</option></select></div>
+            <div class="form-group"><label>Enabled</label><select id="apiIntEnabled"><option value="1">Enabled</option><option value="0">Disabled</option></select></div>
+          </div>
+          <div class="form-grid" style="grid-template-columns:2fr 1fr 1fr 1fr;gap:14px">
+            <div class="form-group"><label>Token / API Key</label><input id="apiIntToken" placeholder="Leave blank to keep existing token"></div>
+            <div class="form-group"><label>Token Param</label><input id="apiIntTokenParam" value="token"></div>
+            <div class="form-group"><label>Header Name</label><input id="apiIntTokenHeader" value="Authorization"></div>
+            <div class="form-group"><label>Interval Sec</label><input id="apiIntInterval" type="number" value="5" min="5"></div>
+          </div>
+          <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr 1fr;gap:14px">
+            <div class="form-group"><label>DT1 Param</label><input id="apiIntDt1" value="dt1"></div>
+            <div class="form-group"><label>DT2 Param</label><input id="apiIntDt2" value="dt2"></div>
+            <div class="form-group"><label>Records Param</label><input id="apiIntRecordsParam" value="records"></div>
+            <div class="form-group"><label>Records Limit</label><input id="apiIntRecordsLimit" type="number" value="100"></div>
+          </div>
+          <div class="hint">Payout from API is ignored. Only DT/Number/CLI/Message are processed. Duplicate protection uses Message ID if present, otherwise Number+CLI+Message+Time hash.</div>
+        </div>
+        <div class="table-wrap" style="margin-bottom:16px"><div class="tscroll"><table><thead><tr><th>Name</th><th>URL</th><th>Auth</th><th>Token</th><th>Interval</th><th>Status</th><th>Last Success</th><th>Error</th><th>Action</th></tr></thead><tbody id="apiIntBody"></tbody></table></div><div class="table-foot"><div class="info" id="apiIntInfo"></div></div></div>
+        <div class="card"><div class="card-head"><div><h3>API Integration Logs</h3><div class="sub">Success, failed, ignored and duplicate records.</div></div><button class="btn btn-blue" onclick="loadApiIntegrationLogs()">Refresh Logs</button></div><div class="table-wrap"><div class="tscroll"><table><thead><tr><th>Time</th><th>Connector</th><th>Status</th><th>Reason</th><th>Number</th><th>CLI</th><th>Message ID</th><th>Message</th></tr></thead><tbody id="apiIntLogBody"></tbody></table></div></div></div>
       </section>
 
       <section class="page" id="page-integrations">
@@ -2252,6 +2282,17 @@ async function changeSmppPassword(id){const p=prompt('New SMPP password (blank =
 async function deleteSmppUser(id){if(!confirm('Delete this SMPP user?'))return;try{await API.del('/smpp-server/users/'+id);loadSmppServer();}catch(e){alert('❌ '+e.message)}}
 async function restartSmppServer(){try{const r=await API.post('/smpp-server/restart',{});alert('✅ SMPP server restarted. Ports: '+((r.ports||[]).join(', ')||'—'));loadSmppServer();}catch(e){alert('❌ '+e.message)}}
 
+/* =============== API INTEGRATION =============== */
+let apiIntegrations=[];
+function resetApiIntegrationForm(){['apiIntId','apiIntName','apiIntUrl','apiIntToken'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});apiIntAuth.value='query_token';apiIntEnabled.value='1';apiIntTokenParam.value='token';apiIntTokenHeader.value='Authorization';apiIntInterval.value='5';apiIntDt1.value='dt1';apiIntDt2.value='dt2';apiIntRecordsParam.value='records';apiIntRecordsLimit.value='100';}
+async function loadApiIntegrations(){try{apiIntegrations=await API.get('/api-integrations');renderApiIntegrations();}catch(e){apiIntegrations=[];renderApiIntegrations();}}
+function renderApiIntegrations(){const b=document.getElementById('apiIntBody');if(!b)return;b.innerHTML=(apiIntegrations||[]).map(x=>`<tr><td><b>${x.name}</b></td><td class="mono" style="max-width:320px;overflow:hidden;text-overflow:ellipsis">${x.base_url}</td><td>${x.auth_type}</td><td>${x.token_masked||'—'}</td><td>${x.poll_interval_sec||5}s</td><td>${x.enabled?'<span class="tag tag-green">Enabled</span>':'<span class="tag tag-gray">Disabled</span>'}</td><td>${(x.last_success_at||'').slice(0,19)||'—'}</td><td class="msg-body">${x.last_error||''}</td><td style="white-space:nowrap"><button class="btn btn-blue btn-sm" onclick="editApiIntegration(${x.id})">Edit</button> <button class="btn btn-green btn-sm" onclick="fetchApiIntegrationNow(${x.id})">Fetch Now</button> <button class="btn btn-red btn-sm" onclick="deleteApiIntegration(${x.id})">Delete</button></td></tr>`).join('')||`<tr><td colspan="9" class="muted" style="text-align:center;padding:20px">No API connectors configured</td></tr>`;apiIntInfo.textContent=`${(apiIntegrations||[]).length} API connectors`;}
+function editApiIntegration(id){const x=(apiIntegrations||[]).find(r=>r.id===id);if(!x)return;apiIntId.value=x.id;apiIntName.value=x.name||'';apiIntUrl.value=x.base_url||'';apiIntAuth.value=x.auth_type||'query_token';apiIntEnabled.value=x.enabled?'1':'0';apiIntToken.value='';apiIntToken.placeholder=x.token_masked?'Leave blank to keep '+x.token_masked:'Token / API Key';apiIntTokenParam.value=x.token_param||'token';apiIntTokenHeader.value=x.token_header||'Authorization';apiIntInterval.value=x.poll_interval_sec||5;apiIntDt1.value=x.dt1_param||'dt1';apiIntDt2.value=x.dt2_param||'dt2';apiIntRecordsParam.value=x.records_param||'records';apiIntRecordsLimit.value=x.records_limit||100;window.scrollTo({top:0,behavior:'smooth'});}
+async function saveApiIntegration(){const body={name:apiIntName.value.trim(),base_url:apiIntUrl.value.trim(),enabled:apiIntEnabled.value==='1',auth_type:apiIntAuth.value,token:apiIntToken.value,token_param:apiIntTokenParam.value.trim()||'token',token_header:apiIntTokenHeader.value.trim()||'Authorization',poll_interval_sec:+(apiIntInterval.value||5),dt1_param:apiIntDt1.value.trim()||'dt1',dt2_param:apiIntDt2.value.trim()||'dt2',records_param:apiIntRecordsParam.value.trim()||'records',records_limit:+(apiIntRecordsLimit.value||100)};if(!body.name||!body.base_url){alert('Name and URL required');return;}try{if(apiIntId.value)await API.put('/api-integrations/'+apiIntId.value,body);else await API.post('/api-integrations',body);resetApiIntegrationForm();loadApiIntegrations();alert('✅ API connector saved');}catch(e){alert('❌ '+e.message)}}
+async function fetchApiIntegrationNow(id){try{const r=await API.post('/api-integrations/'+id+'/fetch',{});alert(`✅ Fetch done\nTotal: ${r.total||0}\nSaved: ${r.success||0}\nFailed: ${r.failed||0}\nDuplicate: ${r.duplicate||0}`);loadApiIntegrations();loadApiIntegrationLogs();}catch(e){alert('❌ '+e.message)}}
+async function deleteApiIntegration(id){if(!confirm('Delete this API connector?'))return;try{await API.del('/api-integrations/'+id);loadApiIntegrations();}catch(e){alert('❌ '+e.message)}}
+async function loadApiIntegrationLogs(){try{const rows=await API.get('/api-integration-logs?limit=500');const b=document.getElementById('apiIntLogBody');if(!b)return;b.innerHTML=(rows||[]).map(r=>`<tr><td>${(r.created_at||r.request_time||'').slice(0,19)}</td><td>${r.integration_name||'—'}</td><td>${r.status==='success'?'<span class="tag tag-green">Success</span>':(r.status==='duplicate'?'<span class="tag tag-amber">Duplicate</span>':'<span class="tag tag-red">Failed</span>')}</td><td>${r.reason||''}</td><td class="mono">${r.number||''}</td><td>${r.cli||''}</td><td class="mono">${r.provider_message_id||''}</td><td class="msg-body">${(r.message||'').slice(0,120)}</td></tr>`).join('')||`<tr><td colspan="8" class="muted" style="text-align:center;padding:20px">No API logs</td></tr>`;}catch(e){console.warn(e)}}
+
 /* =============== TEST SMS GENERATOR (QA) =============== */
 async function loadTestGeneratorSettings(){
   try{
@@ -2573,6 +2614,7 @@ async function loadAdminPageData(page){
     if(page==='limitManagement'){ await ensureAdminRates(); await loadLimitManagement(); return; }
     if(page==='carrierIntegration'){ await loadCarrierSettings(); return; }
     if(page==='smppServer'){ await loadSmppServer(); return; }
+    if(page==='apiIntegration'){ await loadApiIntegrations(); await loadApiIntegrationLogs(); return; }
     if(page==='testGenerator'){ await loadTestGeneratorSettings(); await populateTestGeneratorNumbers(); return; }
     if(page==='integrations'){ await loadIntegrations(); return; }
     if(page==='notificationRules'){ await loadNotificationRules(); return; }
@@ -2597,6 +2639,6 @@ async function startAdminBackgroundWarmup(){
 }
 loadDashboard();setTimeout(()=>startAdminBackgroundWarmup(),900);
 </script>
-<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1cef6c63a9cfcea',t:'MTc4NDM1MTI1OA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1d0561cfa4244bb',t:'MTc4NDM2NTY0OQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body>
 </html>
