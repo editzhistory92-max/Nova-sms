@@ -516,12 +516,12 @@
   </div>
 </div>
 
-<script src="/api.js?v=20260718-direct-agent-perf"></script>
+<script src="/api.js?v=20260718-fast-critical-pages"></script>
 <script>
 if(window.API){ API.guard('client'); }
 /* NAV */
 function showPage(id,el){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));const pg=document.getElementById('page-'+id);if(pg)pg.classList.add('active');
-  document.querySelectorAll('.tab').forEach(n=>n.classList.remove('active'));if(el)el.classList.add('active');window.scrollTo({top:0,behavior:'smooth'});if(typeof loadClientPageData==='function')setTimeout(()=>loadClientPageData(id),0);}
+  document.querySelectorAll('.tab').forEach(n=>n.classList.remove('active'));if(el)el.classList.add('active');window.scrollTo({top:0,behavior:'smooth'});if(typeof loadClientPageData==='function')loadClientPageData(id);}
 document.querySelectorAll('.tab[data-page]').forEach(n=>n.addEventListener('click',()=>{showPage(n.dataset.page,n);closeSb();}));
 function openSb(){document.getElementById('sidebar').classList.add('show');document.getElementById('sbOverlay').classList.add('show');}
 function closeSb(){document.getElementById('sidebar').classList.remove('show');document.getElementById('sbOverlay').classList.remove('show');}
@@ -649,10 +649,10 @@ async function loadClientPageData(page){
   }catch(e){ console.warn('client lazy page load failed', page, e); }
 }
 function cliWarmDelay(ms){return new Promise(r=>setTimeout(r,ms));}
-async function startClientBackgroundWarmup(){if(window.__clientWarmupStarted)return;window.__clientWarmupStarted=true;try{await cliWarmDelay(150);await Promise.allSettled([loadRanges(),loadNumbers(),loadStats()]);}catch(e){console.warn('client warmup failed',e);}}
-loadProfile();loadDashboard();setTimeout(()=>startClientBackgroundWarmup(),900);setTimeout(showClientWelcome,700);
+async function startClientBackgroundWarmup(){if(window.__clientWarmupStarted)return;window.__clientWarmupStarted=true;try{await cliWarmDelay(40);await Promise.allSettled([loadRanges(),loadNumbers(),loadStats()]);await cliWarmDelay(80);renderTest();}catch(e){console.warn('client warmup failed',e);}}
+loadProfile();loadDashboard();setTimeout(()=>startClientBackgroundWarmup(),120);setTimeout(showClientWelcome,700);
 </script>
 
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1d803f68d7ace5a',t:'MTc4NDQ0NjE3MA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
-</body>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1d8164dbd47a03c',t:'MTc4NDQ0NjkyMQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>

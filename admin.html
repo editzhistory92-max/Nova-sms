@@ -1211,7 +1211,7 @@
   <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal('newsModal')">Cancel</button><button class="btn btn-purple" onclick="saveNews()">Save</button></div>
 </div></div>
 
-<script src="/api.js?v=20260718-direct-agent-perf"></script>
+<script src="/api.js?v=20260718-fast-critical-pages"></script>
 <script>
 /* auth guard — admin only */
 if(window.API){ API.guard('admin'); }
@@ -1223,7 +1223,7 @@ function showPage(id, el){
   document.querySelectorAll('.sub-item').forEach(n=>n.classList.remove('active'));
   if(el) el.classList.add('active');
   if(window.innerWidth<=900) closeSidebar();
-  if(typeof loadAdminPageData==='function') setTimeout(()=>loadAdminPageData(id),0);
+  if(typeof loadAdminPageData==='function') loadAdminPageData(id);
 }
 function showPageByName(id){
   const sub=document.querySelector('.sub-item[data-page="'+id+'"]');
@@ -2610,7 +2610,7 @@ async function loadAdminPageData(page){
     if(page==='client' || page==='clients'){ buildUserPage('client'); return; }
     if(page==='rates'){ await loadRates(); return; }
     if(page==='allocation'){ await loadNumberSummary(); return; }
-    if(page==='numbers'){ await ensureAdminRates(); await ensureAdminManagers(); await loadNumbers(); return; }
+    if(page==='numbers'){ await ensureAdminRates(); await ensureAdminManagers(); await Promise.allSettled([renderNumbers(), loadNumberSummary()]); return; }
     if(page==='import'){ await ensureAdminRates(); await loadImportBatches(); await refreshNumberDbTools(); return; }
     if(page==='testImport'){ await ensureAdminRates(); return; }
     if(page==='smsReport'){ buildSmsReport(); await ensureAdminSms(); return; }
@@ -2639,19 +2639,28 @@ async function startAdminBackgroundWarmup(){
   if(window.__adminWarmupStarted) return;
   window.__adminWarmupStarted=true;
   try{
-    // High-priority warmup first: pages users open most often should feel instant.
-    await warmDelay(150);
-    await Promise.allSettled([loadRates(), loadNumbers(), loadSmsRecords()]);
-    await warmDelay(350);
-    await Promise.allSettled([loadImportBatches(), refreshNumberDbTools(), ensureAdminManagers()]);
-    // Lower-priority pages render after browser has settled.
-    await warmDelay(900); buildUserPage('manager');
-    await warmDelay(450); buildUserPage('agent');
-    await warmDelay(450); buildUserPage('client');
+    // High-priority pages should be ready almost instantly; build CDR skeletons first.
+    await warmDelay(40);
+    if(!document.getElementById('srBody')) buildSmsReport();
+    if(!document.getElementById('sdBody')) buildSmsDetail();
+    // Then preload high-use data in parallel without triggering low-priority pages.
+    await Promise.allSettled([loadRates(), ensureAdminManagers(), renderNumbers(), loadNumberSummary(), loadSmsRecords()]);
+    await warmDelay(80);
+    ['client','agent','manager'].forEach(k=>{ if(!document.getElementById(k+'SBody')) buildEntityStats(k); });
+    ['range','number'].forEach(k=>{ if(!document.getElementById(k+'SBody')) buildDrillStats(k); });
+    // Less-used pages can continue warming quietly.
+    await warmDelay(400);
+    await Promise.allSettled([loadImportBatches(), refreshNumberDbTools(), loadCliLimits(), loadApiIntegrations()]);
+    await warmDelay(700);
+    if(!usersData.manager.length) buildUserPage('manager');
+    await warmDelay(250);
+    if(!usersData.agent.length) buildUserPage('agent');
+    await warmDelay(250);
+    if(!usersData.client.length) buildUserPage('client');
   }catch(e){console.warn('admin background warmup failed', e);}
 }
-loadDashboard();setTimeout(()=>startAdminBackgroundWarmup(),900);
+loadDashboard();setTimeout(()=>startAdminBackgroundWarmup(),120);
 </script>
-<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1d803e4cf85ce5a',t:'MTc4NDQ0NjE2Nw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1d816377e60a03c',t:'MTc4NDQ0NjkxOA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body>
 </html>

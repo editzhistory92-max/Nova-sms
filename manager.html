@@ -758,7 +758,7 @@
   <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal('agentModal')">Cancel</button><button class="btn btn-teal" onclick="saveAgent()">Save</button></div>
 </div></div>
 
-<script src="/api.js?v=20260718-direct-agent-perf"></script>
+<script src="/api.js?v=20260718-fast-critical-pages"></script>
 <script>
 if(window.API){ API.guard('manager'); }
 /* ===== NAV ===== */
@@ -770,7 +770,7 @@ function showPage(id,el){
   if(el&&el.classList.contains('navtab'))el.classList.add('active');
   closeAllDrops();
   window.scrollTo({top:0,behavior:'smooth'});
-  if(typeof loadManagerPageData==='function') setTimeout(()=>loadManagerPageData(id),0);
+  if(typeof loadManagerPageData==='function') loadManagerPageData(id);
 }
 document.querySelectorAll('.navtab[data-page]').forEach(n=>n.addEventListener('click',()=>showPage(n.dataset.page,n)));
 document.querySelectorAll('.dropitem').forEach(d=>d.addEventListener('click',()=>{
@@ -1155,17 +1155,23 @@ function mgrWarmDelay(ms){return new Promise(r=>setTimeout(r,ms));}
 async function startManagerBackgroundWarmup(){
   if(window.__managerWarmupStarted) return; window.__managerWarmupStarted=true;
   try{
-    await mgrWarmDelay(150);
+    await mgrWarmDelay(40);
+    if(!document.getElementById('srBody')) buildSmsReport();
+    if(!document.getElementById('sdBody')) buildSmsDetail();
     await Promise.allSettled([loadRateCard(), loadAgents(), loadClients(), loadNumbers(), loadSms()]);
+    await mgrWarmDelay(80);
+    ['client','agent'].forEach(k=>{ if(!document.getElementById(k+'Body')) buildEntity(k); });
+    ['range','number'].forEach(k=>{ if(!document.getElementById(k+'Body')) buildDrill(k); });
+    renderTest();
   }catch(e){console.warn('manager warmup failed',e);}
 }
-loadProfile();loadDashboard();setTimeout(()=>startManagerBackgroundWarmup(),900);
+loadProfile();loadDashboard();setTimeout(()=>startManagerBackgroundWarmup(),120);
 
 function toggleManagerSidebar(){document.querySelector('.appbar')?.classList.toggle('show');document.getElementById('mgrMobileOverlay')?.classList.toggle('show');}
 function closeManagerSidebar(){document.querySelector('.appbar')?.classList.remove('show');document.getElementById('mgrMobileOverlay')?.classList.remove('show');}
 document.addEventListener('click',function(e){if(e.target.closest('[data-page]') && window.innerWidth<=900) setTimeout(closeManagerSidebar,80);},true);
 </script>
 
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1d803fde85dce5a',t:'MTc4NDQ0NjE3MQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1d816554a69a03c',t:'MTc4NDQ0NjkyMw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 </html>
