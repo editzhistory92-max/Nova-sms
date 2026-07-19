@@ -758,7 +758,7 @@
   <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal('agentModal')">Cancel</button><button class="btn btn-teal" onclick="saveAgent()">Save</button></div>
 </div></div>
 
-<script src="/api.js?v=20260717-smpp-server"></script>
+<script src="/api.js?v=20260716-cdr-zero-filter"></script>
 <script>
 if(window.API){ API.guard('manager'); }
 /* ===== NAV ===== */
@@ -1011,8 +1011,8 @@ function renderEntity(kind){const len=document.getElementById(kind+'Len').value,
   let list=[];
   if(kind==='agent'){list=myAgents.map(a=>({name:a}));}
   else{const af=document.getElementById('clientFAgt').value;list=myClients(af).map(c=>({name:c,agent:agentOfClient(c)}));}
-  list=list.filter(x=>x.name.toLowerCase().includes(q));const pag=API.paginateRows('mgrEntity'+kind,list,len,kind+'Info',()=>renderEntity(kind));const t=pag.total;list=pag.rows;
-  document.getElementById(kind+'Body').innerHTML=list.map(x=>{const recs=cdr.filter(r=>r[kind]===x.name);const sms=recs.reduce((s,r)=>s+r.sms,0),pay=sumPay(recs);
+  list=list.map(x=>{const recs=cdr.filter(r=>r[kind]===x.name);return {...x,recs,sms:recs.reduce((s,r)=>s+r.sms,0),pay:sumPay(recs)};}).filter(x=>x.sms>0).filter(x=>x.name.toLowerCase().includes(q));const pag=API.paginateRows('mgrEntity'+kind,list,len,kind+'Info',()=>renderEntity(kind));const t=pag.total;list=pag.rows;
+  document.getElementById(kind+'Body').innerHTML=list.map(x=>{const sms=x.sms,pay=x.pay;
     let nameTag,extra;
     if(kind==='client'){nameTag=`<span class="tag tag-cli">${x.name}</span>`;extra=`<td><span class="tag tag-agt">${x.agent}</span></td>`;}
     else{nameTag=`<span class="tag tag-agt">${x.name}</span>`;extra=`<td><span class="tag tag-cli">${agentClients[x.name].length}</span></td>`;}
@@ -1164,5 +1164,5 @@ document.addEventListener('click',function(e){if(e.target.closest('[data-page]')
 </script>
 
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1ca4d409fc19ca7',t:'MTc4NDMwMjM3MQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</body>
 </html>

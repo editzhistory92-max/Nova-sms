@@ -674,7 +674,7 @@
   <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal('clientModal')">Cancel</button><button class="btn btn-blue" onclick="saveClient()">Save</button></div>
 </div></div>
 
-<script src="/api.js?v=20260717-smpp-server"></script>
+<script src="/api.js?v=20260716-cdr-zero-filter"></script>
 <script>
 if(window.API){ API.guard('agent'); }
 /* NAV */
@@ -878,9 +878,8 @@ function buildClientStats(){document.getElementById('page-clientStats').innerHTM
     <div class="stat-card v5">${tIcon('gr','<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>')}<div class="stat-info"><h3>$ ${cleanDec(totPay)}</h3><p>Total Payment (all)</p></div></div>`;
   renderClientStats();}
 function renderClientStats(){const len=document.getElementById('csLen').value,q=(document.getElementById('csSearch').value||'').toLowerCase();
-  let list=myClients.filter(c=>c.toLowerCase().includes(q));const pag=API.paginateRows('agtClientStats',list,len,'csInfo',renderClientStats);const t=pag.total;list=pag.rows;
-  document.getElementById('csBody').innerHTML=list.map(c=>{const recs=cdr.filter(r=>r.client===c);const sms=recs.reduce((s,r)=>s+r.sms,0),pay=sumPay(recs);const nums=numData.filter(n=>n.client===c).length;
-    return `<tr><td><span class="tag tag-cli">${c}</span></td><td><span class="tag tag-blue">${nums}</span></td><td class="cell-money">${sms.toLocaleString()}</td><td class="cell-money" style="color:#86efac">$ ${cleanDec(pay)}</td></tr>`;}).join('')||`<tr><td colspan="4" class="muted" style="text-align:center;padding:24px">No clients found</td></tr>`;
+  let list=myClients.map(c=>{const recs=cdr.filter(r=>r.client===c);return {name:c,recs,sms:recs.reduce((s,r)=>s+r.sms,0),pay:sumPay(recs),nums:numData.filter(n=>n.client===c).length};}).filter(x=>x.sms>0).filter(x=>x.name.toLowerCase().includes(q));const pag=API.paginateRows('agtClientStats',list,len,'csInfo',renderClientStats);const t=pag.total;list=pag.rows;
+  document.getElementById('csBody').innerHTML=list.map(x=>`<tr><td><span class="tag tag-cli">${x.name}</span></td><td><span class="tag tag-blue">${x.nums}</span></td><td class="cell-money">${x.sms.toLocaleString()}</td><td class="cell-money" style="color:#86efac">$ ${cleanDec(x.pay)}</td></tr>`).join('')||`<tr><td colspan="4" class="muted" style="text-align:center;padding:24px">No clients with OTPs found</td></tr>`;
   document.getElementById('csInfo').textContent=`Showing ${list.length} of ${t} clients`;}
 
 /* RANGE / NUMBER STATS (drill by client) */
@@ -997,5 +996,5 @@ loadProfile();loadDashboard();setTimeout(()=>startAgentBackgroundWarmup(),900);
 </script>
 
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1ca4d0c8b5b9ca7',t:'MTc4NDMwMjM2Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</body>
 </html>
