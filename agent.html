@@ -674,7 +674,7 @@
   <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal('clientModal')">Cancel</button><button class="btn btn-blue" onclick="saveClient()">Save</button></div>
 </div></div>
 
-<script src="/api.js?v=20260718-latest-bundle"></script>
+<script src="/api.js?v=20260719-page-load-fix"></script>
 <script>
 if(window.API){ API.guard('agent'); }
 /* NAV */
@@ -963,6 +963,24 @@ async function submitAgentWithdrawal(){
   const amount=Number(document.getElementById('agtWAmount').value||0), wallet=document.getElementById('agtWWallet').value.trim(), method=document.getElementById('agtWMethod').value;
   if(!amount||amount<=0){alert('Enter a valid amount');return;} if(!wallet){alert('Wallet address required');return;}
   try{await API.post('/withdrawals',{amount,wallet_address:wallet,payment_method:method});agtWAmount.value='';agtWWallet.value='';alert('✅ Withdrawal request submit ho gayi');loadAgentPayout();}catch(e){alert('❌ '+e.message)}
+}
+
+
+async function loadAgentPageData(page){
+  try{
+    if(page==='dashboard') return loadDashboard();
+    if(page==='rateCard') return loadRateCard();
+    if(page==='numbers') return loadNumbers();
+    if(page==='bulkAlloc'){ await loadNumbers(); return renderBulk(); }
+    if(page==='clients'){ buildClients(); return loadClients(); }
+    if(page==='smsReport'){ if(!document.getElementById('srBody')) buildSmsReport(); return loadSms(); }
+    if(page==='smsDetail'){ if(!document.getElementById('sdBody')) buildSmsDetail(); return loadSms(); }
+    if(page==='clientStats'){ if(!document.getElementById('csBody')) buildClientStats(); return loadSms(); }
+    if(['rangeStats','numberStats'].includes(page)){ const k=page.replace('Stats',''); if(!document.getElementById(k+'Body')) buildDrill(k); return loadSms(); }
+    if(page==='test'){ await loadRateCard(); await loadSms(); return renderTest(); }
+    if(page==='payment'){ renderPay(); return loadAgentPayout(); }
+    if(page==='news') return loadNews();
+  }catch(e){console.warn('loadAgentPageData failed',page,e);}
 }
 
 /* FAST PRIORITY INIT */

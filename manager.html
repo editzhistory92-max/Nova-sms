@@ -758,7 +758,7 @@
   <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal('agentModal')">Cancel</button><button class="btn btn-teal" onclick="saveAgent()">Save</button></div>
 </div></div>
 
-<script src="/api.js?v=20260718-latest-bundle"></script>
+<script src="/api.js?v=20260719-page-load-fix"></script>
 <script>
 if(window.API){ API.guard('manager'); }
 /* ===== NAV ===== */
@@ -1122,6 +1122,26 @@ function selectCliSuggestion(v){cliSearchInput.value=v;cliSuggestBox.style.displ
 function resetCliSearch(){cliSearchInput.value='';cliFrom.value='';cliTo.value='';cliRangeRows=[];renderCliRanges();['cliToday','cliYesterday','cliLast7','cliMonth'].forEach(id=>document.getElementById(id).textContent='0');}
 async function searchCliAnalytics(){const cli=cliSearchInput.value.trim();if(!cli){alert('Please select or type a CLI.');return;}let url='/cli-search?cli='+encodeURIComponent(cli);if(cliFrom.value)url+='&from='+encodeURIComponent(cliFrom.value);if(cliTo.value)url+='&to='+encodeURIComponent(cliTo.value);try{const r=await API.get(url);cliCustomDate=!!r.custom_date;const s=r.summary||{};if(cliCustomDate){cliToday.textContent=s.selected_period||0;cliYesterday.textContent='—';cliLast7.textContent='—';cliMonth.textContent='—';}else{cliToday.textContent=s.today||0;cliYesterday.textContent=s.yesterday||0;cliLast7.textContent=s.last7||0;cliMonth.textContent=s.month||0;}cliRangeRows=r.ranges||[];renderCliRanges();}catch(e){alert('❌ '+e.message)}}
 function renderCliRanges(){const q=(cliRangeSearch?.value||'').toLowerCase();let rows=(cliRangeRows||[]).filter(r=>(r.range_name||'').toLowerCase().includes(q));const len=cliLen.value;const pag=API.paginateRows('managerCliSearch',rows,len,'cliRangeInfo',renderCliRanges);rows=pag.rows;cliRangeHead.innerHTML=cliCustomDate?'<tr><th>Range</th><th>OTP Count</th></tr>':'<tr><th>Range</th><th>Today Count</th><th>Yesterday Count</th></tr>';cliRangeBody.innerHTML=rows.map(r=>cliCustomDate?`<tr><td><span class="tag tag-blue">${r.range_name||'Unknown'}</span></td><td class="cell-money">${r.total_count||0}</td></tr>`:`<tr><td><span class="tag tag-blue">${r.range_name||'Unknown'}</span></td><td class="cell-money">${r.today_count||0}</td><td class="cell-money">${r.yesterday_count||0}</td></tr>`).join('')||`<tr><td colspan="3" class="muted" style="text-align:center;padding:20px">No range analytics found</td></tr>`;cliRangeInfo.textContent=`Showing ${rows.length} of ${pag.total} ranges`;}
+
+
+async function loadManagerPageData(page){
+  try{
+    if(page==='dashboard') return loadDashboard();
+    if(page==='rateCard') return loadRateCard();
+    if(page==='numbers') return loadNumbers();
+    if(page==='bulkAlloc'){ await loadNumbers(); return renderBulk(); }
+    if(page==='agents'){ buildAgents(); return loadAgents(); }
+    if(page==='clients'){ buildClients(); return loadClients(); }
+    if(page==='smsReport'){ if(!document.getElementById('srBody')) buildSmsReport(); return loadSms(); }
+    if(page==='smsDetail'){ if(!document.getElementById('sdBody')) buildSmsDetail(); return loadSms(); }
+    if(['clientStats','agentStats'].includes(page)){ const k=page.replace('Stats',''); if(!document.getElementById(k+'Body')) buildEntity(k); return loadSms(); }
+    if(['rangeStats','numberStats'].includes(page)){ const k=page.replace('Stats',''); if(!document.getElementById(k+'Body')) buildDrill(k); return loadSms(); }
+    if(page==='test'){ await loadRateCard(); await loadSms(); return renderTest(); }
+    if(page==='credit'){ renderCredit(); return loadManagerPayout(); }
+    if(page==='cliLimit') return loadClim();
+    if(page==='news') return loadNews();
+  }catch(e){console.warn('loadManagerPageData failed',page,e);}
+}
 
 /* ===== FAST PRIORITY INIT ===== */
 loadProfile();loadDashboard();

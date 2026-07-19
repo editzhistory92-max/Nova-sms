@@ -1211,7 +1211,7 @@
   <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal('newsModal')">Cancel</button><button class="btn btn-purple" onclick="saveNews()">Save</button></div>
 </div></div>
 
-<script src="/api.js?v=20260718-latest-bundle"></script>
+<script src="/api.js?v=20260719-page-load-fix"></script>
 <script>
 /* auth guard — admin only */
 if(window.API){ API.guard('admin'); }
@@ -2550,7 +2550,7 @@ async function refreshNumberDependentViews(){
   if(typeof populateTestGeneratorNumbers==='function') populateTestGeneratorNumbers();
   if(typeof refreshNumberDbTools==='function') refreshNumberDbTools();
 }
-async function loadNumbers(){ await refreshNumberDependentViews(); }
+async function loadNumbers(){ await loadNumberSummary(); await renderNumbers(); if(typeof populateTestGeneratorNumbers==='function') populateTestGeneratorNumbers(); }
 async function renderNumbers(){
   const state=pagerState('adminNumbersServer');
   const len=document.getElementById('numLen').value;
@@ -2590,6 +2590,47 @@ async function renderNumbers(){
   const pag=document.getElementById('numbersInfo').closest('.table-foot').querySelector('.pagination');
   drawServerPagination(pag,state,renderNumbers);
   updateSelInfo();
+}
+
+
+async function ensureAdminRates(){ if(!ratesData || !ratesData.length) await loadRates(); }
+async function ensureAdminManagers(){
+  try{
+    if(!usersData.manager.length) usersData.manager=await API.get('/users/manager');
+    if(!usersData.agent.length) usersData.agent=await API.get('/users/agent');
+    refreshHierarchy(); if(typeof fillAdminOwnerSelects==='function') fillAdminOwnerSelects();
+  }catch(e){}
+}
+async function ensureAdminSms(){ if(!smsRecords || !smsRecords.length) await loadSmsRecords(); }
+async function loadAdminPageData(page){
+  try{
+    if(page==='dashboard') return loadDashboard();
+    if(page==='numbers') return loadNumbers();
+    if(page==='allocation') return loadNumberSummary();
+    if(page==='rates') return loadRates();
+    if(page==='smsReport'){ if(!document.getElementById('srBody')) buildSmsReport(); return ensureAdminSms(); }
+    if(page==='smsDetail'){ if(!document.getElementById('sdBody')) buildSmsDetail(); return ensureAdminSms(); }
+    if(['clientStats','agentStats','managerStats'].includes(page)){ const k=page.replace('Stats',''); if(!document.getElementById(k+'SBody')) buildEntityStats(k); return ensureAdminSms(); }
+    if(['rangeStats','numberStats'].includes(page)){ const k=page.replace('Stats',''); if(!document.getElementById(k+'SBody')) buildDrillStats(k); return ensureAdminSms(); }
+    if(page==='test'){ await ensureAdminRates(); await ensureAdminSms(); return renderTest(); }
+    if(page==='managers') return buildUserPage('manager');
+    if(page==='agents') return buildUserPage('agent');
+    if(page==='clients') return buildUserPage('client');
+    if(page==='import'){ await ensureAdminRates(); await loadImportBatches(); return refreshNumberDbTools(); }
+    if(page==='cliLimit'){ await ensureAdminSms(); fillSelect('climCli',cliPool,false); await ensureAdminManagers(); fillSelect('climMgr',(usersData.manager||[]).map(m=>m.username),false); return loadCliLimits(); }
+    if(page==='limitManagement'){ await ensureAdminRates(); return loadLimitManagement(); }
+    if(page==='news') return loadNews();
+    if(page==='payments'){ await loadPayments(); return loadAdminPayout(); }
+    if(page==='paymentConfig') return loadPaymentConfig();
+    if(page==='carrierIntegration') return loadCarrierSettings();
+    if(page==='smppServer') return loadSmppServer();
+    if(page==='apiIntegration'){ await loadApiIntegrations(); return loadApiIntegrationLogs(); }
+    if(page==='testGenerator'){ await loadTestGeneratorSettings(); return populateTestGeneratorNumbers(); }
+    if(page==='integrations') return loadIntegrations();
+    if(page==='notificationRules') return loadNotificationRules();
+    if(page==='systemLogs') return loadSystemLogs();
+    if(page==='backupManagement') return loadBackups();
+  }catch(e){console.warn('loadAdminPageData failed',page,e);}
 }
 
 /* =============== FAST PRIORITY INIT (instant UI + background data) =============== */
