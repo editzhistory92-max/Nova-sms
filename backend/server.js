@@ -985,6 +985,77 @@ app.post('/api/numbers/smart-divide', authRequired, (req, res) => {
 });
 
 /* ============ SMS RECORDS / CDR STATS ============ */
+function buildSmsPagedQuery(user, q = {}) {
+  const scope = smsScopeWhere(user, 's');
+  const where = [scope.where, 'COALESCE(s.is_test,0)=0'];
+  const params = [...scope.params];
+  if (q.from) { where.push(`${ukDateExpr('s.received_at')} >= date(?)`); params.push(String(q.from)); }
+  if (q.to) { where.push(`${ukDateExpr('s.received_at')} <= date(?)`); params.push(String(q.to)); }
+  if (q.range) { where.push('r.name=?'); params.push(String(q.range)); }
+  if (q.range_id) { where.push('s.range_id=?'); params.push(+q.range_id); }
+  if (q.number) { where.push('s.number=?'); params.push(String(q.number)); }
+  if (q.cli) { where.push('s.cli=?'); params.push(String(q.cli)); }
+  if (q.manager) { where.push('mu.username=?'); params.push(String(q.manager)); }
+  if (q.agent) { where.push('au.username=?'); params.push(String(q.agent)); }
+  if (q.client) { where.push('cu.username=?'); params.push(String(q.client)); }
+  if (q.search) {
+    const v = `%${String(q.search).trim()}%`;
+    where.push(`(s.number LIKE ? OR s.cli LIKE ? OR s.message LIKE ? OR COALESCE(r.name,'') LIKE ? OR COALESCE(mu.username,'') LIKE ? OR COALESCE(au.username,'') LIKE ? OR COALESCE(cu.username,'') LIKE ?)`);
+    params.push(v, v, v, v, v, v, v);
+  }
+  const baseSql = `FROM sms_records s
+    LEFT JOIN ranges r ON r.id=s.range_id
+    LEFT JOIN numbers n ON n.id=s.number_id
+    LEFT JOIN users cu ON cu.id=s.client_id
+    LEFT JOIN users au ON au.id=s.agent_id
+    LEFT JOIN users mu ON mu.id=s.manager_id
+    WHERE ${where.join(' AND ')}`;
+  return { baseSql, params };
+}
+app.get('/api/sms/paged', authRequired, (req, res) => {
+  const q = req.query || {};
+  const built = buildSmsPagedQuery(req.user, q);
+  const total = +(db.get(`SELECT COUNT(*) c ${built.baseSql}`, built.params)?.c || 0);
+  const totalPayment = normalizeDecimalString(db.get(`SELECT COALESCE(SUM(CAST(COALESCE(NULLIF(s.payout_amount,''),'0') AS REAL)),0) p ${built.baseSql}`, built.params)?.p || '0') || '0';
+  const limitRaw = String(q.limit || '25');
+  const limit = limitRaw.toLowerCase() === 'all' ? Math.max(1, Math.min(total || 1, 10000)) : Math.max(1, Math.min(parseInt(limitRaw || '25', 10) || 25, 1000));
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+  const page = Math.min(Math.max(1, parseInt(q.page || '1', 10) || 1), totalPages);
+  const offset = (page - 1) * limit;
+  const sortMap = { date:'s.received_at', number:'s.number', cli:'s.cli', range:'r.name', manager:'mu.username', agent:'au.username', client:'cu.username', payout:'CAST(COALESCE(NULLIF(s.payout_amount,\'\'),\'0\') AS REAL)' };
+  const sortCol = sortMap[q.sort] || 's.received_at';
+  const dir = String(q.dir || 'desc').toLowerCase() === 'asc' ? 'ASC' : 'DESC';
+  const rows = db.all(`SELECT s.*, r.name AS range_name, r.rate_1_1, r.rate_7_1, r.rate_7_7, r.rate_30_45,
+      n.rate AS number_rate, n.payout AS number_payout,
+      cu.username AS client_name, au.username AS agent_name, mu.username AS manager_name
+    ${built.baseSql}
+    ORDER BY ${sortCol} ${dir}, s.id DESC LIMIT ? OFFSET ?`, [...built.params, limit, offset]);
+  res.json({ rows: attachSmsPayoutFields(rows), total, page, limit, totalPages, totalPayment });
+});
+app.get('/api/stats-summary/:by', authRequired, (req, res) => {
+  const by = req.params.by;
+  const built = buildSmsPagedQuery(req.user, req.query || {});
+  const groupMap = {
+    client: { expr:'cu.username', label:'client_name' },
+    agent: { expr:'au.username', label:'agent_name' },
+    manager: { expr:'mu.username', label:'manager_name' },
+    range: { expr:'r.name', label:'range_name' },
+    number: { expr:'s.number', label:'number' },
+    cli: { expr:'s.cli', label:'cli' }
+  };
+  const g = groupMap[by];
+  if (!g) return res.status(400).json({ error: 'Invalid stats dimension' });
+  const extra = ['client','agent','manager'].includes(by) ? ` AND ${g.expr} IS NOT NULL AND ${g.expr}<>''` : '';
+  const rows = db.all(`SELECT ${g.expr} AS key, COUNT(*) AS sms,
+      COALESCE(SUM(CAST(COALESCE(NULLIF(s.payout_amount,''),'0') AS REAL)),0) AS payment
+    ${built.baseSql}${extra}
+    GROUP BY ${g.expr}
+    HAVING key IS NOT NULL AND key<>''
+    ORDER BY sms DESC, key ASC`, built.params).map(r => ({...r, payment: normalizeDecimalString(r.payment)||'0'}));
+  const totalSms = rows.reduce((a,r)=>a+(+r.sms||0),0);
+  const totalPayment = rows.reduce((a,r)=>decimalAdd(a,r.payment||'0'),'0');
+  res.json({ rows, totalSms, totalPayment, by });
+});
 app.get('/api/sms', authRequired, (req, res) => {
   res.json(smsRowsForScope(req.user));
 });

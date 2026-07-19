@@ -516,7 +516,7 @@
   </div>
 </div>
 
-<script src="/api.js?v=20260719-page-load-fix"></script>
+<script src="/api.js?v=20260719-cdr-paged-frontend"></script>
 <script>
 if(window.API){ API.guard('client'); }
 /* NAV */
@@ -643,6 +643,14 @@ async function loadClientPageData(page){
     if(page==='news') return loadNews();
   }catch(e){console.warn('loadClientPageData failed',page,e);}
 }
+
+
+
+/* SERVER-SIDE SMS STATS (performance) */
+let cliStatsPager={page:1,totalPages:1,signature:''};
+function cliStatsSig(o){try{return JSON.stringify(o)}catch(e){return String(Date.now())}}
+async function renderStats(){if(!document.getElementById('statsBody'))return;const rf=stRange.value||'',cf=(stCliFilter.value||'').trim(),len=stLen.value||'25',q=(stSearch.value||'').trim();const sig=cliStatsSig({rf,cf,len,q});if(cliStatsPager.signature!==sig){cliStatsPager.page=1;cliStatsPager.signature=sig;}const params=new URLSearchParams({page:String(cliStatsPager.page),limit:len,sort:'date',dir:'desc'});if(rf)params.set('range',rf);if(cf)params.set('cli',cf);if(q)params.set('search',q);let data={rows:[],total:0,page:1,limit:25,totalPages:1};try{data=await API.get('/sms/paged?'+params.toString())}catch(e){console.warn(e)}cliStatsPager.page=data.page||1;cliStatsPager.totalPages=data.totalPages||1;const rows=(data.rows||[]).map(r=>{const msg=r.message||'';return {range:r.range_name||'',number:r.number||'',cli:r.cli||'',msg,date:(r.received_at||'').slice(0,19),otp:r.otp_code||extractOTP(msg)}});stats=rows;statsBody.innerHTML=rows.map(r=>`<tr><td class="muted">${r.date}</td><td>${r.range}</td><td class="mono">${r.number}</td><td class="mono">${r.cli}</td><td>${r.otp?`<span class="otp-code">${r.otp}</span>`:'<span class="otp-empty">—</span>'}</td><td>${r.otp?`<button class="copy-otp-btn" onclick="copyText('${r.otp}')">Copy OTP</button>`:'—'}</td><td class="msg-body">${r.msg}</td></tr>`).join('')||`<tr><td colspan="7" class="muted" style="text-align:center;padding:24px">No records found</td></tr>`;statsInfo.textContent=`Showing ${data.total===0?0:Math.min(data.total,((data.page||1)-1)*Number(data.limit||25)+rows.length)} of ${data.total||0} records`;}
+async function loadStats(){ await renderStats(); renderNumbers(); }
 
 /* FAST PRIORITY INIT */
 loadProfile();loadDashboard();renderTest();

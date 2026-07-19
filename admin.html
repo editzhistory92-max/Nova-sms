@@ -1211,7 +1211,7 @@
   <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal('newsModal')">Cancel</button><button class="btn btn-purple" onclick="saveNews()">Save</button></div>
 </div></div>
 
-<script src="/api.js?v=20260719-page-load-fix"></script>
+<script src="/api.js?v=20260719-cdr-paged-frontend"></script>
 <script>
 /* auth guard — admin only */
 if(window.API){ API.guard('admin'); }
@@ -2631,6 +2631,61 @@ async function loadAdminPageData(page){
     if(page==='systemLogs') return loadSystemLogs();
     if(page==='backupManagement') return loadBackups();
   }catch(e){console.warn('loadAdminPageData failed',page,e);}
+}
+
+
+
+/* =============== SERVER-SIDE SMS/CDR REPORTS (performance) =============== */
+function smsShownCount(page, limit, rowsLen, total){ return total===0?0:Math.min(total, ((page-1)*Number(limit||25))+rowsLen); }
+function setServerFoot(infoEl, state, rerender){ const pag=infoEl?.closest('.table-foot')?.querySelector('.pagination'); if(pag && typeof drawServerPagination==='function') drawServerPagination(pag,state,rerender); }
+function smsReportSignature(obj){ try{return JSON.stringify(obj);}catch(e){return String(Date.now())} }
+async function renderSmsReport(){
+  if(!document.getElementById('srBody')) return;
+  setDefaultDates('srFrom','srTo');
+  const state=pagerState('adminSmsReportServer');
+  const len=document.getElementById('srLen')?.value||'25';
+  const search=(document.getElementById('srSearch')?.value||'').trim();
+  const from=document.getElementById('srFrom')?.value||'';
+  const to=document.getElementById('srTo')?.value||'';
+  const sig=smsReportSignature({len,search,from,to}); if(state.signature!==sig){state.page=1;state.signature=sig;}
+  const params=new URLSearchParams({page:String(state.page||1),limit:len,sort:'date',dir:'desc'}); if(from)params.set('from',from); if(to)params.set('to',to); if(search)params.set('search',search);
+  let data={rows:[],total:0,page:1,limit:25,totalPages:1,totalPayment:'0'};
+  try{ data=await API.get('/sms/paged?'+params.toString()); }catch(e){ console.warn('sms report load failed',e); }
+  state.page=data.page||1; state.totalPages=data.totalPages||1;
+  const rows=data.rows||[];
+  document.getElementById('srBody').innerHTML=rows.map(r=>`<tr><td class="muted">${(r.received_at||'').slice(0,19)}</td><td><span class="tag tag-mgr">${r.manager_name||'—'}</span></td><td>${r.range_name||'—'}</td><td class="mono">${r.number||''}</td><td class="mono">${r.cli||''}</td><td class="cell-money">${cleanDec(r.payout_rate||r.payout_amount||0)}</td><td class="msg-body">${r.message||''}</td></tr>`).join('')||`<tr><td colspan="7" class="muted" style="text-align:center;padding:24px">No records found</td></tr>`;
+  srInfo.textContent=`Showing ${smsShownCount(data.page, data.limit, rows.length, data.total)} of ${data.total||0} records`;
+  if(srPayoutInfo) srPayoutInfo.textContent=`Filtered total payout: ${money(data.totalPayment||'0')}`;
+  setServerFoot(srInfo,state,renderSmsReport);
+}
+async function renderSmsDetail(){
+  if(!document.getElementById('sdBody')) return;
+  const dateVal=(document.getElementById('sdDate')?.value)||todayStr();
+  const rangeVal=document.getElementById('sdRange')?.value||'';
+  const numberVal=document.getElementById('sdNumber')?.value||'';
+  const userVal=document.getElementById('sdUser')?.value||'';
+  const search=(document.getElementById('sdSearch')?.value||'').trim();
+  const len=document.getElementById('sdLen')?.value||'25';
+  const summaryMode=sdUseRange?.checked||sdUseNumber?.checked||sdUseUser?.checked;
+  if(summaryMode){
+    const by=sdUseNumber?.checked?'number':(sdUseRange?.checked?'range':'manager');
+    const params=new URLSearchParams({from:dateVal,to:dateVal}); if(rangeVal)params.set('range',rangeVal); if(numberVal)params.set('number',numberVal); if(userVal)params.set('manager',userVal); if(search)params.set('search',search);
+    let data={rows:[]}; try{data=await API.get('/stats-summary/'+by+'?'+params.toString());}catch(e){console.warn(e)}
+    sdHead.innerHTML=`<tr><th>${by}</th><th>Total OTPs</th><th>Total Payout</th></tr>`;
+    const body=(data.rows||[]).map(x=>`<tr><td><span class="tag tag-blue">${x.key||'—'}</span></td><td class="cell-money">${x.sms||0}</td><td class="cell-money">${money(x.payment||'0')}</td></tr>`);
+    sdBody.innerHTML=body.join('')||`<tr><td colspan="3" class="muted" style="text-align:center;padding:24px">No records found</td></tr>`;
+    sdInfo.textContent=`Showing ${body.length} summary rows`; sdPayoutInfo.textContent=`Filtered total payout: ${money(data.totalPayment||'0')}`; return;
+  }
+  const state=pagerState('adminSmsDetailServer');
+  const sig=smsReportSignature({dateVal,rangeVal,numberVal,userVal,search,len}); if(state.signature!==sig){state.page=1;state.signature=sig;}
+  const params=new URLSearchParams({page:String(state.page||1),limit:len,from:dateVal,to:dateVal,sort:'date',dir:'desc'}); if(rangeVal)params.set('range',rangeVal); if(numberVal)params.set('number',numberVal); if(userVal)params.set('manager',userVal); if(search)params.set('search',search);
+  let data={rows:[],total:0,page:1,limit:25,totalPages:1,totalPayment:'0'}; try{data=await API.get('/sms/paged?'+params.toString());}catch(e){console.warn(e)}
+  state.page=data.page||1; state.totalPages=data.totalPages||1;
+  sdHead.innerHTML='<tr><th>Date</th><th>Manager</th><th>Range</th><th>Number</th><th>CLI</th><th>Payout Rate</th><th>SMS (Message Body)</th></tr>';
+  const rows=data.rows||[];
+  sdBody.innerHTML=rows.map(r=>`<tr><td class="muted">${(r.received_at||'').slice(0,19)}</td><td><span class="tag tag-mgr">${r.manager_name||'—'}</span></td><td><span class="tag tag-blue">${r.range_name||'—'}</span></td><td><span class="tag tag-gray mono">${r.number||''}</span></td><td class="mono">${r.cli||''}</td><td class="cell-money payout-rate">${cleanDec(r.payout_rate||r.payout_amount||0)}</td><td class="msg-body">${r.message||''}</td></tr>`).join('')||`<tr><td colspan="7" class="muted" style="text-align:center;padding:24px">No records found</td></tr>`;
+  sdInfo.textContent=`Showing ${smsShownCount(data.page, data.limit, rows.length, data.total)} of ${data.total||0} rows`; sdPayoutInfo.textContent=`Filtered total payout: ${money(data.totalPayment||'0')}`;
+  setServerFoot(sdInfo,state,renderSmsDetail);
 }
 
 /* =============== FAST PRIORITY INIT (instant UI + background data) =============== */

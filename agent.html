@@ -674,7 +674,7 @@
   <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal('clientModal')">Cancel</button><button class="btn btn-blue" onclick="saveClient()">Save</button></div>
 </div></div>
 
-<script src="/api.js?v=20260719-page-load-fix"></script>
+<script src="/api.js?v=20260719-cdr-paged-frontend"></script>
 <script>
 if(window.API){ API.guard('agent'); }
 /* NAV */
@@ -982,6 +982,15 @@ async function loadAgentPageData(page){
     if(page==='news') return loadNews();
   }catch(e){console.warn('loadAgentPageData failed',page,e);}
 }
+
+
+
+/* ===== SERVER-SIDE SMS/CDR REPORTS (performance) ===== */
+function agtPager(key){window.__agtPager=window.__agtPager||{};if(!window.__agtPager[key])window.__agtPager[key]={page:1,totalPages:1,signature:''};return window.__agtPager[key];}
+function agtSig(o){try{return JSON.stringify(o)}catch(e){return String(Date.now())}}
+function shownSrv(p,l,n,t){return t===0?0:Math.min(t,((p-1)*Number(l||25))+n)}
+async function renderSmsReport(){if(!document.getElementById('srBody'))return;const len=srLen.value||'25',search=(srSearch.value||'').trim();const state=agtPager('agtSmsReportServer');const sig=agtSig({len,search});if(state.signature!==sig){state.page=1;state.signature=sig;}const params=new URLSearchParams({page:String(state.page),limit:len,search,sort:'date',dir:'desc'});let data={rows:[],total:0,page:1,limit:25,totalPages:1};try{data=await API.get('/sms/paged?'+params.toString())}catch(e){}state.page=data.page||1;state.totalPages=data.totalPages||1;const rows=data.rows||[];srBody.innerHTML=rows.map(r=>`<tr><td class="muted">${(r.received_at||'').slice(0,19)}</td><td><span class="tag tag-cli">${r.client_name||'—'}</span></td><td>${r.range_name||'—'}</td><td class="mono">${r.cli||''}</td><td class="msg-body">${r.message||''}</td></tr>`).join('')||`<tr><td colspan="5" class="muted" style="text-align:center;padding:24px">No records found</td></tr>`;srInfo.textContent=`Showing ${shownSrv(data.page,data.limit,rows.length,data.total)} of ${data.total||0} records`;}
+async function renderSmsDetail(){if(!document.getElementById('sdBody'))return;const dateVal=sdDate?.value||todayStr(),rangeVal=sdRange?.value||'',userVal=sdUser?.value||'',search=(sdSearch?.value||'').trim(),len=sdLen?.value||'25';const by=sdUseNumber?.checked?'number':(sdUseRange?.checked?'range':(sdUseUser?.checked?'client':''));if(by){const params=new URLSearchParams({from:dateVal,to:dateVal});if(rangeVal)params.set('range',rangeVal);if(userVal)params.set('client',userVal);if(search)params.set('search',search);let data={rows:[]};try{data=await API.get('/stats-summary/'+by+'?'+params.toString())}catch(e){}sdHead.innerHTML=`<tr><th>${by}</th><th>Total OTPs</th><th>Total Payout</th></tr>`;sdBody.innerHTML=(data.rows||[]).map(x=>`<tr><td><span class="tag tag-blue">${x.key||'—'}</span></td><td class="cell-money">${x.sms||0}</td><td class="cell-money">${money(x.payment||'0')}</td></tr>`).join('')||`<tr><td colspan="3" class="muted" style="text-align:center;padding:24px">No records found</td></tr>`;sdInfo.textContent=`Showing ${(data.rows||[]).length} summary rows`;sdPayoutInfo.textContent=`Filtered total payout: ${money(data.totalPayment||'0')}`;return;}const state=agtPager('agtSmsDetailServer');const sig=agtSig({dateVal,rangeVal,userVal,search,len});if(state.signature!==sig){state.page=1;state.signature=sig;}const params=new URLSearchParams({page:String(state.page),limit:len,from:dateVal,to:dateVal,sort:'date',dir:'desc'});if(rangeVal)params.set('range',rangeVal);if(userVal)params.set('client',userVal);if(search)params.set('search',search);let data={rows:[],total:0,page:1,limit:25,totalPages:1,totalPayment:'0'};try{data=await API.get('/sms/paged?'+params.toString())}catch(e){}state.page=data.page||1;state.totalPages=data.totalPages||1;sdHead.innerHTML='<tr><th>Date</th><th>Client</th><th>Range</th><th>Number</th><th>CLI</th><th>Payout Rate</th><th>Message</th></tr>';const rows=data.rows||[];sdBody.innerHTML=rows.map(r=>`<tr><td class="muted">${(r.received_at||'').slice(0,19)}</td><td><span class="tag tag-cli">${r.client_name||'—'}</span></td><td><b>${r.range_name||'—'}</b></td><td class="mono">${r.number||''}</td><td class="mono">${r.cli||''}</td><td class="cell-money">${cleanDec(r.payout_rate||r.payout_amount||0)}</td><td class="msg-body">${r.message||''}</td></tr>`).join('')||`<tr><td colspan="7" class="muted" style="text-align:center;padding:24px">No records found</td></tr>`;sdInfo.textContent=`Showing ${shownSrv(data.page,data.limit,rows.length,data.total)} of ${data.total||0} rows`;sdPayoutInfo.textContent=`Filtered total payout: ${money(data.totalPayment||'0')}`;}
 
 /* FAST PRIORITY INIT */
 loadProfile();loadDashboard();
