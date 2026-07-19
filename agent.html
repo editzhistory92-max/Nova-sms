@@ -674,7 +674,7 @@
   <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal('clientModal')">Cancel</button><button class="btn btn-blue" onclick="saveClient()">Save</button></div>
 </div></div>
 
-<script src="/api.js?v=20260718-fast-cdr2"></script>
+<script src="/api.js?v=20260718-eager-load"></script>
 <script>
 if(window.API){ API.guard('agent'); }
 /* NAV */
@@ -965,34 +965,14 @@ async function submitAgentWithdrawal(){
   try{await API.post('/withdrawals',{amount,wallet_address:wallet,payment_method:method});agtWAmount.value='';agtWWallet.value='';alert('✅ Withdrawal request submit ho gayi');loadAgentPayout();}catch(e){alert('❌ '+e.message)}
 }
 
-/* LAZY INIT (performance) */
-const agentLoadedPages=new Set();
-async function ensureAgtRates(){ if(!rateCard || !rateCard.length) await loadRateCard(); }
-async function ensureAgtClients(){ if(!clientsData || !clientsData.length) await loadClients(); }
-async function ensureAgtSms(){ if(!smsRecords || !smsRecords.length) await loadSms(); }
-async function loadAgentPageData(page){
-  try{
-    if(page==='dashboard'){ await loadDashboard(); return; }
-    if(agentLoadedPages.has(page) && !['numbers','bulkAlloc'].includes(page)) return;
-    agentLoadedPages.add(page);
-    if(page==='rateCard'){ await loadRateCard(); return; }
-    if(page==='numbers'){ await ensureAgtRates(); await ensureAgtClients(); await loadNumbers(); return; }
-    if(page==='bulkAlloc'){ await ensureAgtRates(); await ensureAgtClients(); await loadNumbers(); renderBulk(); return; }
-    if(page==='clients'){ buildClients(); await loadClients(); return; }
-    if(page==='smsReport'){ buildSmsReport(); await ensureAgtSms(); return; }
-    if(page==='smsDetail'){ buildSmsDetail(); await ensureAgtSms(); return; }
-    if(page==='clientStats'){ buildClientStats(); await ensureAgtSms(); return; }
-    if(['rangeStats','numberStats'].includes(page)){ buildDrill(page.replace('Stats','')); await ensureAgtSms(); return; }
-    if(page==='test'){ await ensureAgtRates(); await ensureAgtSms(); renderTest(); return; }
-    if(page==='payment'){ renderPay(); await loadAgentPayout(); return; }
-    if(page==='news'){ await loadNews(); return; }
-  }catch(e){ console.warn('agent lazy page load failed', page, e); }
-}
-function agtWarmDelay(ms){return new Promise(r=>setTimeout(r,ms));}
-async function startAgentBackgroundWarmup(){if(window.__agentWarmupStarted)return;window.__agentWarmupStarted=true;try{await agtWarmDelay(40);if(!document.getElementById('srBody'))buildSmsReport();if(!document.getElementById('sdBody'))buildSmsDetail();await Promise.allSettled([loadRateCard(),loadClients(),loadNumbers(),loadSms()]);await agtWarmDelay(80);if(!document.getElementById('csBody'))buildClientStats();['range','number'].forEach(k=>{if(!document.getElementById(k+'Body'))buildDrill(k);});renderTest();}catch(e){console.warn('agent warmup failed',e);}}
-loadProfile();loadDashboard();setTimeout(()=>startAgentBackgroundWarmup(),120);
+/* FAST EAGER INIT */
+loadProfile();loadDashboard();
+loadRateCard();loadNumbers();renderBulk();buildClients();
+buildSmsReport();buildSmsDetail();buildClientStats();
+buildDrill('range');buildDrill('number');
+renderTest();renderPay();loadAgentPayout();loadNews();
 </script>
 
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1d8b3d88b8d9f85',t:'MTc4NDQ1MzM3NA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
-</body>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1d8cd666bab0dbe',t:'MTc4NDQ1NDQyMQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>

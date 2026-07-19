@@ -758,7 +758,7 @@
   <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal('agentModal')">Cancel</button><button class="btn btn-teal" onclick="saveAgent()">Save</button></div>
 </div></div>
 
-<script src="/api.js?v=20260718-fast-cdr2"></script>
+<script src="/api.js?v=20260718-eager-load"></script>
 <script>
 if(window.API){ API.guard('manager'); }
 /* ===== NAV ===== */
@@ -1123,53 +1123,20 @@ function resetCliSearch(){cliSearchInput.value='';cliFrom.value='';cliTo.value='
 async function searchCliAnalytics(){const cli=cliSearchInput.value.trim();if(!cli){alert('Please select or type a CLI.');return;}let url='/cli-search?cli='+encodeURIComponent(cli);if(cliFrom.value)url+='&from='+encodeURIComponent(cliFrom.value);if(cliTo.value)url+='&to='+encodeURIComponent(cliTo.value);try{const r=await API.get(url);cliCustomDate=!!r.custom_date;const s=r.summary||{};if(cliCustomDate){cliToday.textContent=s.selected_period||0;cliYesterday.textContent='—';cliLast7.textContent='—';cliMonth.textContent='—';}else{cliToday.textContent=s.today||0;cliYesterday.textContent=s.yesterday||0;cliLast7.textContent=s.last7||0;cliMonth.textContent=s.month||0;}cliRangeRows=r.ranges||[];renderCliRanges();}catch(e){alert('❌ '+e.message)}}
 function renderCliRanges(){const q=(cliRangeSearch?.value||'').toLowerCase();let rows=(cliRangeRows||[]).filter(r=>(r.range_name||'').toLowerCase().includes(q));const len=cliLen.value;const pag=API.paginateRows('managerCliSearch',rows,len,'cliRangeInfo',renderCliRanges);rows=pag.rows;cliRangeHead.innerHTML=cliCustomDate?'<tr><th>Range</th><th>OTP Count</th></tr>':'<tr><th>Range</th><th>Today Count</th><th>Yesterday Count</th></tr>';cliRangeBody.innerHTML=rows.map(r=>cliCustomDate?`<tr><td><span class="tag tag-blue">${r.range_name||'Unknown'}</span></td><td class="cell-money">${r.total_count||0}</td></tr>`:`<tr><td><span class="tag tag-blue">${r.range_name||'Unknown'}</span></td><td class="cell-money">${r.today_count||0}</td><td class="cell-money">${r.yesterday_count||0}</td></tr>`).join('')||`<tr><td colspan="3" class="muted" style="text-align:center;padding:20px">No range analytics found</td></tr>`;cliRangeInfo.textContent=`Showing ${rows.length} of ${pag.total} ranges`;}
 
-/* ===== LAZY INIT (performance) ===== */
-const managerLoadedPages=new Set();
-async function ensureMgrRates(){ if(!rateCard || !rateCard.length) await loadRateCard(); }
-async function ensureMgrAgents(){ if(!agentsData || !agentsData.length) await loadAgents(); }
-async function ensureMgrClients(){ if(!clientsData || !clientsData.length) await loadClients(); }
-async function ensureMgrSms(){ if(!smsRecords || !smsRecords.length) await loadSms(); }
-async function loadManagerPageData(page){
-  try{
-    if(page==='dashboard'){ await loadDashboard(); return; }
-    if(managerLoadedPages.has(page) && !['numbers','bulkAlloc'].includes(page)) return;
-    managerLoadedPages.add(page);
-    if(page==='rateCard'){ await loadRateCard(); return; }
-    if(page==='numbers'){ await ensureMgrRates(); await ensureMgrAgents(); await loadNumbers(); return; }
-    if(page==='bulkAlloc'){ await ensureMgrRates(); await ensureMgrAgents(); await loadNumbers(); renderBulk(); return; }
-    if(page==='agents'){ buildAgents(); await loadAgents(); return; }
-    if(page==='clients'){ await ensureMgrAgents(); buildClients(); await loadClients(); return; }
-    if(page==='smsReport'){ buildSmsReport(); await ensureMgrSms(); return; }
-    if(page==='smsDetail'){ buildSmsDetail(); await ensureMgrSms(); return; }
-    if(['clientStats','agentStats'].includes(page)){ buildEntity(page.replace('Stats','')); await ensureMgrSms(); return; }
-    if(['rangeStats','numberStats'].includes(page)){ buildDrill(page.replace('Stats','')); await ensureMgrSms(); return; }
-    if(page==='test'){ await ensureMgrRates(); await ensureMgrSms(); renderTest(); return; }
-    if(page==='credit'){ renderCredit(); await loadManagerPayout(); return; }
-    if(page==='cliLimit'){ await loadClim(); return; }
-    if(page==='news'){ await loadNews(); return; }
-  }catch(e){ console.warn('manager lazy page load failed', page, e); }
-}
-function mgrWarmDelay(ms){return new Promise(r=>setTimeout(r,ms));}
-async function startManagerBackgroundWarmup(){
-  if(window.__managerWarmupStarted) return; window.__managerWarmupStarted=true;
-  try{
-    await mgrWarmDelay(40);
-    if(!document.getElementById('srBody')) buildSmsReport();
-    if(!document.getElementById('sdBody')) buildSmsDetail();
-    await Promise.allSettled([loadRateCard(), loadAgents(), loadClients(), loadNumbers(), loadSms()]);
-    await mgrWarmDelay(80);
-    ['client','agent'].forEach(k=>{ if(!document.getElementById(k+'Body')) buildEntity(k); });
-    ['range','number'].forEach(k=>{ if(!document.getElementById(k+'Body')) buildDrill(k); });
-    renderTest();
-  }catch(e){console.warn('manager warmup failed',e);}
-}
-loadProfile();loadDashboard();setTimeout(()=>startManagerBackgroundWarmup(),120);
+/* ===== FAST EAGER INIT ===== */
+loadProfile();loadDashboard();
+loadRateCard();loadNumbers();renderBulk();
+buildAgents();loadClients();
+buildSmsReport();buildSmsDetail();
+buildEntity('client');buildEntity('agent');
+buildDrill('range');buildDrill('number');
+renderTest();renderCredit();loadManagerPayout();loadClim();loadNews();
 
 function toggleManagerSidebar(){document.querySelector('.appbar')?.classList.toggle('show');document.getElementById('mgrMobileOverlay')?.classList.toggle('show');}
 function closeManagerSidebar(){document.querySelector('.appbar')?.classList.remove('show');document.getElementById('mgrMobileOverlay')?.classList.remove('show');}
 document.addEventListener('click',function(e){if(e.target.closest('[data-page]') && window.innerWidth<=900) setTimeout(closeManagerSidebar,80);},true);
 </script>
 
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1d8b3ee1a189f85',t:'MTc4NDQ1MzM3OA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
-</body>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1d8cd7a0a540dbe',t:'MTc4NDQ1NDQyNA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>

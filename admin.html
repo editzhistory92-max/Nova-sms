@@ -1211,7 +1211,7 @@
   <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal('newsModal')">Cancel</button><button class="btn btn-purple" onclick="saveNews()">Save</button></div>
 </div></div>
 
-<script src="/api.js?v=20260718-fast-cdr2"></script>
+<script src="/api.js?v=20260718-eager-load"></script>
 <script>
 /* auth guard — admin only */
 if(window.API){ API.guard('admin'); }
@@ -2592,73 +2592,27 @@ async function renderNumbers(){
   updateSelInfo();
 }
 
-/* =============== LAZY INIT (performance) =============== */
-const adminLoadedPages = new Set();
-async function ensureAdminRates(){ if(!ratesData || !ratesData.length) await loadRates(); }
-async function ensureAdminManagers(){ try{ if(!usersData.manager.length) usersData.manager=await API.get('/users/manager'); if(!usersData.agent.length) usersData.agent=await API.get('/users/agent'); fillAdminOwnerSelects(); }catch(e){} }
-async function ensureAdminSms(){ if(!smsRecords || !smsRecords.length) await loadSmsRecords(); }
-async function loadAdminPageData(page){
-  if(!page) page='dashboard';
-  try{
-    if(page==='dashboard'){ await loadDashboard(); return; }
-    if(adminLoadedPages.has(page) && !['numbers','allocation'].includes(page)) return;
-    adminLoadedPages.add(page);
-    if(page==='manager' || page==='managers'){ buildUserPage('manager'); return; }
-    if(page==='agent' || page==='agents'){ buildUserPage('agent'); return; }
-    if(page==='client' || page==='clients'){ buildUserPage('client'); return; }
-    if(page==='rates'){ await loadRates(); return; }
-    if(page==='allocation'){ await loadNumberSummary(); return; }
-    if(page==='numbers'){ await ensureAdminRates(); await ensureAdminManagers(); await Promise.allSettled([renderNumbers(), loadNumberSummary()]); return; }
-    if(page==='import'){ await ensureAdminRates(); await loadImportBatches(); await refreshNumberDbTools(); return; }
-    if(page==='testImport'){ await ensureAdminRates(); return; }
-    if(page==='smsReport'){ buildSmsReport(); await ensureAdminSms(); return; }
-    if(page==='smsDetail'){ buildSmsDetail(); await ensureAdminSms(); return; }
-    if(['clientStats','agentStats','managerStats'].includes(page)){ buildEntityStats(page.replace('Stats','')); await ensureAdminSms(); return; }
-    if(['rangeStats','numberStats'].includes(page)){ buildDrillStats(page.replace('Stats','')); await ensureAdminSms(); return; }
-    if(page==='payments'){ await loadPayments(); await loadAdminPayout(); return; }
-    if(page==='paymentConfig'){ await loadPaymentConfig(); return; }
-    if(page==='test'){ await ensureAdminRates(); await ensureAdminSms(); renderTest(); return; }
-    if(page==='news'){ await loadNews(); return; }
-    if(page==='cliLimit'){ await ensureAdminSms(); fillSelect('climCli',cliPool,false); await ensureAdminManagers(); fillSelect('climMgr',(usersData.manager||[]).map(m=>m.username),false); await loadCliLimits(); return; }
-    if(page==='limitManagement'){ await ensureAdminRates(); await loadLimitManagement(); return; }
-    if(page==='carrierIntegration'){ await loadCarrierSettings(); return; }
-    if(page==='smppServer'){ await loadSmppServer(); return; }
-    if(page==='apiIntegration'){ await loadApiIntegrations(); await loadApiIntegrationLogs(); return; }
-    if(page==='testGenerator'){ await loadTestGeneratorSettings(); await populateTestGeneratorNumbers(); return; }
-    if(page==='integrations'){ await loadIntegrations(); return; }
-    if(page==='notificationRules'){ await loadNotificationRules(); return; }
-    if(page==='systemLogs'){ await loadSystemLogs(); return; }
-    if(page==='backupManagement'){ await loadBackups(); return; }
-  }catch(e){ console.warn('lazy page load failed', page, e); }
-}
-
-function warmDelay(ms){return new Promise(r=>setTimeout(r,ms));}
-async function startAdminBackgroundWarmup(){
-  if(window.__adminWarmupStarted) return;
-  window.__adminWarmupStarted=true;
-  try{
-    // High-priority pages should be ready almost instantly; build CDR skeletons first.
-    await warmDelay(40);
-    if(!document.getElementById('srBody')) buildSmsReport();
-    if(!document.getElementById('sdBody')) buildSmsDetail();
-    // Then preload high-use data in parallel without triggering low-priority pages.
-    await Promise.allSettled([loadRates(), ensureAdminManagers(), renderNumbers(), loadNumberSummary(), loadSmsRecords()]);
-    await warmDelay(80);
-    ['client','agent','manager'].forEach(k=>{ if(!document.getElementById(k+'SBody')) buildEntityStats(k); });
-    ['range','number'].forEach(k=>{ if(!document.getElementById(k+'SBody')) buildDrillStats(k); });
-    // Less-used pages can continue warming quietly.
-    await warmDelay(400);
-    await Promise.allSettled([loadImportBatches(), refreshNumberDbTools(), loadCliLimits(), loadApiIntegrations()]);
-    await warmDelay(700);
-    if(!usersData.manager.length) buildUserPage('manager');
-    await warmDelay(250);
-    if(!usersData.agent.length) buildUserPage('agent');
-    await warmDelay(250);
-    if(!usersData.client.length) buildUserPage('client');
-  }catch(e){console.warn('admin background warmup failed', e);}
-}
-loadDashboard();setTimeout(()=>startAdminBackgroundWarmup(),120);
+/* =============== FAST EAGER INIT (all important data loads immediately) =============== */
+loadDashboard();
+buildUserPage('manager');buildUserPage('agent');buildUserPage('client');
+loadRates();
+loadNumbers();
+loadImportBatches();
+refreshNumberDbTools();
+renderAlloc();
+buildSmsReport();buildSmsDetail();
+buildEntityStats('client');buildEntityStats('agent');buildEntityStats('manager');
+buildDrillStats('range');buildDrillStats('number');
+loadPayments();loadAdminPayout();loadPaymentConfig();loadCarrierSettings();loadIntegrations();loadNotificationRules();loadSystemLogs();loadTestGeneratorSettings();loadBackups();loadLimitManagement();loadSmppServer();loadApiIntegrations();loadApiIntegrationLogs();renderTest();
+fillSelect('climCli',cliPool,false);
+loadNews();
+(async()=>{
+  try{ if(!usersData.manager.length) usersData.manager=await API.get('/users/manager'); if(!usersData.agent.length) usersData.agent=await API.get('/users/agent'); }catch(e){}
+  fillAdminOwnerSelects();
+  fillSelect('climMgr', (usersData.manager||[]).map(m=>m.username), false);
+  loadCliLimits();
+})();
 </script>
-<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1d8b3bf5b899f85',t:'MTc4NDQ1MzM3MA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1d8cd5b6c880dbe',t:'MTc4NDQ1NDQxOQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body>
 </html>
