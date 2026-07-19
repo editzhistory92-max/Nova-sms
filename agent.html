@@ -674,7 +674,7 @@
   <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal('clientModal')">Cancel</button><button class="btn btn-blue" onclick="saveClient()">Save</button></div>
 </div></div>
 
-<script src="/api.js?v=20260718-fast-critical-pages"></script>
+<script src="/api.js?v=20260718-fast-cdr2"></script>
 <script>
 if(window.API){ API.guard('agent'); }
 /* NAV */
@@ -821,15 +821,13 @@ function tIcon(c,s){return`<div class="si ${c}">${s}</div>`;}
 /* SMS REPORT (client column) */
 function buildSmsReport(){document.getElementById('page-smsReport').innerHTML=`
   <div class="page-head"><div><h2>SMS Report</h2><div class="breadcrumb"><b>CDR Stats</b> › SMS Report</div></div></div>
-  <div class="card" style="margin-bottom:16px"><div class="card-head"><div><h3>My Clients Summary</h3><div class="sub">Har client ke SMS &amp; payment</div></div></div>
-    <div class="tscroll"><table><thead><tr><th>Client</th><th>Total SMS</th><th>Payment ($)</th></tr></thead><tbody id="clSumBody"></tbody></table></div></div>
   <div class="table-wrap" style="padding:15px 17px;margin-top:0"><div class="table-controls">
     <div class="tc-left"><label>Show Records:</label><select id="srLen" onchange="renderSmsReport()"><option>10</option><option selected>25</option><option value="All">All</option></select>${eb()}</div>
     <div class="tc-right"><label>Search:</label><input type="text" id="srSearch" oninput="renderSmsReport()" placeholder="Search..."/></div></div></div>
   <div class="table-wrap"><div class="tscroll"><table>
     <thead><tr><th>Date</th><th>Client</th><th>Range</th><th>CLI</th><th>Message</th></tr></thead><tbody id="srBody"></tbody></table></div>
     <div class="table-foot"><div class="info" id="srInfo"></div></div></div>`;
-  loadSms();}
+  renderSmsReport();}
 async function loadSms(){ try{ smsRecords=await API.get('/sms'); }catch(e){ smsRecords=[]; }
   const byCli={};smsRecords.forEach(r=>{const c=r.client_name||'—';byCli[c]=(byCli[c]||0)+1;});
   const b=document.getElementById('clSumBody');
@@ -995,6 +993,6 @@ async function startAgentBackgroundWarmup(){if(window.__agentWarmupStarted)retur
 loadProfile();loadDashboard();setTimeout(()=>startAgentBackgroundWarmup(),120);
 </script>
 
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1d816430e53a03c',t:'MTc4NDQ0NjkyMA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1d8b3d88b8d9f85',t:'MTc4NDQ1MzM3NA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 </html>
