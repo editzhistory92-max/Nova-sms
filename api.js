@@ -28,6 +28,29 @@
     return data;
   }
 
+  // Small client-side GET cache prevents duplicate heavy API calls during warmup + page click.
+  const getCache = new Map();
+  function isCacheableGet(path){
+    return /^\/(sms|numbers|ranges|users\/|test-numbers|dashboard|stats\/|earnings-summary|cli-limits|news)(\?|$)/.test(String(path||''));
+  }
+  function getTtl(path){
+    path=String(path||'');
+    if(path.startsWith('/sms')) return 12000;
+    if(path.startsWith('/numbers')) return 7000;
+    if(path.startsWith('/dashboard')) return 4000;
+    return 8000;
+  }
+  async function cachedGet(path){
+    if(!isCacheableGet(path)) return req('GET', path);
+    const now=Date.now();
+    const hit=getCache.get(path);
+    if(hit && hit.expires>now) return hit.promise;
+    const promise=req('GET', path).catch(e=>{ getCache.delete(path); throw e; });
+    getCache.set(path,{promise,expires:now+getTtl(path)});
+    return promise;
+  }
+  function clearGetCache(){ try{getCache.clear();}catch(e){} }
+
 
   // Global modal helpers used by all panel HTML onclick handlers.
   function closeModalGlobal(id){
@@ -173,14 +196,19 @@
     document.getElementById('msSettingsPanel').classList.add('show');
   }
 
-  function enhancePageSizeOptions(){
-    // Same dropdown everywhere, as requested: 25 / 50 / 100 / 500 / 1000 / 5000 / All
+  function enhancePageSizeOptions(root=document){
+    // Same dropdown everywhere, as requested: 25 / 50 / 100 / 500 / 1000 / 5000 / All.
+    // Important: do not rewrite selects repeatedly; that caused UI lag.
     const wanted=['25','50','100','500','1000','5000','All'];
-    document.querySelectorAll('select').forEach(sel=>{
+    const scope = root && root.querySelectorAll ? root : document;
+    scope.querySelectorAll('select').forEach(sel=>{
       const id=(sel.id||'').toLowerCase();
       if(!(id.includes('len') || id.includes('slen'))) return;
+      const signature=wanted.join('|');
+      if(sel.dataset.msLenOptions===signature) return;
       const current = wanted.includes(sel.value) ? sel.value : '25';
       sel.innerHTML=wanted.map(v=>`<option value="${v}" ${v===current?'selected':''}>${v}</option>`).join('');
+      sel.dataset.msLenOptions=signature;
     });
   }
 
@@ -437,7 +465,8 @@
   }
   function initExportButtons(){
     bindExportButtons();
-    setInterval(bindExportButtons, 1200);
+    const mo=new MutationObserver(()=>{ clearTimeout(window.__msExportBindTimer); window.__msExportBindTimer=setTimeout(bindExportButtons,120); });
+    mo.observe(document.body,{childList:true,subtree:true});
     document.addEventListener('click',(e)=>{
       const btn=e.target.closest('.exp-btns button'); if(!btn) return;
       e.preventDefault(); e.stopPropagation();
@@ -483,7 +512,9 @@
   }
   function initPanelHistory(){
     if(!TOKEN() || location.pathname.includes('login')) return;
-    initPageLinks(); initPageLinkClicks(); setInterval(initPageLinks, 1500);
+    initPageLinks(); initPageLinkClicks();
+    const linkMo=new MutationObserver(()=>{ clearTimeout(window.__msPageLinkTimer); window.__msPageLinkTimer=setTimeout(initPageLinks,120); });
+    linkMo.observe(document.body,{childList:true,subtree:true});
     const initialPage=pageFromUrl() || localStorage.getItem('ms_last_page_'+(ROLE()||'')) || currentPageName();
     try{ history.replaceState({msPanel:true,page:initialPage},'',pageUrl(initialPage)); }catch(e){}
     document.addEventListener('click',(e)=>{
@@ -569,10 +600,10 @@
     ukDate: ukDateString,
     ukToday: () => ukDateString(new Date()),
     ukTimestamp: formatLocalFromDb,
-    get: (p) => req('GET', p),
-    post: (p, b) => req('POST', p, b),
-    put: (p, b) => req('PUT', p, b),
-    del: (p) => req('DELETE', p),
+    get: (p) => cachedGet(p),
+    post: async (p, b) => { clearGetCache(); return req('POST', p, b); },
+    put: async (p, b) => { clearGetCache(); return req('PUT', p, b); },
+    del: async (p) => { clearGetCache(); return req('DELETE', p); },
     logout: async () => { try{ await req('POST','/logout',{}); }catch(e){} clearAuthStorage(); location.href = '/login'; },
     initNotifications,
     markNotificationRead,
@@ -580,5 +611,10 @@
     openProfileMenu,
     paginateRows,
   };
-  document.addEventListener('DOMContentLoaded', ()=>{ initExportButtons(); initActionFeedback(); initPanelHistory(); initIdleLogout(); initNotifications(); initRoutePersistence(); initTimeLocalization(); enhancePageSizeOptions(); setInterval(enhancePageSizeOptions, 2000); });
+  function initLengthSelectObserver(){
+    enhancePageSizeOptions(document);
+    const mo=new MutationObserver(muts=>{ clearTimeout(window.__msLenOptTimer); window.__msLenOptTimer=setTimeout(()=>muts.forEach(m=>m.addedNodes.forEach(n=>{ if(n.nodeType===1) enhancePageSizeOptions(n); })),120); });
+    mo.observe(document.body,{childList:true,subtree:true});
+  }
+  document.addEventListener('DOMContentLoaded', ()=>{ initExportButtons(); initActionFeedback(); initPanelHistory(); initIdleLogout(); initNotifications(); initRoutePersistence(); initTimeLocalization(); initLengthSelectObserver(); });
 })();
