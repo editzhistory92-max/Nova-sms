@@ -1211,7 +1211,7 @@
   <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal('newsModal')">Cancel</button><button class="btn btn-purple" onclick="saveNews()">Save</button></div>
 </div></div>
 
-<script src="/api.js?v=20260718-eager-load"></script>
+<script src="/api.js?v=20260718-fast-priority-ui"></script>
 <script>
 /* auth guard — admin only */
 if(window.API){ API.guard('admin'); }
@@ -2592,27 +2592,25 @@ async function renderNumbers(){
   updateSelInfo();
 }
 
-/* =============== FAST EAGER INIT (all important data loads immediately) =============== */
+/* =============== FAST PRIORITY INIT (instant UI + background data) =============== */
 loadDashboard();
-buildUserPage('manager');buildUserPage('agent');buildUserPage('client');
-loadRates();
-loadNumbers();
-loadImportBatches();
-refreshNumberDbTools();
+// Build high-priority page structures immediately so clicking menus shows UI instantly.
 renderAlloc();
 buildSmsReport();buildSmsDetail();
 buildEntityStats('client');buildEntityStats('agent');buildEntityStats('manager');
 buildDrillStats('range');buildDrillStats('number');
-loadPayments();loadAdminPayout();loadPaymentConfig();loadCarrierSettings();loadIntegrations();loadNotificationRules();loadSystemLogs();loadTestGeneratorSettings();loadBackups();loadLimitManagement();loadSmppServer();loadApiIntegrations();loadApiIntegrationLogs();renderTest();
-fillSelect('climCli',cliPool,false);
-loadNews();
-(async()=>{
-  try{ if(!usersData.manager.length) usersData.manager=await API.get('/users/manager'); if(!usersData.agent.length) usersData.agent=await API.get('/users/agent'); }catch(e){}
-  fillAdminOwnerSelects();
-  fillSelect('climMgr', (usersData.manager||[]).map(m=>m.username), false);
-  loadCliLimits();
-})();
+renderTest();
+// Fetch critical data right after first paint. Do not block menu/UI.
+setTimeout(async()=>{
+  try{
+    await Promise.allSettled([loadRates(), ensureAdminManagers()]);
+    await Promise.allSettled([loadNumbers(), loadSmsRecords(), loadNumberSummary()]);
+  }catch(e){console.warn('critical preload failed',e)}
+},50);
+// Less-used admin/system pages load later in background.
+setTimeout(()=>{Promise.allSettled([loadImportBatches(),refreshNumberDbTools(),loadNews(),loadPayments(),loadAdminPayout(),loadPaymentConfig(),loadCliLimits()]);},1200);
+setTimeout(()=>{Promise.allSettled([loadCarrierSettings(),loadIntegrations(),loadNotificationRules(),loadTestGeneratorSettings(),loadLimitManagement(),loadSmppServer(),loadApiIntegrations()]);},2200);
 </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1d8cd5b6c880dbe',t:'MTc4NDQ1NDQxOQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
-</body>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1d8d6af4cc5b00b',t:'MTc4NDQ1NDgwMQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
