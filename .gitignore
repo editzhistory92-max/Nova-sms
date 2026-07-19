@@ -1,2 +1,5 @@
 "backend/data.sqlite" 
 "backend/backups/" 
+"backend/data.sqlite" 
+"backend/backups/" 
+"node_modules/" 
