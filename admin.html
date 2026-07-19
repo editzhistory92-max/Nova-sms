@@ -576,7 +576,7 @@
         <div class="toolbar">
           <div class="filter-row">
             <select class="sel-lg" id="numRange"><option value="">Select Range</option></select>
-            <select class="sel-lg" id="numClient"><option value="">Select Manager</option></select>
+            <select class="sel-lg" id="numClient"><option value="">Select Owner</option></select>
             <button class="btn btn-red" onclick="applyNumFilter()">Filter</button>
             <button class="btn btn-ghost" onclick="clearNumFilter()">Reset</button>
           </div>
@@ -599,7 +599,7 @@
               <th class="sortable" onclick="sortNumbers('prefix')">Prefix <span class="sort">⇅</span></th>
               <th class="sortable" onclick="sortNumbers('number')">Number <span class="sort" id="numSortHint">⇅</span></th>
               <th class="sortable" onclick="sortNumbers('myVal')">My Payout <span class="sort">⇅</span></th>
-              <th class="sortable" onclick="cycleClientFilter()">Manager <span class="sort" id="clientSortHint">⇅</span></th>
+              <th class="sortable" onclick="cycleClientFilter()">Owner <span class="sort" id="clientSortHint">⇅</span></th>
               <th class="sortable" onclick="sortNumbers('payVal')">Payout <span class="sort">⇅</span></th>
               <th>Limits</th>
             </tr></thead>
@@ -1192,7 +1192,7 @@
 <div class="modal-overlay" id="allocAllModal"><div class="modal">
   <div class="modal-head"><h3>Allocate Selected Numbers</h3><button class="modal-close" onclick="closeModal('allocAllModal')">×</button></div>
   <div class="modal-body">
-    <div class="form-group"><label>Select Manager <span class="req">*</span></label><select id="aaClient"><option value="">Please Select</option></select></div>
+    <div class="form-group"><label>Select Manager / Agent <span class="req">*</span></label><select id="aaClient"><option value="">Please Select</option></select></div>
     <div class="form-group"><label>Payterm</label><select id="aaPayterm"><option value="">Please Select</option><option>Weekly</option><option>Weekly7</option><option>Monthly</option><option>Daily</option></select></div>
     <div class="form-group" style="display:none"><label>Payout ($) Locked</label><input type="number" id="aaPayout" step="0.001" value="0" placeholder="0" disabled/></div>
     <div class="hint" id="aaCount"></div>
@@ -1211,7 +1211,7 @@
   <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal('newsModal')">Cancel</button><button class="btn btn-purple" onclick="saveNews()">Save</button></div>
 </div></div>
 
-<script src="/api.js?v=20260716-cdr-zero-filter"></script>
+<script src="/api.js?v=20260718-direct-agent-perf"></script>
 <script>
 /* auth guard — admin only */
 if(window.API){ API.guard('admin'); }
@@ -1268,6 +1268,14 @@ const allClients=[];
 function unique(arr){return [...new Set((arr||[]).filter(Boolean))];}
 function refreshHierarchy(){
   managers=unique([...(usersData.manager||[]).map(x=>x.username), ...(smsRecords||[]).map(x=>x.manager_name)]);
+}
+function ownerNamesForAdmin(){
+  return unique([...(usersData.manager||[]).map(x=>x.username), ...(usersData.agent||[]).map(x=>x.username)]);
+}
+function fillAdminOwnerSelects(){
+  const owners=ownerNamesForAdmin();
+  fillSelect('numClient', owners);
+  const s=document.getElementById('numClient'); if(s && s.children[0]) s.children[0].textContent='Select Owner';
 }
 function agentsOf(m){
   let list=(usersData.agent||[]).filter(a=>!m || (usersData.manager||[]).find(mm=>mm.username===m && mm.id===a.parent_id)).map(a=>a.username);
@@ -1404,7 +1412,7 @@ function renderNumbers(){
   const len=document.getElementById('numLen').value,q=(document.getElementById('numSearch').value||'').toLowerCase();
   let rows=(numbersData||[]).map(r=>({
     _id:r.id, range:r.range_name||'', prefix:r.prefix||'', number:r.number||'',
-    myPay:r.payterm||'Weekly', myVal:r.effective_rate||r.rate||'', client:r.manager_name||'',
+    myPay:r.payterm||'Weekly', myVal:r.effective_rate||r.rate||'', client:(r.manager_name||r.agent_name||r.client_name||''), ownerType:(r.manager_name?'manager':(r.agent_name?'agent':(r.client_name?'client':'unallocated'))),
     payType:r.payterm||'Weekly', payVal:'$ '+(r.payout||'0'), sd:r.sd_limit||0, sw:r.sw_limit||0
   })).filter(r=>(r.number.includes(q)||r.client.toLowerCase().includes(q)||r.range.toLowerCase().includes(q)));
   if(numRangeFilter) rows=rows.filter(r=>r.range===numRangeFilter);
@@ -1417,7 +1425,7 @@ function renderNumbers(){
     <td><input type="checkbox" class="rowchk" data-id="${r._id}" onchange="updateSelInfo()"/></td>
     <td>${r.range}</td><td class="muted">${r.prefix||'—'}</td><td><b>${r.number}</b></td>
     <td>${r.myPay}<br><span class="cell-sub cell-money">${r.myVal}</span></td>
-    <td>${r.client?`<span class="tag tag-mgr">${r.client} <span class="x" onclick="unassignOne(${r._id})">✕</span></span>`:`<span class="tag tag-gray">Unallocated</span>`}</td>
+    <td>${r.client?`<span class="tag ${r.ownerType==='agent'?'tag-agt':'tag-mgr'}">${r.ownerType==='agent'?'Agent':'Manager'}: ${r.client} <span class="x" onclick="unassignOne(${r._id})">✕</span></span>`:`<span class="tag tag-gray">Unallocated</span>`}</td>
     <td>${r.payType}<br><span class="cell-sub">${r.payVal}</span></td>
     <td class="muted">SD : ${r.sd} | SW : ${r.sw}</td></tr>`).join('')||`<tr><td colspan="8" class="muted" style="text-align:center;padding:24px">No numbers found</td></tr>`;
   document.getElementById('numbersInfo').textContent=`Showing ${rows.length} of ${total} numbers`; updateSelInfo();
@@ -1456,13 +1464,15 @@ async function moveSelectedToTestPanel(){
     await loadRates();
   }catch(e){ alert('❌ '+e.message); }
 }
-/* Allocate All modal (Admin -> Manager, as per rule) */
+/* Allocate All modal (Admin -> Manager or direct Agent) */
 async function openAllocAll(){const ids=getSelectedIds();if(!ids.length){alert('Please select numbers first (checkbox).');return;}
-  // admin allocates to managers
   try{ if(!usersData.manager.length) usersData.manager=await API.get('/users/manager'); }catch(e){}
-  const sel=document.getElementById('aaClient'); sel.innerHTML='<option value="">Please Select</option>'+usersData.manager.map(m=>`<option value="${m.id}">${m.username}</option>`).join('');
+  try{ if(!usersData.agent.length) usersData.agent=await API.get('/users/agent'); }catch(e){}
+  const managerOpts=(usersData.manager||[]).map(m=>`<option value="${m.id}">Manager: ${m.username}</option>`).join('');
+  const agentOpts=(usersData.agent||[]).map(a=>`<option value="${a.id}">Agent: ${a.username}</option>`).join('');
+  const sel=document.getElementById('aaClient'); sel.innerHTML='<option value="">Please Select</option>'+managerOpts+agentOpts;
   document.getElementById('aaPayterm').value='';document.getElementById('aaPayout').value='0';
-  document.getElementById('aaCount').innerHTML=`<b>${ids.length}</b> numbers selected — Manager ko allocate honge.`;
+  document.getElementById('aaCount').innerHTML=`<b>${ids.length}</b> numbers selected — Manager ya direct Agent ko allocate honge.`;
   document.getElementById('allocAllModal').classList.add('show');}
 async function confirmAllocAll(){const ids=getSelectedIds();const target=document.getElementById('aaClient').value,pt=document.getElementById('aaPayterm').value,po=document.getElementById('aaPayout').value;
   if(!target){alert('Select a manager.');return;}
@@ -1533,10 +1543,11 @@ async function loadUsers(role){
   renderUsers(role);
   if(role==='manager'){
     fillSelect('allocManager',(usersData.manager||[]).map(m=>m.username));
-    fillSelect('numClient',(usersData.manager||[]).map(m=>m.username));
+    fillAdminOwnerSelects();
     fillSelect('climMgr',(usersData.manager||[]).map(m=>m.username),false);
     if(document.getElementById('managerSBody')) renderEntityStats('manager');
   }
+  if(role==='agent') fillAdminOwnerSelects();
 }
 function renderUsers(role){const len=document.getElementById(role+'Len').value,q=(document.getElementById(role+'Search').value||'').toLowerCase();
   let rows=(usersData[role]||[]).filter(r=>r.username.toLowerCase().includes(q)||(r.name||'').toLowerCase().includes(q)||(r.email||'').toLowerCase().includes(q));
@@ -2566,14 +2577,14 @@ async function renderNumbers(){
   const pageLimit=Number(data.limit||25);
   const rows=(data.rows||[]).map(r=>({
     _id:r.id, range:r.range_name||'', prefix:r.prefix||'', number:r.number||'',
-    myPay:r.payterm||'Weekly', myVal:r.effective_rate||r.rate||'', client:r.manager_name||'',
+    myPay:r.payterm||'Weekly', myVal:r.effective_rate||r.rate||'', client:(r.manager_name||r.agent_name||r.client_name||''), ownerType:(r.manager_name?'manager':(r.agent_name?'agent':(r.client_name?'client':'unallocated'))),
     payType:r.payterm||'Weekly', payVal:'$ '+(r.payout||'0'), sd:r.sd_limit||0, sw:r.sw_limit||0
   }));
   document.getElementById('numbersBody').innerHTML=rows.map(r=>`<tr>
     <td><input type="checkbox" class="rowchk" data-id="${r._id}" onchange="updateSelInfo()"/></td>
     <td>${r.range}</td><td class="muted">${r.prefix||'—'}</td><td><b>${r.number}</b></td>
     <td>${r.myPay}<br><span class="cell-sub cell-money">${r.myVal}</span></td>
-    <td>${r.client?`<span class="tag tag-mgr">${r.client} <span class="x" onclick="unassignOne(${r._id})">✕</span></span>`:`<span class="tag tag-gray">Unallocated</span>`}</td>
+    <td>${r.client?`<span class="tag ${r.ownerType==='agent'?'tag-agt':'tag-mgr'}">${r.ownerType==='agent'?'Agent':'Manager'}: ${r.client} <span class="x" onclick="unassignOne(${r._id})">✕</span></span>`:`<span class="tag tag-gray">Unallocated</span>`}</td>
     <td>${r.payType}<br><span class="cell-sub">${r.payVal}</span></td>
     <td class="muted">SD : ${r.sd} | SW : ${r.sw}</td></tr>`).join('')||`<tr><td colspan="8" class="muted" style="text-align:center;padding:24px">No numbers found</td></tr>`;
   const shown=total===0?0:Math.min(total,((state.page-1)*pageLimit)+rows.length);
@@ -2586,7 +2597,7 @@ async function renderNumbers(){
 /* =============== LAZY INIT (performance) =============== */
 const adminLoadedPages = new Set();
 async function ensureAdminRates(){ if(!ratesData || !ratesData.length) await loadRates(); }
-async function ensureAdminManagers(){ try{ if(!usersData.manager.length) usersData.manager=await API.get('/users/manager'); }catch(e){} }
+async function ensureAdminManagers(){ try{ if(!usersData.manager.length) usersData.manager=await API.get('/users/manager'); if(!usersData.agent.length) usersData.agent=await API.get('/users/agent'); fillAdminOwnerSelects(); }catch(e){} }
 async function ensureAdminSms(){ if(!smsRecords || !smsRecords.length) await loadSmsRecords(); }
 async function loadAdminPageData(page){
   if(!page) page='dashboard';
@@ -2599,7 +2610,7 @@ async function loadAdminPageData(page){
     if(page==='client' || page==='clients'){ buildUserPage('client'); return; }
     if(page==='rates'){ await loadRates(); return; }
     if(page==='allocation'){ await loadNumberSummary(); return; }
-    if(page==='numbers'){ await ensureAdminRates(); await loadNumbers(); return; }
+    if(page==='numbers'){ await ensureAdminRates(); await ensureAdminManagers(); await loadNumbers(); return; }
     if(page==='import'){ await ensureAdminRates(); await loadImportBatches(); await refreshNumberDbTools(); return; }
     if(page==='testImport'){ await ensureAdminRates(); return; }
     if(page==='smsReport'){ buildSmsReport(); await ensureAdminSms(); return; }
@@ -2628,17 +2639,19 @@ async function startAdminBackgroundWarmup(){
   if(window.__adminWarmupStarted) return;
   window.__adminWarmupStarted=true;
   try{
-    await warmDelay(700); await loadRates();
-    await warmDelay(500); buildUserPage('manager');
-    await warmDelay(500); buildUserPage('agent');
-    await warmDelay(500); buildUserPage('client');
-    await warmDelay(700); await loadNumberSummary();
-    await warmDelay(700); await loadImportBatches(); await refreshNumberDbTools();
-    await warmDelay(1000); await loadSmsRecords();
+    // High-priority warmup first: pages users open most often should feel instant.
+    await warmDelay(150);
+    await Promise.allSettled([loadRates(), loadNumbers(), loadSmsRecords()]);
+    await warmDelay(350);
+    await Promise.allSettled([loadImportBatches(), refreshNumberDbTools(), ensureAdminManagers()]);
+    // Lower-priority pages render after browser has settled.
+    await warmDelay(900); buildUserPage('manager');
+    await warmDelay(450); buildUserPage('agent');
+    await warmDelay(450); buildUserPage('client');
   }catch(e){console.warn('admin background warmup failed', e);}
 }
 loadDashboard();setTimeout(()=>startAdminBackgroundWarmup(),900);
 </script>
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
-</body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1d803e4cf85ce5a',t:'MTc4NDQ0NjE2Nw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>

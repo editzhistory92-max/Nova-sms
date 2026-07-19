@@ -620,22 +620,26 @@ function buildNumberQuery(user, q) {
   if (q.range) { where.push('r.name=?'); params.push(q.range); }
   if (q.range_id) { where.push('n.range_id=?'); params.push(+q.range_id); }
   if (q.owner) {
-    if (user.role === 'admin') { where.push('mu.username=?'); params.push(q.owner); }
+    if (user.role === 'admin') {
+      // Admin owner can be Manager allocation or direct Agent allocation.
+      where.push('(mu.username=? OR au.username=?)'); params.push(q.owner, q.owner);
+    }
     else if (user.role === 'manager') { where.push('au.username=?'); params.push(q.owner); }
     else if (user.role === 'agent') { where.push('cu.username=?'); params.push(q.owner); }
   }
   if (q.allocation === 'unallocated') {
-    const col = numberOwnerColumnForRole(user.role);
-    where.push(`n.${col} IS NULL`);
+    if (user.role === 'admin') where.push('n.manager_id IS NULL AND n.agent_id IS NULL AND n.client_id IS NULL');
+    else { const col = numberOwnerColumnForRole(user.role); where.push(`n.${col} IS NULL`); }
   } else if (q.allocation === 'allocated') {
-    const col = numberOwnerColumnForRole(user.role);
-    where.push(`n.${col} IS NOT NULL`);
+    if (user.role === 'admin') where.push('(n.manager_id IS NOT NULL OR n.agent_id IS NOT NULL OR n.client_id IS NOT NULL)');
+    else { const col = numberOwnerColumnForRole(user.role); where.push(`n.${col} IS NOT NULL`); }
   }
   return { where: where.join(' AND '), params };
 }
 function numberSelectSql(where) {
   return `SELECT n.*, r.name AS range_name,
             COALESCE(NULLIF(n.rate,''), NULLIF(r.rate_30_45,''), NULLIF(r.rate_7_1,''), NULLIF(r.rate_7_7,''), NULLIF(r.rate_1_1,''), '0') AS effective_rate,
+            CASE WHEN n.manager_id IS NOT NULL THEN 'manager' WHEN n.agent_id IS NOT NULL THEN 'agent' WHEN n.client_id IS NOT NULL THEN 'client' ELSE 'unallocated' END AS owner_type,
             cu.username AS client_name, au.username AS agent_name, mu.username AS manager_name
      FROM numbers n
      LEFT JOIN ranges r ON r.id=n.range_id
@@ -646,11 +650,13 @@ function numberSelectSql(where) {
 }
 app.get('/api/numbers/summary', authRequired, (req, res) => {
   const scope = numberScope(req.user, 'n');
-  const ownerCol = numberOwnerColumnForRole(req.user.role);
+  const ownerExpr = req.user.role === 'admin'
+    ? '(n.manager_id IS NOT NULL OR n.agent_id IS NOT NULL OR n.client_id IS NOT NULL)'
+    : `n.${numberOwnerColumnForRole(req.user.role)} IS NOT NULL`;
   const rows = db.all(`SELECT r.id AS range_id, r.name AS range_name,
       COUNT(n.id) AS total,
-      SUM(CASE WHEN n.${ownerCol} IS NULL THEN 1 ELSE 0 END) AS available,
-      SUM(CASE WHEN n.${ownerCol} IS NOT NULL THEN 1 ELSE 0 END) AS allocated,
+      SUM(CASE WHEN n.id IS NOT NULL AND NOT (${ownerExpr}) THEN 1 ELSE 0 END) AS available,
+      SUM(CASE WHEN n.id IS NOT NULL AND ${ownerExpr} THEN 1 ELSE 0 END) AS allocated,
       COALESCE(NULLIF(r.rate_30_45,''), NULLIF(r.rate_7_1,''), '0') AS rate
     FROM ranges r
     LEFT JOIN numbers n ON n.range_id=r.id AND ${scope.where}
@@ -705,8 +711,11 @@ app.post('/api/numbers/allocate', authRequired, (req, res) => {
   const target = db.get('SELECT * FROM users WHERE id=?', [target_id]);
   if (!target) return res.status(404).json({ error: 'Target not found' });
 
-  const wantRole = { admin: 'manager', manager: 'agent', agent: 'client' }[req.user.role];
-  if (!wantRole || target.role !== wantRole || target.parent_id !== req.user.id)
+  const allowedTargets = { admin: ['manager','agent'], manager: ['agent'], agent: ['client'] }[req.user.role] || [];
+  if (!allowedTargets.includes(target.role))
+    return res.status(403).json({ error: 'You are not allowed to allocate to this role' });
+  // Managers/Agents can allocate only to their direct child. Admin can allocate directly to any Manager or Agent.
+  if (req.user.role !== 'admin' && target.parent_id !== req.user.id)
     return res.status(403).json({ error: 'You can only allocate to your direct child user' });
 
   const ph = ids.map(() => '?').join(',');
@@ -719,8 +728,8 @@ app.post('/api/numbers/allocate', authRequired, (req, res) => {
     sets = "manager_id=?, agent_id=NULL, client_id=NULL, payout='0', rate=''";
     vals = [target.id];
   } else if (target.role === 'agent') {
-    // Manager -> Agent: keep manager chain and reset client ownership.
-    const mgrId = target.parent_id;
+    // Manager -> Agent keeps manager chain. Admin -> Agent direct has no manager owner.
+    const mgrId = req.user.role === 'admin' ? null : target.parent_id;
     sets = "agent_id=?, manager_id=?, client_id=NULL, payout='0', rate=''";
     vals = [target.id, mgrId];
   } else if (target.role === 'client') {
