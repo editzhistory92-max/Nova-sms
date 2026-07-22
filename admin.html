@@ -437,7 +437,13 @@
     <nav class="sb-nav">
       <div class="sb-section">Daily Operations</div>
       <div class="nav-item active" data-page="dashboard"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg><span>Dashboard</span></div>
-      <div class="nav-item" data-page="numbers"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg><span>SMS Numbers</span></div>
+
+      <div class="sb-section">SMS Number Management</div>
+      <div class="nav-item" id="smsNumParent" onclick="toggleSub('smsNumSub','smsNumParent')"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg><span>SMS Number Management</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+      <div class="submenu" id="smsNumSub">
+        <div class="sub-item" data-page="allocation"><span class="dot"></span> Range Allocation</div>
+        <div class="sub-item" data-page="numbers"><span class="dot"></span> SMS Numbers</div>
+      </div>
       <div class="nav-item" data-page="test"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18v-6a3 3 0 0 1 6 0v6"/><rect x="4" y="18" width="16" height="3"/><path d="M12 3v3"/></svg><span>SMS Test Panel</span></div>
 
       <div class="sb-section">Users</div>
@@ -499,6 +505,38 @@
       </div>
     </section>
 
+
+      <!-- ========== RANGE ALLOCATION ========== -->
+      <section class="page" id="page-allocation">
+        <div class="page-head"><div><h2>Range Allocation</h2><div class="breadcrumb"><b>SMS Number Management</b> › Range Allocation</div></div></div>
+        <div class="toolbar">
+          <div style="font-weight:600;margin-bottom:12px;color:#c7d2fe">Allocate a Range to a Manager</div>
+          <div class="filter-row">
+            <select class="sel-lg" id="allocRange"><option value="">Select Range</option></select>
+            <select class="sel-lg" id="allocManager"><option value="">Select Manager</option></select>
+            <input type="number" style="width:130px" placeholder="Qty" id="allocQty" />
+            <button class="btn btn-purple" onclick="doAllocate()">Allocate to Manager</button>
+          </div>
+          <div class="hint" style="color:#5c6a86;font-size:11.5px">Use SMS Numbers for selected-number allocation to Manager or direct Agent. This page is for range quantity allocation.</div>
+        </div>
+        <div class="table-wrap" style="padding:16px 18px;margin-top:0">
+          <div class="table-controls">
+            <div class="tc-left"><label>Show Records:</label>
+              <select id="allocLen" onchange="renderAlloc()"><option>10</option><option selected>25</option><option>50</option><option>100</option><option value="All">All</option></select>
+              <div class="exp-btns"><button class="btn btn-blue">Copy</button><button class="btn btn-blue">CSV</button><button class="btn btn-green">Excel</button><button class="btn btn-red">PDF</button><button class="btn btn-blue">Print</button></div>
+            </div>
+            <div class="tc-right"><label>Search:</label><input type="text" id="allocSearch" oninput="renderAlloc()" placeholder="Search..." /></div>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <div class="tscroll"><table>
+            <thead><tr><th>Range Name</th><th>Numbers Available</th><th>Numbers Allocated</th><th>Rate</th><th>Allocate (to Manager)</th><th>Unallocate</th></tr></thead>
+            <tbody id="allocBody"></tbody>
+          </table></div>
+          <div class="table-foot"><div class="info" id="allocInfo"></div><div class="pagination"><button>‹</button><button class="active">1</button><button>2</button><button>›</button></div></div>
+        </div>
+      </section>
+
       <!-- ========== SMS NUMBERS ========== -->
       <section class="page" id="page-numbers">
         <div class="page-head"><div><h2>SMS Numbers</h2><div class="breadcrumb"><b>SMS Module</b> › SMS Numbers</div></div>
@@ -510,7 +548,6 @@
             <button class="btn btn-red" onclick="deleteCurrentFilteredNumbers()">🧹 Delete Filtered</button>
             <button class="btn btn-red" onclick="deleteAllNumbersFromDb()">🔥 Delete ALL Numbers</button>
             <button class="btn btn-purple" onclick="openSmart()">⚡ Smart Divide</button>
-            <button class="btn btn-ghost" onclick="showPageByName('import')">⬆ Import Numbers</button>
           </div>
         </div>
         <div class="toolbar">
@@ -519,6 +556,11 @@
             <select class="sel-lg" id="numClient"><option value="">Select Owner</option></select>
             <button class="btn btn-red" onclick="applyNumFilter()">Filter</button>
             <button class="btn btn-ghost" onclick="clearNumFilter()">Reset</button>
+          </div>
+          <div class="filter-row" id="adminRangeDeleteTools">
+            <select class="sel-lg" id="deleteRangeSelect"><option value="">Delete by Range</option></select>
+            <button class="btn btn-red" onclick="deleteNumbersByRange()">Delete Selected Range Numbers</button>
+            <span class="muted" id="numberDbCount" style="font-size:12.5px">Loading count...</span>
           </div>
           <div class="table-controls">
             <div class="tc-left"><label>Show Records:</label>
@@ -761,12 +803,12 @@
   <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal('newsModal')">Cancel</button><button class="btn btn-purple" onclick="saveNews()">Save</button></div>
 </div></div>
 
-<script src="/api.js?v=20260722-perf-bulk-ranges"></script>
+<script src="/api.js?v=20260722-admin-sms-ops-split"></script>
 <script>
 /* auth guard — admin only */
 if(window.API){ API.guard('admin'); }
-window.MUFASA_PANEL_MODE='admin_light';
-const ADMIN_ALLOWED_PAGES=new Set(['dashboard','numbers','managers','agents','clients','smsReport','cliSearch','smsDetail','clientStats','agentStats','managerStats','rangeStats','numberStats','payments','paymentConfig','test']);
+window.MUFASA_PANEL_MODE='admin_ops';
+const ADMIN_ALLOWED_PAGES=new Set(['dashboard','allocation','numbers','managers','agents','clients','smsReport','cliSearch','smsDetail','clientStats','agentStats','managerStats','rangeStats','numberStats','payments','paymentConfig','test']);
 function normalizePanelPage(id){ id=String(id||'dashboard'); return ADMIN_ALLOWED_PAGES.has(id)?id:'dashboard'; }
 function applyPanelSplitUi(){
   if(window.MUFASA_PANEL_MODE!=='admin_light') return;
@@ -2177,7 +2219,7 @@ async function fillSmsDetailLiteFilters(){
 async function loadAdminPageData(page){
   try{
     if(page==='dashboard') return loadDashboard();
-    if(page==='numbers'){ await ensureAdminRates(); await ensureAdminManagers(); return loadNumbers(); }
+    if(page==='numbers'){ await ensureAdminRates(); await ensureAdminManagers(); await refreshNumberDbTools(); return loadNumbers(); }
     if(page==='allocation'){ await ensureAdminRates(); await ensureAdminManagers(); return loadNumberSummary(); }
     if(page==='rates') return loadRates();
     if(page==='smsReport'){ if(!document.getElementById('srBody')) buildSmsReport(); return renderSmsReport(); }

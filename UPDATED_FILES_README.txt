@@ -1,47 +1,39 @@
-MUFASA SMS — Performance + Bulk Range Creation Update
+MUFASA SMS — Corrected Admin/Management Split
 Date: 2026-07-22
-Cache marker: /api.js?v=20260722-perf-bulk-ranges
+Cache marker: /api.js?v=20260722-admin-sms-ops-split
 
-What changed:
-1) Admin Panel performance
-   - Admin DOM is lighter: Management-only page sections were removed from admin.html.
-   - Admin no longer contains System Master/Rate/Import/Allocation page DOM.
-   - Admin still keeps daily operations only.
+Correction made per requirement:
+The Management Panel should NOT take the complete SMS Number Management module.
+Only these modules remain in Management:
+- System Master (all options)
+- Rate Management
+- Import Numbers / Import Ranges
+- Import Test Numbers
 
-2) Faster SMS Numbers
-   - Manager, Agent, Client numbers pages now use server-side pagination.
-   - Admin already used server-side pagination; backend query is further optimized.
-   - /api/numbers count is now a direct COUNT query, not SELECT * subquery.
-   - /api/numbers supports short backend cache for duplicate rapid clicks.
-   - Client numbers page can fetch last_sms_at per visible page only.
+Admin Panel now keeps daily SMS number operations:
+- SMS Number Management menu restored
+- Range Allocation restored in Admin
+- SMS Numbers restored with full operational actions:
+  Allocate Selected, Unallocate Selected, Delete Selected,
+  Move to Test Panel, Delete Filtered, Delete ALL Numbers,
+  Smart Divide, filters, owner/unallocated management
+- Delete Selected Range Numbers added inside Admin SMS Numbers page
+- Admin direct Manager/Agent allocation UI remains available in Allocate Selected
 
-3) Faster SMS CDR / SMS Detail / SMS Stats
-   - /api/sms/paged uses UK date converted to UTC range comparisons, so indexes can be used.
-   - /api/sms/paged and /api/stats-summary have short backend caching.
-   - Manager/Agent startup no longer loads full /api/sms dataset.
-   - Manager/Agent/Admin stats pages use /api/stats-summary on demand.
-   - Pagination controls added for server-side report pages.
+Management Panel cleanup:
+- Range Allocation removed from Management navigation
+- Hidden SMS Numbers/Range Allocation pages removed from Management DOM
+- Destructive number delete cards removed from Management Import page
+- Bulk Range Creation remains in Management -> Rate Management
 
-4) Backend/database optimization
-   - Added indexes for SMS date/scope queries:
-     idx_sms_test_date, idx_sms_manager_date, idx_sms_agent_date,
-     idx_sms_client_date, idx_sms_range_date, idx_sms_number_date.
-   - Added ranges alphabetical index: idx_ranges_name_nocase.
-   - Added number scope/range composite indexes.
-   - Added short in-memory API read cache cleared automatically on non-GET API requests.
+Performance features from previous update kept:
+- Server-side /api/numbers pagination for Admin/Manager/Agent/Client
+- Optimized /api/sms/paged date filtering and short backend cache
+- /api/stats-summary on stats pages
+- Alphabetical range sorting
+- Bulk Range Creation endpoint: POST /api/ranges/bulk-create
 
-5) Bulk Range Creation
-   - New Management Panel card: Rate Management -> Bulk Range Creation.
-   - Enter multiple range names, one per line.
-   - New backend endpoint: POST /api/ranges/bulk-create.
-   - Existing ranges are skipped; soft-deleted ranges are restored.
-
-6) Alphabetical Sorting
-   - /api/ranges now returns ranges alphabetically: ORDER BY name COLLATE NOCASE.
-   - /api/numbers/summary ranges are alphabetical.
-   - Range dropdowns/lists are now fed from alphabetical backend results.
-
-Files changed:
+Files changed in this package:
 - admin.html
 - management.html
 - manager.html
@@ -52,24 +44,24 @@ Files changed:
 - backend/schema.js
 - .gitignore
 
-Deployment:
-Windows local repo:
-  cd /d F:\ms-sms-service
-  git add -A
-  git commit -m "Optimize panels and add bulk range creation"
-  git push origin main
+Deploy:
+1) Extract this zip into Windows local repo: F:\ms-sms-service
+2) Commit/push from Windows local repo only:
+   cd /d F:\ms-sms-service
+   git add -A
+   git commit -m "Correct admin management split for SMS operations"
+   git push origin main
+3) VPS pull/restart:
+   cd ~/Mufasa-sms
+   git fetch origin main
+   git pull --ff-only origin main
+   npm install
+   pm2 flush mufasa-sms
+   pm2 restart mufasa-sms --update-env
+   pm2 list
 
-VPS:
-  cd ~/Mufasa-sms
-  git fetch origin main
-  git pull --ff-only origin main
-  npm install
-  pm2 flush mufasa-sms
-  pm2 restart mufasa-sms --update-env
-  pm2 list
-
-Important DB tracking note:
-If backend/data.sqlite or backend/backups are still tracked in Git, untrack them from Windows local repo before future deploys:
+Important:
+If backend/data.sqlite or backend/backups are still tracked in Git, untrack from Windows local repo before future deploys:
   git rm --cached backend/data.sqlite
   git rm --cached -r backend/backups
   git add .gitignore

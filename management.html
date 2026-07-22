@@ -436,7 +436,6 @@
     </div>
     <nav class="sb-nav">
       <div class="sb-section">Number Maintenance</div>
-      <div class="nav-item" data-page="allocation"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h18v18H3z"/><path d="M3 9h18M9 21V9"/></svg><span>Range Allocation</span></div>
       <div class="nav-item" data-page="import"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg><span>Import Numbers / Ranges</span></div>
       <div class="nav-item" data-page="testImport"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18v-6a3 3 0 0 1 6 0v6"/><rect x="4" y="18" width="16" height="3"/><path d="M12 3v3"/></svg><span>Import Test Numbers</span></div>
 
@@ -493,101 +492,6 @@
       </div>
     </section>
 
-      <!-- ========== RANGE ALLOCATION ========== -->
-      <section class="page" id="page-allocation">
-        <div class="page-head"><div><h2>Range Allocation</h2><div class="breadcrumb"><b>SMS Module</b> › Range Allocation</div></div>
-          <div class="head-actions"><button class="btn btn-ghost" onclick="showPageByName('import')">⬆ Import Numbers</button></div>
-        </div>
-        <div class="toolbar">
-          <div style="font-weight:600;margin-bottom:12px;color:#c7d2fe">Allocate a Range to a Manager</div>
-          <div class="filter-row">
-            <select class="sel-lg" id="allocRange"><option value="">Select Range</option></select>
-            <select class="sel-lg" id="allocManager"><option value="">Select Manager</option></select>
-            <input type="number" style="width:130px" placeholder="Qty" id="allocQty" />
-            <button class="btn btn-purple" onclick="doAllocate()">Allocate to Manager</button>
-          </div>
-          <div class="hint" style="color:#5c6a86;font-size:11.5px">Note: Admin can allocate numbers/ranges to <b>Managers</b> only. Managers can then allocate to their agents.</div>
-        </div>
-        <div class="card" style="margin-bottom:16px">
-          <div class="card-head"><div><h3>Bulk Range Creation</h3><div class="sub">Enter one range name per line. Existing ranges will be skipped automatically.</div></div><button class="btn btn-green" onclick="bulkCreateRanges()">Create Ranges</button></div>
-          <div class="form-grid" style="grid-template-columns:2fr 180px;gap:14px;align-items:end">
-            <div class="form-group"><label>Range Names</label><textarea id="bulkRangeNames" style="width:100%;min-height:120px;border:1px solid var(--border2);border-radius:9px;padding:10px" placeholder="Afghanistan
-Azerbaijan
-Bangladesh
-Canada
-Egypt
-Nigeria"></textarea><div class="hint">Default rates will be NA. You can edit payout/currency later from the table below.</div></div>
-            <div class="form-group"><label>Default Currency</label><select id="bulkRangeCurrency"><option value="USD">USD</option><option value="EUR">EUR</option><option value="PKR">PKR</option></select><button class="btn btn-purple" style="width:100%;margin-top:10px" onclick="bulkCreateRanges()">Create All</button></div>
-          </div>
-        </div>
-        <div class="table-wrap" style="padding:16px 18px;margin-top:0">
-          <div class="table-controls">
-            <div class="tc-left"><label>Show Records:</label>
-              <select id="allocLen" onchange="renderAlloc()"><option>10</option><option selected>25</option><option>50</option><option>100</option><option value="All">All</option></select>
-              <div class="exp-btns"><button class="btn btn-blue">Copy</button><button class="btn btn-blue">CSV</button><button class="btn btn-green">Excel</button><button class="btn btn-red">PDF</button><button class="btn btn-blue">Print</button></div>
-            </div>
-            <div class="tc-right"><label>Search:</label><input type="text" id="allocSearch" oninput="renderAlloc()" placeholder="Search..." /></div>
-          </div>
-        </div>
-        <div class="table-wrap">
-          <div class="tscroll"><table>
-            <thead><tr><th>Range Name</th><th>Numbers Available</th><th>Numbers Allocated</th><th>Rate</th><th>Allocate (to Manager)</th><th>Unallocate</th></tr></thead>
-            <tbody id="allocBody"></tbody>
-          </table></div>
-          <div class="table-foot"><div class="info" id="allocInfo"></div><div class="pagination"><button>‹</button><button class="active">1</button><button>2</button><button>›</button></div></div>
-        </div>
-      </section>
-
-      <!-- ========== SMS NUMBERS ========== -->
-      <section class="page" id="page-numbers">
-        <div class="page-head"><div><h2>SMS Numbers</h2><div class="breadcrumb"><b>SMS Module</b> › SMS Numbers</div></div>
-          <div class="head-actions">
-            <button class="btn btn-green" onclick="openAllocAll()">✔ Allocate Selected</button>
-            <button class="btn btn-red" onclick="unallocateSelected()">↩ Unallocate Selected</button>
-            <button class="btn btn-red" onclick="deleteSelectedNumbers()">🗑 Delete Selected</button>
-            <button class="btn btn-blue" onclick="moveSelectedToTestPanel()">🧪 Move to Test Panel</button>
-            <button class="btn btn-red" onclick="deleteCurrentFilteredNumbers()">🧹 Delete Filtered</button>
-            <button class="btn btn-red" onclick="deleteAllNumbersFromDb()">🔥 Delete ALL Numbers</button>
-            <button class="btn btn-purple" onclick="openSmart()">⚡ Smart Divide</button>
-            <button class="btn btn-ghost" onclick="showPageByName('import')">⬆ Import Numbers</button>
-          </div>
-        </div>
-        <div class="toolbar">
-          <div class="filter-row">
-            <select class="sel-lg" id="numRange"><option value="">Select Range</option></select>
-            <select class="sel-lg" id="numClient"><option value="">Select Owner</option></select>
-            <button class="btn btn-red" onclick="applyNumFilter()">Filter</button>
-            <button class="btn btn-ghost" onclick="clearNumFilter()">Reset</button>
-          </div>
-          <div class="table-controls">
-            <div class="tc-left"><label>Show Records:</label>
-              <select id="numLen" onchange="renderNumbers()"><option selected>25</option><option>50</option><option>100</option><option>500</option><option>1000</option><option>5000</option><option value="All">All</option></select>
-              <div class="exp-btns"><button class="btn btn-blue">Copy</button><button class="btn btn-blue">CSV</button><button class="btn btn-green">Excel</button><button class="btn btn-red">PDF</button><button class="btn btn-blue">Print</button></div>
-            </div>
-            <div class="tc-right"><label>Search:</label><input type="text" id="numSearch" oninput="renderNumbers()" placeholder="Search..." /></div>
-          </div>
-          <div class="bulk-bar">
-            <span class="info" id="selInfo">0 selected</span>
-          </div>
-        </div>
-        <div class="table-wrap">
-          <div class="tscroll"><table>
-            <thead><tr>
-              <th><input type="checkbox" onclick="toggleAll(this)"/></th>
-              <th class="sortable" onclick="sortNumbers('range')">Range <span class="sort">⇅</span></th>
-              <th class="sortable" onclick="sortNumbers('prefix')">Prefix <span class="sort">⇅</span></th>
-              <th class="sortable" onclick="sortNumbers('number')">Number <span class="sort" id="numSortHint">⇅</span></th>
-              <th class="sortable" onclick="sortNumbers('myVal')">My Payout <span class="sort">⇅</span></th>
-              <th class="sortable" onclick="cycleClientFilter()">Owner <span class="sort" id="clientSortHint">⇅</span></th>
-              <th class="sortable" onclick="sortNumbers('payVal')">Payout <span class="sort">⇅</span></th>
-              <th>Limits</th>
-            </tr></thead>
-            <tbody id="numbersBody"></tbody>
-          </table></div>
-          <div class="table-foot"><div class="info" id="numbersInfo"></div><div class="pagination"><button>‹</button><button class="active">1</button><button>2</button><button>3</button><button>›</button></div></div>
-        </div>
-      </section>
-
       <!-- ========== IMPORT ========== -->
       <section class="page" id="page-import">
         <div class="page-head"><div><h2>Import Numbers / Ranges</h2><div class="breadcrumb"><b>SMS Module</b> › Import</div></div></div>
@@ -627,25 +531,9 @@ Nigeria"></textarea><div class="hint">Default rates will be NA. You can edit pay
           <div class="hint" id="bulkTxtInfo" style="margin-top:10px">Example: <b>Nigeria.txt</b> will import all numbers inside it into range <b>Nigeria</b>.</div>
         </div>
 
-        <div class="card" style="margin-top:16px">
-          <div class="card-head"><div><h3>Import Jobs & Bulk Delete</h3><div class="sub">Large uploads run in the background. Delete a batch only when the batch is listed here.</div></div><div class="head-actions"><button class="btn btn-blue" onclick="loadImportBatches();refreshNumberDbTools()">Refresh</button><button class="btn btn-red" onclick="deleteAllImportedNumbers()">Delete All Imported Numbers</button></div></div>
-          <div id="importJobStatus" class="hint" style="margin-bottom:12px">No active import job.</div>
-          <div class="table-wrap"><div class="tscroll"><table><thead><tr><th>Batch ID</th><th>Range</th><th>Total</th><th>Inserted</th><th>Skipped</th><th>Status</th><th>Created</th><th>Action</th></tr></thead><tbody id="importBatchBody"></tbody></table></div></div>
-          <div class="hint" style="margin-top:10px">If this table is empty but SMS Numbers still has records, those numbers are old/manual database records. Use the Database Number Delete tools below.</div>
-        </div>
 
-        <div class="card" style="margin-top:16px;border:1px solid rgba(239,68,68,.25)">
-          <div class="card-head"><div><h3>Database Number Delete</h3><div class="sub">Hard delete actual records from the numbers database. This works even when Import Jobs shows 0.</div></div><div class="head-actions"><button class="btn btn-blue" onclick="refreshNumberDbTools()">Refresh Count</button></div></div>
-          <div class="form-grid" style="grid-template-columns:1fr 1fr;gap:16px">
-            <div class="form-group"><label>Actual Numbers in Database</label><div id="numberDbCount" class="hint" style="font-size:18px;font-weight:900;color:#0f2454">Loading...</div></div>
-            <div class="form-group"><label>Delete by Range</label><select id="deleteRangeSelect"><option value="">Select Range</option></select></div>
-          </div>
-          <div class="head-actions" style="justify-content:flex-start;margin-top:10px;gap:8px;flex-wrap:wrap">
-            <button class="btn btn-red" onclick="deleteNumbersByRange()">Delete Selected Range Numbers</button>
-            <button class="btn btn-red" onclick="deleteAllNumbersFromDb()">Delete ALL Numbers</button>
-          </div>
-          <div class="hint" style="margin-top:10px;color:#b91c1c"><b>Warning:</b> This is permanent hard delete for numbers. Before deleting, the panel will ask whether you also want to delete OTP/SMS history or keep it.</div>
-        </div>
+
+
       </section>
 
 
@@ -687,6 +575,18 @@ Nigeria"></textarea><div class="hint">Default rates will be NA. You can edit pay
       <section class="page active" id="page-rates">
         <div class="page-head"><div><h2>Rate Management</h2><div class="breadcrumb"><b>Pricing</b> › Ranges &amp; Rates</div></div>
           <div class="head-actions"><button class="btn btn-ghost" onclick="showPageByName('import')">⬆ Import Ranges</button><button class="btn btn-purple" onclick="openRateModal(-1)">+ Add Range</button></div>
+        </div>
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-head"><div><h3>Bulk Range Creation</h3><div class="sub">Enter one range name per line. Existing ranges will be skipped automatically.</div></div><button class="btn btn-green" onclick="bulkCreateRanges()">Create Ranges</button></div>
+          <div class="form-grid" style="grid-template-columns:2fr 180px;gap:14px;align-items:end">
+            <div class="form-group"><label>Range Names</label><textarea id="bulkRangeNames" style="width:100%;min-height:120px;border:1px solid var(--border2);border-radius:9px;padding:10px" placeholder="Afghanistan
+Azerbaijan
+Bangladesh
+Canada
+Egypt
+Nigeria"></textarea><div class="hint">Default rates will be NA. You can edit payout/currency later from the table below.</div></div>
+            <div class="form-group"><label>Default Currency</label><select id="bulkRangeCurrency"><option value="USD">USD</option><option value="EUR">EUR</option><option value="PKR">PKR</option></select><button class="btn btn-purple" style="width:100%;margin-top:10px" onclick="bulkCreateRanges()">Create All</button></div>
+          </div>
         </div>
         <div class="table-wrap" style="padding:16px 18px;margin-top:0">
           <div class="table-controls">
@@ -1201,12 +1101,12 @@ Nigeria"></textarea><div class="hint">Default rates will be NA. You can edit pay
   <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal('newsModal')">Cancel</button><button class="btn btn-purple" onclick="saveNews()">Save</button></div>
 </div></div>
 
-<script src="/api.js?v=20260722-perf-bulk-ranges"></script>
+<script src="/api.js?v=20260722-admin-sms-ops-split"></script>
 <script>
 /* auth guard — management uses admin credentials */
 if(window.API){ API.guard('admin'); }
 window.MUFASA_PANEL_MODE='management';
-const MANAGEMENT_ALLOWED_PAGES=new Set(['allocation','import','testImport','rates','news','cliLimit','limitManagement','carrierIntegration','smppServer','apiIntegration','testGenerator','integrations','notificationRules','systemLogs','backupManagement']);
+const MANAGEMENT_ALLOWED_PAGES=new Set(['import','testImport','rates','news','cliLimit','limitManagement','carrierIntegration','smppServer','apiIntegration','testGenerator','integrations','notificationRules','systemLogs','backupManagement']);
 function normalizePanelPage(id){ id=String(id||'rates'); return MANAGEMENT_ALLOWED_PAGES.has(id)?id:'rates'; }
 function applyPanelSplitUi(){ /* Management Panel keeps maintenance/config modules only. */ }
 /* =============== NAV =============== */
