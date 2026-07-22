@@ -31,14 +31,17 @@
   // Small client-side GET cache prevents duplicate heavy API calls during warmup + page click.
   const getCache = new Map();
   function isCacheableGet(path){
-    return /^\/(sms|numbers|ranges|users\/|test-numbers|dashboard|stats\/|earnings-summary|cli-limits|news)(\?|$)/.test(String(path||''));
+    return /^\/(sms|numbers|ranges|users\/|test-numbers|dashboard|stats\/|stats-summary\/|earnings-summary|cli-limits|news)(\?|$)/.test(String(path||''));
   }
   function getTtl(path){
     path=String(path||'');
-    if(path.startsWith('/sms')) return 12000;
-    if(path.startsWith('/numbers')) return 7000;
-    if(path.startsWith('/dashboard')) return 4000;
-    return 8000;
+    if(path.startsWith('/sms/paged')) return 2500;
+    if(path.startsWith('/sms')) return 5000;
+    if(path.startsWith('/stats-summary')) return 2500;
+    if(path.startsWith('/numbers?') || path.startsWith('/numbers&')) return 2500;
+    if(path.startsWith('/numbers')) return 5000;
+    if(path.startsWith('/dashboard')) return 3000;
+    return 6000;
   }
   async function cachedGet(path){
     if(!isCacheableGet(path)) return req('GET', path);
@@ -279,6 +282,26 @@
   }
 
 
+  function drawServerPagination(container, state, rerender) {
+    if(!container) return;
+    const totalPages=Math.max(1, Number(state.totalPages||1));
+    const page=Math.min(Math.max(1, Number(state.page||1)), totalPages);
+    let start=Math.max(1, page-3), end=Math.min(totalPages, start+6); start=Math.max(1, end-6);
+    let html='<button data-pg="prev" '+(page<=1?'disabled':'')+'>‹</button>';
+    for(let i=start;i<=end;i++) html+=`<button data-pg="${i}" class="${i===page?'active':''}">${i}</button>`;
+    html+='<button data-pg="next" '+(page>=totalPages?'disabled':'')+'>›</button>';
+    container.innerHTML=html;
+    container.querySelectorAll('button').forEach(btn=>{
+      btn.onclick=()=>{
+        const v=btn.dataset.pg;
+        if(v==='prev') state.page=Math.max(1,page-1);
+        else if(v==='next') state.page=Math.min(totalPages,page+1);
+        else state.page=parseInt(v,10)||1;
+        if(typeof rerender==='function') rerender();
+      };
+    });
+  }
+  window.drawServerPagination = window.drawServerPagination || drawServerPagination;
   function paginateRows(key, rows, len, infoId, rerender) {
     rows = rows || [];
     const state = window.__pagerState || (window.__pagerState = {});

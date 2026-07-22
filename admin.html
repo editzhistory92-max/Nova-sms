@@ -499,39 +499,6 @@
       </div>
     </section>
 
-      <!-- ========== RANGE ALLOCATION ========== -->
-      <section class="page" id="page-allocation">
-        <div class="page-head"><div><h2>Range Allocation</h2><div class="breadcrumb"><b>SMS Module</b> › Range Allocation</div></div>
-          <div class="head-actions"><button class="btn btn-ghost" onclick="showPageByName('import')">⬆ Import Numbers</button></div>
-        </div>
-        <div class="toolbar">
-          <div style="font-weight:600;margin-bottom:12px;color:#c7d2fe">Allocate a Range to a Manager</div>
-          <div class="filter-row">
-            <select class="sel-lg" id="allocRange"><option value="">Select Range</option></select>
-            <select class="sel-lg" id="allocManager"><option value="">Select Manager</option></select>
-            <input type="number" style="width:130px" placeholder="Qty" id="allocQty" />
-            <button class="btn btn-purple" onclick="doAllocate()">Allocate to Manager</button>
-          </div>
-          <div class="hint" style="color:#5c6a86;font-size:11.5px">Note: Admin can allocate numbers/ranges to <b>Managers</b> only. Managers can then allocate to their agents.</div>
-        </div>
-        <div class="table-wrap" style="padding:16px 18px;margin-top:0">
-          <div class="table-controls">
-            <div class="tc-left"><label>Show Records:</label>
-              <select id="allocLen" onchange="renderAlloc()"><option>10</option><option selected>25</option><option>50</option><option>100</option><option value="All">All</option></select>
-              <div class="exp-btns"><button class="btn btn-blue">Copy</button><button class="btn btn-blue">CSV</button><button class="btn btn-green">Excel</button><button class="btn btn-red">PDF</button><button class="btn btn-blue">Print</button></div>
-            </div>
-            <div class="tc-right"><label>Search:</label><input type="text" id="allocSearch" oninput="renderAlloc()" placeholder="Search..." /></div>
-          </div>
-        </div>
-        <div class="table-wrap">
-          <div class="tscroll"><table>
-            <thead><tr><th>Range Name</th><th>Numbers Available</th><th>Numbers Allocated</th><th>Rate</th><th>Allocate (to Manager)</th><th>Unallocate</th></tr></thead>
-            <tbody id="allocBody"></tbody>
-          </table></div>
-          <div class="table-foot"><div class="info" id="allocInfo"></div><div class="pagination"><button>‹</button><button class="active">1</button><button>2</button><button>›</button></div></div>
-        </div>
-      </section>
-
       <!-- ========== SMS NUMBERS ========== -->
       <section class="page" id="page-numbers">
         <div class="page-head"><div><h2>SMS Numbers</h2><div class="breadcrumb"><b>SMS Module</b> › SMS Numbers</div></div>
@@ -582,111 +549,10 @@
         </div>
       </section>
 
-      <!-- ========== IMPORT ========== -->
-      <section class="page" id="page-import">
-        <div class="page-head"><div><h2>Import Numbers / Ranges</h2><div class="breadcrumb"><b>SMS Module</b> › Import</div></div></div>
-        <div class="two-col">
-          <div class="card">
-            <div class="card-head"><div><h3>Upload Numbers File</h3><div class="sub">CSV / Excel / TXT — bulk numbers</div></div></div>
-            <div class="upload-box" onclick="document.getElementById('numFile').click()">
-              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-              <div>Click to select or drop file here<br><b>numbers.csv / .xlsx / .txt</b></div>
-            </div>
-            <input type="file" id="numFile" accept=".csv,.xlsx,.xls,.txt" style="display:none" onchange="handleFile('numFile','numFileInfo')" />
-            <div class="form-group" style="margin-top:14px"><label>Assign to Range</label><select id="importRange"><option value="">Select Range</option></select></div>
-            <div id="numFileInfo" class="hint"></div>
-            <button class="btn btn-purple" style="margin-top:12px;width:100%" onclick="doImport('numFile')">Import Numbers</button>
-          </div>
-          <div class="card">
-            <div class="card-head"><div><h3>Upload Ranges File</h3><div class="sub">CSV / Excel — ranges + rates</div></div></div>
-            <div class="upload-box" onclick="document.getElementById('rangeFile').click()">
-              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-              <div>Click to select or drop file here<br><b>ranges.csv / .xlsx</b></div>
-            </div>
-            <input type="file" id="rangeFile" accept=".csv,.xlsx,.xls" style="display:none" onchange="handleFile('rangeFile','rangeFileInfo')" />
-            <div id="rangeFileInfo" class="hint" style="margin-top:12px"></div>
-            <button class="btn btn-purple" style="margin-top:12px;width:100%" onclick="doImport('rangeFile')">Import Ranges</button>
-            <div class="hint" style="margin-top:10px;color:#5c6a86">Template columns: Range, Prefix, Test Number, Currency, 1/1, 7/1, 7/7, 30/45, Memo</div>
-          </div>
-        </div>
-
-        <div class="card" style="margin-top:16px">
-          <div class="card-head"><div><h3>Import Jobs & Bulk Delete</h3><div class="sub">Large uploads run in the background. Delete a batch only when the batch is listed here.</div></div><div class="head-actions"><button class="btn btn-blue" onclick="loadImportBatches();refreshNumberDbTools()">Refresh</button><button class="btn btn-red" onclick="deleteAllImportedNumbers()">Delete All Imported Numbers</button></div></div>
-          <div id="importJobStatus" class="hint" style="margin-bottom:12px">No active import job.</div>
-          <div class="table-wrap"><div class="tscroll"><table><thead><tr><th>Batch ID</th><th>Range</th><th>Total</th><th>Inserted</th><th>Skipped</th><th>Status</th><th>Created</th><th>Action</th></tr></thead><tbody id="importBatchBody"></tbody></table></div></div>
-          <div class="hint" style="margin-top:10px">If this table is empty but SMS Numbers still has records, those numbers are old/manual database records. Use the Database Number Delete tools below.</div>
-        </div>
-
-        <div class="card" style="margin-top:16px;border:1px solid rgba(239,68,68,.25)">
-          <div class="card-head"><div><h3>Database Number Delete</h3><div class="sub">Hard delete actual records from the numbers database. This works even when Import Jobs shows 0.</div></div><div class="head-actions"><button class="btn btn-blue" onclick="refreshNumberDbTools()">Refresh Count</button></div></div>
-          <div class="form-grid" style="grid-template-columns:1fr 1fr;gap:16px">
-            <div class="form-group"><label>Actual Numbers in Database</label><div id="numberDbCount" class="hint" style="font-size:18px;font-weight:900;color:#0f2454">Loading...</div></div>
-            <div class="form-group"><label>Delete by Range</label><select id="deleteRangeSelect"><option value="">Select Range</option></select></div>
-          </div>
-          <div class="head-actions" style="justify-content:flex-start;margin-top:10px;gap:8px;flex-wrap:wrap">
-            <button class="btn btn-red" onclick="deleteNumbersByRange()">Delete Selected Range Numbers</button>
-            <button class="btn btn-red" onclick="deleteAllNumbersFromDb()">Delete ALL Numbers</button>
-          </div>
-          <div class="hint" style="margin-top:10px;color:#b91c1c"><b>Warning:</b> This is permanent hard delete for numbers. Before deleting, the panel will ask whether you also want to delete OTP/SMS history or keep it.</div>
-        </div>
-      </section>
-
-
-      <!-- ========== IMPORT TEST NUMBERS ========== -->
-      <section class="page" id="page-testImport">
-        <div class="page-head"><div><h2>Import SMS Test Numbers</h2><div class="breadcrumb"><b>SMS Module</b> › Test Number Import</div></div></div>
-        <div class="card" style="margin-bottom:16px">
-          <div class="card-head"><div><h3>Upload Test Numbers File</h3><div class="sub">Test numbers are separate from live SMS Numbers. They are used only in the SMS Test Panel.</div></div></div>
-          <div class="form-grid" style="grid-template-columns:1fr 1fr;gap:16px">
-            <div>
-              <div class="upload-box" onclick="document.getElementById('testNumFile').click()">
-                <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                <div>Click to select a test numbers file<br><b>.txt / .csv</b></div>
-              </div>
-              <input type="file" id="testNumFile" accept=".csv,.txt" style="display:none" onchange="handleFile('testNumFile','testNumFileInfo')" />
-              <div id="testNumFileInfo" class="hint" style="margin-top:12px"></div>
-            </div>
-            <div>
-              <div class="form-group"><label>Assign to Range</label><select id="testImportRange"><option value="">Select Range</option></select></div>
-              <div class="hint">Upload 2-3 separate test numbers per range. If a number already exists in live SMS Numbers, it will be skipped automatically.</div>
-              <button class="btn btn-purple" style="margin-top:12px;width:100%" onclick="doImportTestNumbers()">Import Test Numbers</button>
-            </div>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-head"><div><h3>File Format</h3><div class="sub">One number per line, or comma separated.</div></div></div>
-          <pre style="background:#f8fafc;border:1px solid var(--border);border-radius:12px;padding:14px;color:#0f2454;white-space:pre-wrap">923009990001
-923009990002
-923009990003</pre>
-        </div>
-      </section>
-
       <!-- USER PAGES (built via JS) -->
       <section class="page" id="page-managers"></section>
       <section class="page" id="page-agents"></section>
       <section class="page" id="page-clients"></section>
-
-      <!-- ========== RATE MANAGEMENT ========== -->
-      <section class="page" id="page-rates">
-        <div class="page-head"><div><h2>Rate Management</h2><div class="breadcrumb"><b>Pricing</b> › Ranges &amp; Rates</div></div>
-          <div class="head-actions"><button class="btn btn-ghost" onclick="showPageByName('import')">⬆ Import Ranges</button><button class="btn btn-purple" onclick="openRateModal(-1)">+ Add Range</button></div>
-        </div>
-        <div class="table-wrap" style="padding:16px 18px;margin-top:0">
-          <div class="table-controls">
-            <div class="tc-left"><label>Show Records:</label>
-              <select id="rateLen" onchange="renderRates()"><option>10</option><option selected>25</option><option>50</option><option>100</option><option>500</option><option value="All">All</option></select>
-              <div class="exp-btns"><button class="btn btn-blue">Copy</button><button class="btn btn-blue">CSV</button><button class="btn btn-green">Excel</button><button class="btn btn-red">PDF</button><button class="btn btn-blue">Print</button></div>
-            </div>
-            <div class="tc-right"><label>Search:</label><input type="text" id="rateSearch" oninput="renderRates()" placeholder="Search..." /></div>
-          </div>
-        </div>
-        <div class="table-wrap"><div class="tscroll"><table>
-          <thead><tr><th>Range</th><th>Prefix</th><th>Test Number</th><th>Currency</th><th>1/1</th><th>7/1</th><th>7/7</th><th>30/45</th><th>Memo</th><th>Action</th></tr></thead>
-          <tbody id="ratesBody"></tbody>
-        </table></div>
-          <div class="table-foot"><div class="info" id="ratesInfo"></div><div class="pagination"><button>‹</button><button class="active">1</button><button>2</button><button>3</button><button>›</button></div></div>
-        </div>
-      </section>
 
 
       <section class="page" id="page-cliSearch">
@@ -756,201 +622,6 @@
         </div>
       </section>
 
-
-
-      <section class="page" id="page-testGenerator">
-        <div class="page-head"><div><h2>Test SMS Generator</h2><div class="breadcrumb"><b>System Master</b> › Development & QA</div></div></div>
-        <div class="card" style="margin-bottom:16px">
-          <div class="card-head"><div><h3>Temporary QA Testing Tool</h3><div class="sub">Generate test SMS records through the same processing logic used by production incoming SMS. This module is controlled by a feature flag and can be disabled anytime.</div></div></div>
-          <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr;gap:14px">
-            <div class="form-group"><label>Module Status</label><select id="tgEnabled"><option value="0">Disabled</option><option value="1">Enabled</option></select></div>
-            <div class="form-group"><label>Max Batch Size</label><input type="number" id="tgMaxBatch" value="100" min="1" max="1000" /></div>
-            <div class="form-group"><label>Default CLI</label><input id="tgDefaultCli" placeholder="TestCLI" /></div>
-          </div>
-          <div class="form-group"><label>Default Message Template</label><input id="tgDefaultMsg" placeholder="Your test verification code is {code}" /><div class="hint">Supported placeholders: <b>{code}</b>, <b>{number}</b>, <b>{index}</b></div></div>
-          <button class="btn btn-purple" onclick="saveTestGeneratorSettings()">Save Test Module Settings</button>
-        </div>
-
-        <div class="grid2" style="grid-template-columns:1fr 1fr">
-          <div class="card">
-            <div class="card-head"><div><h3>Generate Test SMS</h3><div class="sub">Select an allocated number, or leave empty to use recently allocated client numbers.</div></div></div>
-            <div class="form-group"><label>Target Number</label><select id="tgNumber"><option value="">Auto: use allocated client numbers</option></select></div>
-            <div class="form-grid" style="grid-template-columns:1fr 1fr;gap:14px">
-              <div class="form-group"><label>CLI / Sender</label><input id="tgCli" placeholder="TestCLI" /></div>
-              <div class="form-group"><label>Quantity</label><input type="number" id="tgQty" value="1" min="1" /></div>
-            </div>
-            <div class="form-group"><label>Message</label><textarea id="tgMessage" style="width:100%;min-height:90px;border:1px solid var(--border2);border-radius:9px;padding:10px" placeholder="Your test verification code is {code}"></textarea></div>
-            <div class="hint" style="margin-bottom:12px">Generated messages are marked as <b>test</b> in the database and can be cleared later. They still update dashboards, reports, stats, notifications and earnings so the full workflow can be tested.</div>
-            <button class="btn btn-green" onclick="generateTestSms()">Generate Test SMS</button>
-          </div>
-          <div class="card">
-            <div class="card-head"><div><h3>Test Data Control</h3><div class="sub">Use this after QA to remove generated test SMS records.</div></div></div>
-            <div class="hint" style="margin-bottom:12px">This clears records created by the Test SMS Generator only. Real carrier SMS records are not removed.</div>
-            <button class="btn btn-red" onclick="clearGeneratedTestSms()">Clear Generated Test SMS</button>
-            <div id="tgResult" class="hint" style="margin-top:14px;white-space:pre-wrap"></div>
-          </div>
-        </div>
-      </section>
-
-      <section class="page" id="page-carrierIntegration">
-        <div class="page-head"><div><h2>Carrier Integration</h2><div class="breadcrumb"><b>System Master</b> › Carrier HTTP Settings</div></div></div>
-        <div class="card" id="carrierLockCard" style="margin-bottom:16px;display:none;border:1px solid rgba(212,175,55,.35)">
-          <div class="card-head"><div><h3>Carrier Integration Locked</h3><div class="sub">Enter security password to view or change carrier settings.</div></div></div>
-          <div class="form-grid" style="grid-template-columns:1fr auto;gap:12px;align-items:end">
-            <div class="form-group"><label>Password</label><input id="carrierLockPassword" type="password" placeholder="Enter password" /></div>
-            <button class="btn btn-purple" onclick="unlockCarrierIntegration()">Unlock</button>
-          </div>
-          <div class="hint">Password can be changed from Admin Profile after entering the admin security code.</div>
-        </div>
-        <div id="carrierProtected">
-        <div class="stats-grid">
-          <div class="stat-card dash-metric d-blue"><div class="stat-info"><p>Last SMS Received</p><h3 id="ciLastSms">—</h3><span>Last successful carrier SMS</span></div><div class="dash-go">✓</div></div>
-          <div class="stat-card dash-metric d-green"><div class="stat-info"><p>Last Carrier IP</p><h3 id="ciLastIp">—</h3><span>Last request source IP</span></div><div class="dash-go">IP</div></div>
-          <div class="stat-card dash-metric d-pink"><div class="stat-info"><p>Last Request Status</p><h3 id="ciLastStatus">—</h3><span id="ciLastError">Carrier request status</span></div><div class="dash-go">!</div></div>
-          <div class="stat-card dash-metric d-orange"><div class="stat-info"><p>Log Retention</p><h3 id="ciRetentionCard">30 Days</h3><span>Webhook log retention</span></div><div class="dash-go">↺</div></div>
-        </div>
-        <div class="card" style="margin-bottom:16px">
-          <div class="card-head"><div><h3>HTTP Callback Configuration</h3><div class="sub">HTTP-only carrier integration. Configure allowed IPs, callback URL, retention and optional future HTTP auth tokens.</div></div></div>
-          <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr;gap:14px">
-            <div class="form-group"><label>Integration Status</label><select id="ciStatus"><option value="disabled">Disabled</option><option value="enabled">Enabled</option></select></div>
-            <div class="form-group"><label>Allowed Carrier IP List</label><input id="ciIp" placeholder="51.77.64.61, 51.77.64.62, 127.0.0.1" /><div class="hint">Comma, space or new-line separated IP addresses.</div></div>
-            <div class="form-group"><label>Webhook Log Retention</label><select id="ciRetention"><option value="7">7 Days</option><option value="30">30 Days</option><option value="90">90 Days</option><option value="180">180 Days</option></select></div>
-          </div>
-          <div class="form-group"><label>HTTP Callback URL</label><div style="display:flex;gap:8px;align-items:center"><input id="ciCallback" placeholder="https://yourdomain.com/api/incoming-sms"/><button class="btn btn-blue btn-sm" onclick="copyCarrierUrl()" type="button">Copy</button><button class="btn btn-green btn-sm" onclick="testCarrierConnection()" type="button">Test Connection</button></div><div class="hint">Send this URL to the carrier. The URL must end with <b>/api/incoming-sms</b>.</div></div>
-          <div class="form-grid" style="grid-template-columns:1fr 1fr;gap:14px">
-            <div class="form-group"><label>Future API Key</label><input id="ciApiKey" placeholder="Optional / future" /></div>
-            <div class="form-group"><label>Future Auth Token</label><input id="ciToken" placeholder="Optional / future" /></div>
-          </div>
-          <div class="card" style="margin:10px 0 14px;padding:14px;background:#F8FAFC!important">
-            <div class="card-head" style="margin-bottom:8px"><div><h3 style="font-size:14px">HTTP Integration Active</h3><div class="sub">HTTP callback is active. SMPP Server is available separately in System Master → SMPP Server.</div></div></div>
-            <div class="hint"><b>Production endpoint:</b> <code>POST /api/incoming-sms</code></div>
-            <div class="hint" style="margin-top:6px"><b>Accepted content types:</b> application/json, application/x-www-form-urlencoded, multipart/form-data</div>
-          </div></div>
-          <div class="form-group"><label>Notes</label><textarea id="ciNotes" style="width:100%;min-height:80px;border:1px solid var(--border2);border-radius:9px;padding:10px" placeholder="Request format, field names, auth notes or carrier instructions..."></textarea></div>
-          <div class="hint" id="ciInfo" style="margin-bottom:12px"></div>
-          <button class="btn btn-purple" onclick="saveCarrierSettings()">Save Carrier Settings</button>
-        </div>
-        <div class="card" style="margin-bottom:16px">
-          <div class="card-head"><div><h3>Carrier Webhook Logs</h3><div class="sub">Incoming carrier requests and system responses for debugging.</div></div><div class="head-actions"><button class="btn btn-blue" onclick="loadCarrierWebhookLogs()">Refresh Logs</button><button class="btn btn-red" onclick="clearCarrierWebhookLogs()">Clear Logs</button><button class="btn btn-green" onclick="exportCarrierLogsCsv()">Export CSV / Excel</button></div></div>
-          <div class="table-wrap"><div class="tscroll"><table>
-            <thead><tr><th>Timestamp</th><th>Source IP</th><th>Number</th><th>CLI/Sender</th><th>Message Preview</th><th>Status</th><th>Error Message</th></tr></thead>
-            <tbody id="ciLogBody"></tbody>
-          </table></div><div class="table-foot"><div class="info" id="ciLogInfo"></div></div></div>
-        </div>
-        </div>
-      </section>
-
-      <section class="page" id="page-smppServer">
-        <div class="page-head"><div><h2>SMPP Server</h2><div class="breadcrumb"><b>System Master</b> › Incoming SMPP Server</div></div><div class="head-actions"><button class="btn btn-blue" onclick="loadSmppServer()">Refresh</button><button class="btn btn-purple" onclick="restartSmppServer()">Restart SMPP Server</button></div></div>
-        <div class="stats-grid">
-          <div class="stat-card dash-metric d-blue"><div class="stat-info"><p>Host</p><h3 id="smppHost">—</h3><span>Give this host/IP to carrier</span></div><div class="dash-go">IP</div></div>
-          <div class="stat-card dash-metric d-green"><div class="stat-info"><p>Listening Ports</p><h3 id="smppPorts">—</h3><span>SMPP server ports</span></div><div class="dash-go">P</div></div>
-          <div class="stat-card dash-metric d-orange"><div class="stat-info"><p>Active Sessions</p><h3 id="smppSessionCount">0</h3><span>Connected carriers</span></div><div class="dash-go">↔</div></div>
-        </div>
-        <div class="card" style="margin-bottom:16px">
-          <div class="card-head"><div><h3>Create / Update SMPP User</h3><div class="sub">Carrier will bind to our SMPP server using System ID and Password. Supports transceiver/transmitter/receiver and submit_sm/deliver_sm/data_sm.</div></div><button class="btn btn-green" onclick="createSmppUser()">Create User</button></div>
-          <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr 1fr;gap:14px">
-            <div class="form-group"><label>Username / System ID</label><input id="smppUsername" placeholder="auto or e.g. carrier1"></div>
-            <div class="form-group"><label>Password</label><input id="smppPassword" placeholder="auto if blank"></div>
-            <div class="form-group"><label>Port</label><input id="smppPort" type="number" value="2775"></div>
-            <div class="form-group"><label>Bind Type</label><select id="smppBindType"><option value="any">Any</option><option value="transceiver">Transceiver</option><option value="transmitter">Transmitter</option><option value="receiver">Receiver</option></select></div>
-          </div>
-          <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr;gap:14px">
-            <div class="form-group"><label>Mapping</label><select id="smppMapping"><option value="destination_to_number">destination_addr = Number, source_addr = CLI</option><option value="source_to_number">source_addr = Number, destination_addr = CLI</option></select></div>
-            <div class="form-group"><label>Allowed IP(s)</label><input id="smppAllowedIp" placeholder="optional: 1.2.3.4, 5.6.7.8"></div>
-            <div class="form-group"><label>Notes</label><input id="smppNotes" placeholder="optional"></div>
-          </div>
-          <div class="hint">Default Host/IP: your VPS public IP/domain. Default port: <b>2775</b>. Open firewall port if needed: <code>ufw allow 2775/tcp</code></div>
-        </div>
-        <div class="table-wrap" style="margin-bottom:16px"><div class="tscroll"><table><thead><tr><th>User</th><th>Port</th><th>Bind</th><th>Mapping</th><th>Allowed IP</th><th>Enabled</th><th>Sessions</th><th>Action</th></tr></thead><tbody id="smppUserBody"></tbody></table></div><div class="table-foot"><div class="info" id="smppUserInfo"></div></div></div>
-        <div class="card" style="margin-bottom:16px"><div class="card-head"><div><h3>Active Connections</h3><div class="sub">Connected / disconnected carrier sessions.</div></div></div><div class="table-wrap"><div class="tscroll"><table><thead><tr><th>Session</th><th>User</th><th>IP</th><th>Port</th><th>Bind</th><th>Status</th><th>Connected</th><th>Last Seen</th></tr></thead><tbody id="smppSessionBody"></tbody></table></div></div></div>
-        <div class="card"><div class="card-head"><div><h3>SMPP Logs</h3><div class="sub">Bind, connection and incoming SMS logs.</div></div></div><div class="table-wrap"><div class="tscroll"><table><thead><tr><th>Time</th><th>User</th><th>IP</th><th>Event</th><th>Status</th><th>Number</th><th>CLI</th><th>Error</th></tr></thead><tbody id="smppLogBody"></tbody></table></div></div></div>
-      </section>
-
-      <section class="page" id="page-apiIntegration">
-        <div class="page-head"><div><h2>API Integration</h2><div class="breadcrumb"><b>System Master</b> › Polling API Incoming</div></div><div class="head-actions"><button class="btn btn-blue" onclick="loadApiIntegrations()">Refresh</button></div></div>
-        <div class="card" style="margin-bottom:16px">
-          <div class="card-head"><div><h3>Add / Update API Connector</h3><div class="sub">Independent from HTTP and SMPP. The panel fetches API every 5 seconds and processes matched numbers like HTTP incoming SMS.</div></div><button class="btn btn-green" onclick="saveApiIntegration()">Save Connector</button></div>
-          <input type="hidden" id="apiIntId" value="">
-          <div class="form-grid" style="grid-template-columns:1fr 2fr 1fr 1fr;gap:14px">
-            <div class="form-group"><label>Name</label><input id="apiIntName" placeholder="e.g. Lamix API"></div>
-            <div class="form-group"><label>Base URL</label><input id="apiIntUrl" placeholder="http://provider/api/viewstats"></div>
-            <div class="form-group"><label>Auth Type</label><select id="apiIntAuth"><option value="query_token">Query token</option><option value="bearer">Bearer token</option><option value="header">Header token</option><option value="none">None</option></select></div>
-            <div class="form-group"><label>Enabled</label><select id="apiIntEnabled"><option value="1">Enabled</option><option value="0">Disabled</option></select></div>
-          </div>
-          <div class="form-grid" style="grid-template-columns:2fr 1fr 1fr 1fr;gap:14px">
-            <div class="form-group"><label>Token / API Key</label><input id="apiIntToken" placeholder="Leave blank to keep existing token"></div>
-            <div class="form-group"><label>Token Param</label><input id="apiIntTokenParam" value="token"></div>
-            <div class="form-group"><label>Header Name</label><input id="apiIntTokenHeader" value="Authorization"></div>
-            <div class="form-group"><label>Interval Sec</label><input id="apiIntInterval" type="number" value="5" min="5"></div>
-          </div>
-          <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr 1fr;gap:14px">
-            <div class="form-group"><label>DT1 Param</label><input id="apiIntDt1" value="dt1"></div>
-            <div class="form-group"><label>DT2 Param</label><input id="apiIntDt2" value="dt2"></div>
-            <div class="form-group"><label>Records Param</label><input id="apiIntRecordsParam" value="records"></div>
-            <div class="form-group"><label>Records Limit</label><input id="apiIntRecordsLimit" type="number" value="100"></div>
-          </div>
-          <div class="hint">Payout from API is ignored. Only DT/Number/CLI/Message are processed. Duplicate protection uses Message ID if present, otherwise Number+CLI+Message+Time hash.</div>
-        </div>
-        <div class="table-wrap" style="margin-bottom:16px"><div class="tscroll"><table><thead><tr><th>Name</th><th>URL</th><th>Auth</th><th>Token</th><th>Interval</th><th>Status</th><th>Last Success</th><th>Error</th><th>Action</th></tr></thead><tbody id="apiIntBody"></tbody></table></div><div class="table-foot"><div class="info" id="apiIntInfo"></div></div></div>
-        <div class="card"><div class="card-head"><div><h3>API Integration Logs</h3><div class="sub">Success, failed, ignored and duplicate records.</div></div><button class="btn btn-blue" onclick="loadApiIntegrationLogs()">Refresh Logs</button></div><div class="table-wrap"><div class="tscroll"><table><thead><tr><th>Time</th><th>Connector</th><th>Status</th><th>Reason</th><th>Number</th><th>CLI</th><th>Message ID</th><th>Message</th></tr></thead><tbody id="apiIntLogBody"></tbody></table></div></div></div>
-      </section>
-
-      <section class="page" id="page-integrations">
-        <div class="page-head"><div><h2>Integration Layer</h2><div class="breadcrumb"><b>System Master</b> › Provider Connectors</div></div></div>
-        <div class="card" style="margin-bottom:16px">
-          <div class="card-head"><div><h3>Add / Update Connector</h3><div class="sub">Provider method is not finalized. This layer keeps HTTP/API/Webhook/File/Sync support modular.</div></div></div>
-          <div class="form-grid" style="grid-template-columns:1.2fr 1fr 1fr 1fr;gap:14px">
-            <div class="form-group"><label>Name</label><input id="icName" placeholder="e.g. Upstream HTTP Provider" /></div>
-            <div class="form-group"><label>Type</label><select id="icType"><option>HTTP</option><option>API</option><option>WEBHOOK</option><option>FILE</option><option>PANEL_SYNC</option><option>MANUAL</option></select></div>
-            <div class="form-group"><label>Direction</label><select id="icDirection"><option value="both">Both</option><option value="number_provision">Number Provision</option><option value="sms_receiving">SMS Receiving</option></select></div>
-            <div class="form-group"><label>Status</label><select id="icStatus"><option value="disabled">Disabled</option><option value="testing">Testing</option><option value="active">Active</option></select></div>
-          </div>
-          <div class="form-group"><label>Endpoint URL / Host</label><input id="icEndpoint" placeholder="https://provider.com/api" /></div>
-          <div class="form-group"><label>Notes / Config JSON</label><textarea id="icNotes" style="width:100%;min-height:75px;border:1px solid var(--border2);border-radius:9px;padding:10px" placeholder="Provider details, credentials placeholder, webhook format notes..."></textarea></div>
-          <button class="btn btn-purple" onclick="saveIntegration()">Save Connector</button>
-        </div>
-        <div class="table-wrap"><div class="tscroll"><table>
-          <thead><tr><th>Name</th><th>Type</th><th>Direction</th><th>Status</th><th>Endpoint</th><th>Notes</th><th>Action</th></tr></thead><tbody id="icBody"></tbody>
-        </table></div><div class="table-foot"><div class="info" id="icInfo"></div></div></div>
-      </section>
-
-
-
-      <section class="page" id="page-notificationRules">
-        <div class="page-head"><div><h2>Notification Rules</h2><div class="breadcrumb"><b>System Master</b> › Milestone Notifications</div></div></div>
-        <div class="card" style="margin-bottom:16px">
-          <div class="card-head"><div><h3>Add Milestone Rule</h3><div class="sub">Notifications are sent only when a threshold is reached. Number-wise scope is disabled.</div></div></div>
-          <div class="form-grid" style="grid-template-columns:1.2fr 1fr 1fr 1.4fr;gap:14px">
-            <div class="form-group"><label>Rule Name</label><input id="nrName" placeholder="e.g. Client Daily Milestones" /></div>
-            <div class="form-group"><label>Scope</label><select id="nrScope"><option value="global">Global</option><option value="manager">Manager</option><option value="agent">Agent</option><option value="client">Client</option><option value="range">Range</option><option value="cli">CLI</option></select></div>
-            <div class="form-group"><label>Period</label><select id="nrPeriod"><option value="daily">Daily</option><option value="payment_cycle">Payment Cycle</option><option value="monthly">Monthly</option><option value="lifetime">Lifetime</option></select></div>
-            <div class="form-group"><label>Thresholds</label><input id="nrThresholds" value="100,500,1000,5000,10000" /></div>
-          </div>
-          <div class="form-grid" style="grid-template-columns:1fr 1fr;gap:14px">
-            <div class="form-group"><label>Notify Roles</label><input id="nrRoles" value="admin,manager,agent" placeholder="admin,manager,agent,client" /></div>
-            <div class="form-group" style="display:flex;align-items:end"><button class="btn btn-purple" onclick="saveNotificationRule()" style="width:100%">Save Rule</button></div>
-          </div>
-        </div>
-        <div class="table-wrap"><div class="tscroll"><table>
-          <thead><tr><th>Name</th><th>Scope</th><th>Period</th><th>Thresholds</th><th>Notify Roles</th><th>Active</th><th>Action</th></tr></thead><tbody id="nrBody"></tbody>
-        </table></div><div class="table-foot"><div class="info" id="nrInfo"></div></div></div>
-      </section>
-
-      <section class="page" id="page-systemLogs">
-        <div class="page-head"><div><h2>System Logs</h2><div class="breadcrumb"><b>System Master</b> › Activity / Webhook / Failed Queue</div></div><div class="head-actions"><button class="btn btn-blue" onclick="loadSystemLogs()">Refresh</button></div></div>
-        <div class="toolbar"><div class="filter-row">
-          <button class="btn btn-blue" onclick="showLogTab('activity')">Activity Logs</button>
-          <button class="btn btn-blue" onclick="showLogTab('number')">Number History</button>
-          <button class="btn btn-blue" onclick="showLogTab('webhook')">Webhook Logs</button>
-          <button class="btn btn-red" onclick="showLogTab('failed')">Failed SMS Queue</button>
-        </div></div>
-        <div id="logActivity" class="log-tab"><div class="table-wrap"><div class="tscroll"><table><thead><tr><th>Date</th><th>User</th><th>Role</th><th>Action</th><th>Module</th><th>Details</th><th>IP</th></tr></thead><tbody id="actLogBody"></tbody></table></div></div></div>
-        <div id="logNumber" class="log-tab" style="display:none"><div class="table-wrap"><div class="tscroll"><table><thead><tr><th>Date</th><th>Number</th><th>Action</th><th>From</th><th>To</th><th>Details</th></tr></thead><tbody id="numHistBody"></tbody></table></div></div></div>
-        <div id="logWebhook" class="log-tab" style="display:none"><div class="table-wrap"><div class="tscroll"><table><thead><tr><th>Date</th><th>Status</th><th>Number</th><th>Matched</th><th>CLI</th><th>Message</th><th>Error</th></tr></thead><tbody id="webLogBody"></tbody></table></div></div></div>
-        <div id="logFailed" class="log-tab" style="display:none"><div class="table-wrap"><div class="tscroll"><table><thead><tr><th>Date</th><th>Number</th><th>CLI</th><th>Message</th><th>Error</th><th>Status</th><th>Retry</th></tr></thead><tbody id="failedSmsBody"></tbody></table></div></div></div>
-      </section>
-
       <!-- ========== SMS TEST PANEL ========== -->
       <section class="page" id="page-test">
         <div class="page-head"><div><h2>SMS Test Panel</h2><div class="breadcrumb"><b>Home</b> › SMS Test Panel</div></div>
@@ -1008,100 +679,6 @@
               <tbody id="testRecBody"></tbody>
             </table></div></div>
           </div>
-        </div>
-      </section>
-
-
-      <section class="page" id="page-backupManagement">
-        <div class="page-head"><div><h2>Database Backups</h2><div class="breadcrumb"><b>System Master</b> › Backup & Restore</div></div>
-          <div class="head-actions"><button class="btn btn-blue" onclick="loadBackups()">Refresh</button><button class="btn btn-green" onclick="createBackupNow()">Create Backup Now</button><button class="btn btn-purple" onclick="downloadLatestBackup()">Download Latest</button></div>
-        </div>
-        <div class="stats-grid">
-          <div class="stat-card dash-metric d-blue"><div class="stat-info"><p>Total Backups</p><h3 id="bkTotal">0</h3><span>Available snapshots</span></div><div class="dash-go">DB</div></div>
-          <div class="stat-card dash-metric d-green"><div class="stat-info"><p>Latest Backup</p><h3 id="bkLatest">—</h3><span>Most recent snapshot</span></div><div class="dash-go">✓</div></div>
-          <div class="stat-card dash-metric d-orange"><div class="stat-info"><p>Backup Folder</p><h3 id="bkFolder">—</h3><span>Persistent storage path</span></div><div class="dash-go">↺</div></div>
-          <div class="stat-card dash-metric d-pink"><div class="stat-info"><p>Database File</p><h3 id="bkDbFile">—</h3><span>Active database path</span></div><div class="dash-go">●</div></div>
-        </div>
-        <div class="card" style="margin-bottom:16px">
-          <div class="card-head"><div><h3>Railway Volume Settings</h3><div class="sub">Use <b>DB_FILE=/data/data.sqlite</b> and <b>BACKUP_DIR=/data/backups</b> on Railway. Create a Railway Volume mounted at <b>/data</b>.</div></div></div>
-          <div class="hint">Automatic backups run every <b>BACKUP_INTERVAL_HOURS</b> hours and old backups are removed after <b>BACKUP_RETENTION_DAYS</b> days.</div>
-        </div>
-        <div class="table-wrap"><div class="tscroll"><table>
-          <thead><tr><th>File</th><th>Created</th><th>Modified</th><th>Size</th><th>Actions</th></tr></thead>
-          <tbody id="backupBody"></tbody>
-        </table></div><div class="table-foot"><div class="info" id="backupInfo"></div></div></div>
-      </section>
-
-      <!-- ========== SYSTEM MASTER: NEWS ========== -->
-      <section class="page" id="page-news">
-        <div class="page-head"><div><h2>News for Users</h2><div class="breadcrumb"><b>System Master</b> › News</div></div>
-          <div class="head-actions"><button class="btn btn-purple" onclick="openNewsModal(-1)">+ Post News</button></div>
-        </div>
-        <div class="card" style="margin-bottom:16px">
-          <div class="card-head"><div><h3>Broadcast a Notice</h3><div class="sub">This notice will appear in selected user panels.</div></div></div>
-          <div class="form-group"><label>Send to</label>
-            <select id="newsAudience" style="max-width:280px"><option value="all">All Users (Manager + Agent + Client)</option><option value="manager">Managers only</option><option value="agent">Agents only</option><option value="client">Clients only</option></select>
-          </div>
-          <div class="form-group"><label>Title</label><input type="text" id="newsTitle" placeholder="e.g. Scheduled maintenance tonight"/></div>
-          <div class="form-group"><label>Message</label><textarea id="newsBody" placeholder="Write the message to publish..." style="width:100%;min-height:90px;background:var(--row);border:1px solid var(--border2);border-radius:9px;color:var(--text);padding:11px 12px;font-size:13px;font-family:inherit;resize:vertical"></textarea></div>
-          <button class="btn btn-purple" onclick="postNews()">Publish News</button>
-        </div>
-        <div class="table-wrap"><div class="tscroll"><table>
-          <thead><tr><th>Date</th><th>Title</th><th>Message</th><th>Audience</th><th>Status</th><th>Action</th></tr></thead>
-          <tbody id="newsBody2"></tbody>
-        </table></div><div class="table-foot"><div class="info" id="newsInfo"></div></div></div>
-      </section>
-
-      <!-- ========== SYSTEM MASTER: SMS CLI LIMIT ========== -->
-      <section class="page" id="page-cliLimit">
-        <div class="page-head"><div><h2>SMS CLI Limit</h2><div class="breadcrumb"><b>System Master</b> › CLI Limit</div></div></div>
-        <div class="card" style="margin-bottom:16px">
-          <div class="card-head"><div><h3>Set a CLI Limit</h3><div class="sub">Select a CLI and set a limit. These limits are visible to managers only.</div></div></div>
-          <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr;gap:14px">
-            <div class="form-group"><label>Select CLI <span class="req">*</span></label>
-              <select id="climCli"><option value="">Choose CLI</option></select></div>
-            <div class="form-group"><label>Limit Type <span class="req">*</span></label>
-              <select id="climType" onchange="climTypeChange()">
-                <option value="overall">Overall (jis ne jitni laga li)</option>
-                <option value="specific">Specific Manager</option>
-              </select></div>
-            <div class="form-group" id="climMgrGroup" style="display:none"><label>Manager</label>
-              <select id="climMgr"></select></div>
-          </div>
-          <div class="form-grid" style="grid-template-columns:1fr 1fr;gap:14px">
-            <div class="form-group"><label>Limit (SMS count) <span class="req">*</span></label><input type="number" id="climLimit" placeholder="e.g. 500"/></div>
-            <div class="form-group" style="display:flex;align-items:flex-end"><button class="btn btn-purple" onclick="addCliLimit()" style="width:100%">Set Limit</button></div>
-          </div>
-          <div class="hint" style="color:#5c6a86">
-            <b>Overall:</b> shared limit across all managers. &nbsp;•&nbsp;
-            <b>Specific:</b> set a separate limit for each manager.
-          </div>
-        </div>
-        <div class="table-wrap"><div class="tscroll"><table>
-          <thead><tr><th>CLI</th><th>Type</th><th>Manager</th><th>Limit</th><th>Used</th><th>Remaining</th><th>Action</th></tr></thead>
-          <tbody id="climBody"></tbody>
-        </table></div><div class="table-foot"><div class="info" id="climInfo"></div></div></div>
-      </section>
-
-      <!-- ========== LIMIT MANAGEMENT ========== -->
-      <section class="page" id="page-limitManagement">
-        <div class="page-head"><div><h2>Limit Management</h2><div class="breadcrumb"><b>System Master</b> › Daily Payout Limits (UK Time)</div></div><div class="head-actions"><button class="btn btn-blue" onclick="loadLimitManagement()">Refresh</button></div></div>
-        <div class="card" style="margin-bottom:16px">
-          <div class="card-head"><div><h3>Range Daily Limits</h3><div class="sub">Set range-wide daily limit and per-number daily limit. OTPs are never blocked; payout becomes 0 after limit.</div></div></div>
-          <div class="table-wrap"><div class="tscroll"><table><thead><tr><th>Range</th><th>Daily Limit</th><th>Per-Number Limit</th><th>Today OTPs</th><th>Paid</th><th>Zeroed</th><th>Action</th></tr></thead><tbody id="lmRangeBody"></tbody></table></div></div>
-        </div>
-        <div class="card" style="margin-bottom:16px">
-          <div class="card-head"><div><h3>CLI Daily Limits</h3><div class="sub">Set a daily limit per CLI. Counts are combined across all ranges and numbers.</div></div><button class="btn btn-blue btn-sm" onclick="loadLimitManagement()">Refresh</button></div>
-          <div class="card" style="margin:0 0 12px;padding:14px;background:#F8FAFC!important">
-            <div style="font-weight:800;margin-bottom:10px">Manually Add CLI Limit</div>
-            <div class="form-grid" style="grid-template-columns:2fr 1fr auto;gap:12px;align-items:end">
-              <div class="form-group"><label>CLI / Sender (any format)</label><input id="lmCliManual" placeholder="e.g. Microsoft, 12345, Affirm"></div>
-              <div class="form-group"><label>Daily Limit</label><input id="lmCliManualLimit" type="number" placeholder="e.g. 500"></div>
-              <button class="btn btn-green" onclick="saveManualCliLimit()">Add CLI Limit</button>
-            </div>
-          </div>
-          <div class="toolbar"><input id="lmCliSearch" placeholder="Search CLI..." oninput="renderLimitManagement()" style="max-width:220px"></div>
-          <div class="table-wrap"><div class="tscroll"><table><thead><tr><th>CLI (Sender)</th><th>Daily Limit</th><th>Today OTPs</th><th>Paid</th><th>Zeroed</th><th>Action</th></tr></thead><tbody id="lmCliBody"></tbody></table></div><div class="table-foot"><div class="info" id="lmInfo"></div></div></div>
         </div>
       </section>
 
@@ -1184,7 +761,7 @@
   <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal('newsModal')">Cancel</button><button class="btn btn-purple" onclick="saveNews()">Save</button></div>
 </div></div>
 
-<script src="/api.js?v=20260722-management-split"></script>
+<script src="/api.js?v=20260722-perf-bulk-ranges"></script>
 <script>
 /* auth guard — admin only */
 if(window.API){ API.guard('admin'); }
@@ -2605,8 +2182,8 @@ async function loadAdminPageData(page){
     if(page==='rates') return loadRates();
     if(page==='smsReport'){ if(!document.getElementById('srBody')) buildSmsReport(); return renderSmsReport(); }
     if(page==='smsDetail'){ if(!document.getElementById('sdBody')) buildSmsDetail(); await fillSmsDetailLiteFilters(); return renderSmsDetail(); }
-    if(['clientStats','agentStats','managerStats'].includes(page)){ const k=page.replace('Stats',''); if(!document.getElementById(k+'SBody')) buildEntityStats(k); return ensureAdminSms(); }
-    if(['rangeStats','numberStats'].includes(page)){ const k=page.replace('Stats',''); if(!document.getElementById(k+'SBody')) buildDrillStats(k); return ensureAdminSms(); }
+    if(['clientStats','agentStats','managerStats'].includes(page)){ const k=page.replace('Stats',''); if(!document.getElementById(k+'SBody')) buildEntityStats(k); await ensureAdminManagers(); return renderEntityStats(k); }
+    if(['rangeStats','numberStats'].includes(page)){ const k=page.replace('Stats',''); if(!document.getElementById(k+'SBody')) buildDrillStats(k); await ensureAdminManagers(); return renderDrillStats(k); }
     if(page==='test'){ await ensureAdminRates(); return renderTest(); }
     if(page==='managers') return buildUserPage('manager');
     if(page==='agents') return buildUserPage('agent');
@@ -2681,6 +2258,35 @@ async function renderSmsDetail(){
   sdBody.innerHTML=rows.map(r=>`<tr><td class="muted">${(r.received_at||'').slice(0,19)}</td><td><span class="tag tag-mgr">${r.manager_name||'—'}</span></td><td><span class="tag tag-blue">${r.range_name||'—'}</span></td><td><span class="tag tag-gray mono">${r.number||''}</span></td><td class="mono">${r.cli||''}</td><td class="cell-money payout-rate">${cleanDec(r.payout_rate||r.payout_amount||0)}</td><td class="msg-body">${r.message||''}</td></tr>`).join('')||`<tr><td colspan="7" class="muted" style="text-align:center;padding:24px">No records found</td></tr>`;
   sdInfo.textContent=`Showing ${smsShownCount(data.page, data.limit, rows.length, data.total)} of ${data.total||0} rows`; sdPayoutInfo.textContent=`Filtered total payout: ${money(data.totalPayment||'0')}`;
   setServerFoot(sdInfo,state,renderSmsDetail);
+}
+
+/* =============== FAST SERVER-SIDE ADMIN STATS OVERRIDES =============== */
+async function renderEntityStats(kind){
+  const body=document.getElementById(kind+'SBody'); if(!body)return;
+  setDefaultDates(kind+'From',kind+'To');
+  const len=document.getElementById(kind+'SLen')?.value||'25', q=(document.getElementById(kind+'SSearch')?.value||'').toLowerCase();
+  const params=new URLSearchParams({from:document.getElementById(kind+'From')?.value||todayStr(),to:document.getElementById(kind+'To')?.value||todayStr()});
+  if(kind==='client'){const m=document.getElementById('clientFMgr')?.value||'',a=document.getElementById('clientFAgt')?.value||''; if(m)params.set('manager',m); if(a)params.set('agent',a);} 
+  if(kind==='agent'){const m=document.getElementById('agentFMgr')?.value||''; if(m)params.set('manager',m);} if(q)params.set('search',q);
+  let data={rows:[],totalSms:0,totalPayment:'0'}; try{data=await API.get('/stats-summary/'+kind+'?'+params.toString())}catch(e){console.warn(e)}
+  let rows=(data.rows||[]).map(x=>({name:x.key||'—',sms:+(x.sms||0),pay:x.payment||'0'})).filter(x=>x.name.toLowerCase().includes(q));
+  const pag=API.paginateRows('adminFastEntity'+kind,rows,len,kind+'SInfo',()=>renderEntityStats(kind));rows=pag.rows;
+  const tot=document.getElementById(kind+'Totals'); if(tot)tot.innerHTML=`<div class="stat-card"><div class="stat-info"><h3>${(data.rows||[]).length}</h3><p>Total ${kind}s</p></div></div><div class="stat-card"><div class="stat-info"><h3>${Number(data.totalSms||0).toLocaleString()}</h3><p>Total SMS</p></div></div><div class="stat-card"><div class="stat-info"><h3>${money(data.totalPayment||'0')}</h3><p>Total Payment</p></div></div>`;
+  body.innerHTML=rows.map(x=>{let extra='';let cls=kind==='manager'?'tag-mgr':(kind==='agent'?'tag-agt':'tag-cli');if(kind==='client')extra='<td><span class="tag tag-mgr">—</span></td><td><span class="tag tag-agt">—</span></td>';else if(kind==='agent')extra='<td><span class="tag tag-mgr">—</span></td><td><span class="tag tag-cli">—</span></td>';else extra='<td><span class="tag tag-agt">—</span></td><td><span class="tag tag-cli">—</span></td>';return `<tr><td><span class="tag ${cls}">${x.name}</span></td>${extra}<td class="cell-money">${x.sms.toLocaleString()}</td><td class="cell-money">${money(x.pay)}</td></tr>`}).join('')||`<tr><td colspan="5" class="muted" style="text-align:center;padding:24px">No records found</td></tr>`;
+  document.getElementById(kind+'SInfo').textContent=`Showing ${rows.length} of ${pag.total} ${kind}s`;
+}
+async function renderDrillStats(kind){
+  const body=document.getElementById(kind+'SBody'); if(!body)return;
+  setDefaultDates(kind+'From',kind+'To');
+  const len=document.getElementById(kind+'SLen')?.value||'25', q=(document.getElementById(kind+'SSearch')?.value||'').toLowerCase();
+  const params=new URLSearchParams({from:document.getElementById(kind+'From')?.value||todayStr(),to:document.getElementById(kind+'To')?.value||todayStr()});
+  const m=document.getElementById(kind+'FMgr')?.value||'', a=document.getElementById(kind+'FAgt')?.value||''; if(m)params.set('manager',m); if(a)params.set('agent',a); if(q)params.set('search',q);
+  const by=kind==='range'?'range':'number'; let data={rows:[],totalSms:0,totalPayment:'0'}; try{data=await API.get('/stats-summary/'+by+'?'+params.toString())}catch(e){console.warn(e)}
+  let rows=(data.rows||[]).map(x=>({val:x.key||'—',sms:+(x.sms||0),pay:x.payment||'0'})).filter(x=>x.val.toLowerCase().includes(q));
+  const pag=API.paginateRows('adminFastDrill'+kind,rows,len,kind+'SInfo',()=>renderDrillStats(kind));rows=pag.rows;
+  const tot=document.getElementById(kind+'Totals'); if(tot)tot.innerHTML=`<div class="stat-card"><div class="stat-info"><h3>${(data.rows||[]).length}</h3><p>Total ${kind==='range'?'Ranges':'Numbers'}</p></div></div><div class="stat-card"><div class="stat-info"><h3>${Number(data.totalSms||0).toLocaleString()}</h3><p>Total SMS</p></div></div><div class="stat-card"><div class="stat-info"><h3>${money(data.totalPayment||'0')}</h3><p>Total Payment</p></div></div>`;
+  body.innerHTML=rows.map(x=>`<tr><td><b>${kind==='number'?'<span class="mono">'+x.val+'</span>':x.val}</b></td><td><span class="tag tag-mgr">${m||'All'}</span></td><td><span class="tag tag-agt">${a||'All'}</span></td><td><span class="tag tag-cli">—</span></td><td class="cell-money">${x.sms.toLocaleString()}</td><td class="cell-money">${money(x.pay)}</td></tr>`).join('')||`<tr><td colspan="6" class="muted" style="text-align:center;padding:24px">No records found</td></tr>`;
+  document.getElementById(kind+'SInfo').textContent=`Showing ${rows.length} of ${pag.total} rows`;
 }
 
 /* =============== ADMIN LIGHT INIT (daily operations only) =============== */

@@ -516,7 +516,7 @@
   </div>
 </div>
 
-<script src="/api.js?v=20260722-management-split"></script>
+<script src="/api.js?v=20260722-perf-bulk-ranges"></script>
 <script>
 if(window.API){ API.guard('client'); }
 /* NAV */
@@ -646,10 +646,27 @@ async function loadClientPageData(page){
 
 
 
+/* FAST SERVER-SIDE CLIENT NUMBERS */
+let cliNumSeq=0;function cliState(key){window.__cliFast=window.__cliFast||{};if(!window.__cliFast[key])window.__cliFast[key]={page:1,totalPages:1,signature:''};return window.__cliFast[key];}
+function cliShown(p,l,n,t){return t===0?0:Math.min(t,((p-1)*Number(l||25))+n)}
+async function renderNumbers(){
+  const body=document.getElementById('numBody');if(!body)return;
+  const rf=document.getElementById('numRange')?.value||'',len=document.getElementById('numLen')?.value||'25',q=(document.getElementById('numSearch')?.value||'').trim();
+  const state=cliState('numbers');const sig=JSON.stringify({rf,len,q,sort:nSort.k,dir:nSort.d});if(state.signature!==sig){state.page=1;state.signature=sig;}
+  const params=new URLSearchParams({paged:'1',page:String(state.page),limit:len,last_sms:'1'});if(rf)params.set('range',rf);if(q)params.set('search',q);if(nSort.k){params.set('sort',nSort.k);params.set('dir',nSort.d===-1?'desc':'asc');}
+  const seq=++cliNumSeq;let data={rows:[],total:0,page:1,limit:25,totalPages:1};try{data=await API.get('/numbers?'+params.toString())}catch(e){console.warn(e)}if(seq!==cliNumSeq)return;
+  state.page=data.page||1;state.totalPages=data.totalPages||1;
+  numData=(data.rows||[]).map(r=>({range:r.range_name||'',number:r.number,payterm:r.payterm||'Weekly',status:'Active',last_sms_at:r.last_sms_at||'',sd:r.sd_limit||0,sw:r.sw_limit||0}));
+  body.innerHTML=numData.map(r=>`<tr><td>${r.range}</td><td><b>${r.number}</b></td><td><span class="tag tag-gray">${r.payterm}</span></td><td><span class="tag tag-green">${r.status}</span></td><td><span class="last-sms">${r.last_sms_at||'—'}</span></td><td class="muted">SD : ${r.sd} | SW : ${r.sw}</td></tr>`).join('')||`<tr><td colspan="6" class="muted" style="text-align:center;padding:24px">No allocated numbers found</td></tr>`;
+  numInfo.textContent=`Showing ${cliShown(data.page,data.limit,numData.length,data.total)} of ${data.total||0} numbers`;
+  const pag=numInfo.closest('.table-foot')?.querySelector('.pagination');if(pag&&window.drawServerPagination)drawServerPagination(pag,state,renderNumbers);
+}
+async function loadNumbers(){return renderNumbers();}
+
 /* SERVER-SIDE SMS STATS (performance) */
 let cliStatsPager={page:1,totalPages:1,signature:''};
 function cliStatsSig(o){try{return JSON.stringify(o)}catch(e){return String(Date.now())}}
-async function renderStats(){if(!document.getElementById('statsBody'))return;const rf=stRange.value||'',cf=(stCliFilter.value||'').trim(),len=stLen.value||'25',q=(stSearch.value||'').trim();const sig=cliStatsSig({rf,cf,len,q});if(cliStatsPager.signature!==sig){cliStatsPager.page=1;cliStatsPager.signature=sig;}const params=new URLSearchParams({page:String(cliStatsPager.page),limit:len,sort:'date',dir:'desc'});if(rf)params.set('range',rf);if(cf)params.set('cli',cf);if(q)params.set('search',q);let data={rows:[],total:0,page:1,limit:25,totalPages:1};try{data=await API.get('/sms/paged?'+params.toString())}catch(e){console.warn(e)}cliStatsPager.page=data.page||1;cliStatsPager.totalPages=data.totalPages||1;const rows=(data.rows||[]).map(r=>{const msg=r.message||'';return {range:r.range_name||'',number:r.number||'',cli:r.cli||'',msg,date:(r.received_at||'').slice(0,19),otp:r.otp_code||extractOTP(msg)}});stats=rows;statsBody.innerHTML=rows.map(r=>`<tr><td class="muted">${r.date}</td><td>${r.range}</td><td class="mono">${r.number}</td><td class="mono">${r.cli}</td><td>${r.otp?`<span class="otp-code">${r.otp}</span>`:'<span class="otp-empty">—</span>'}</td><td>${r.otp?`<button class="copy-otp-btn" onclick="copyText('${r.otp}')">Copy OTP</button>`:'—'}</td><td class="msg-body">${r.msg}</td></tr>`).join('')||`<tr><td colspan="7" class="muted" style="text-align:center;padding:24px">No records found</td></tr>`;statsInfo.textContent=`Showing ${data.total===0?0:Math.min(data.total,((data.page||1)-1)*Number(data.limit||25)+rows.length)} of ${data.total||0} records`;}
+async function renderStats(){if(!document.getElementById('statsBody'))return;const rf=stRange.value||'',cf=(stCliFilter.value||'').trim(),len=stLen.value||'25',q=(stSearch.value||'').trim();const sig=cliStatsSig({rf,cf,len,q});if(cliStatsPager.signature!==sig){cliStatsPager.page=1;cliStatsPager.signature=sig;}const params=new URLSearchParams({page:String(cliStatsPager.page),limit:len,sort:'date',dir:'desc'});if(rf)params.set('range',rf);if(cf)params.set('cli',cf);if(q)params.set('search',q);let data={rows:[],total:0,page:1,limit:25,totalPages:1};try{data=await API.get('/sms/paged?'+params.toString())}catch(e){console.warn(e)}cliStatsPager.page=data.page||1;cliStatsPager.totalPages=data.totalPages||1;const rows=(data.rows||[]).map(r=>{const msg=r.message||'';return {range:r.range_name||'',number:r.number||'',cli:r.cli||'',msg,date:(r.received_at||'').slice(0,19),otp:r.otp_code||extractOTP(msg)}});stats=rows;statsBody.innerHTML=rows.map(r=>`<tr><td class="muted">${r.date}</td><td>${r.range}</td><td class="mono">${r.number}</td><td class="mono">${r.cli}</td><td>${r.otp?`<span class="otp-code">${r.otp}</span>`:'<span class="otp-empty">—</span>'}</td><td>${r.otp?`<button class="copy-otp-btn" onclick="copyText('${r.otp}')">Copy OTP</button>`:'—'}</td><td class="msg-body">${r.msg}</td></tr>`).join('')||`<tr><td colspan="7" class="muted" style="text-align:center;padding:24px">No records found</td></tr>`;statsInfo.textContent=`Showing ${data.total===0?0:Math.min(data.total,((data.page||1)-1)*Number(data.limit||25)+rows.length)} of ${data.total||0} records`;const pag=statsInfo.closest('.table-foot')?.querySelector('.pagination');if(pag&&window.drawServerPagination)drawServerPagination(pag,cliStatsPager,renderStats);}
 async function loadStats(){ await renderStats(); renderNumbers(); }
 
 /* FAST PRIORITY INIT */

@@ -674,7 +674,7 @@
   <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal('clientModal')">Cancel</button><button class="btn btn-blue" onclick="saveClient()">Save</button></div>
 </div></div>
 
-<script src="/api.js?v=20260722-management-split"></script>
+<script src="/api.js?v=20260722-perf-bulk-ranges"></script>
 <script>
 if(window.API){ API.guard('agent'); }
 /* NAV */
@@ -989,15 +989,79 @@ async function loadAgentPageData(page){
 function agtPager(key){window.__agtPager=window.__agtPager||{};if(!window.__agtPager[key])window.__agtPager[key]={page:1,totalPages:1,signature:''};return window.__agtPager[key];}
 function agtSig(o){try{return JSON.stringify(o)}catch(e){return String(Date.now())}}
 function shownSrv(p,l,n,t){return t===0?0:Math.min(t,((p-1)*Number(l||25))+n)}
-async function renderSmsReport(){if(!document.getElementById('srBody'))return;const len=srLen.value||'25',search=(srSearch.value||'').trim();const state=agtPager('agtSmsReportServer');const sig=agtSig({len,search});if(state.signature!==sig){state.page=1;state.signature=sig;}const params=new URLSearchParams({page:String(state.page),limit:len,search,sort:'date',dir:'desc'});let data={rows:[],total:0,page:1,limit:25,totalPages:1};try{data=await API.get('/sms/paged?'+params.toString())}catch(e){}state.page=data.page||1;state.totalPages=data.totalPages||1;const rows=data.rows||[];srBody.innerHTML=rows.map(r=>`<tr><td class="muted">${(r.received_at||'').slice(0,19)}</td><td><span class="tag tag-cli">${r.client_name||'—'}</span></td><td>${r.range_name||'—'}</td><td class="mono">${r.cli||''}</td><td class="msg-body">${r.message||''}</td></tr>`).join('')||`<tr><td colspan="5" class="muted" style="text-align:center;padding:24px">No records found</td></tr>`;srInfo.textContent=`Showing ${shownSrv(data.page,data.limit,rows.length,data.total)} of ${data.total||0} records`;}
-async function renderSmsDetail(){if(!document.getElementById('sdBody'))return;const dateVal=sdDate?.value||todayStr(),rangeVal=sdRange?.value||'',userVal=sdUser?.value||'',search=(sdSearch?.value||'').trim(),len=sdLen?.value||'25';const by=sdUseNumber?.checked?'number':(sdUseRange?.checked?'range':(sdUseUser?.checked?'client':''));if(by){const params=new URLSearchParams({from:dateVal,to:dateVal});if(rangeVal)params.set('range',rangeVal);if(userVal)params.set('client',userVal);if(search)params.set('search',search);let data={rows:[]};try{data=await API.get('/stats-summary/'+by+'?'+params.toString())}catch(e){}sdHead.innerHTML=`<tr><th>${by}</th><th>Total OTPs</th><th>Total Payout</th></tr>`;sdBody.innerHTML=(data.rows||[]).map(x=>`<tr><td><span class="tag tag-blue">${x.key||'—'}</span></td><td class="cell-money">${x.sms||0}</td><td class="cell-money">${money(x.payment||'0')}</td></tr>`).join('')||`<tr><td colspan="3" class="muted" style="text-align:center;padding:24px">No records found</td></tr>`;sdInfo.textContent=`Showing ${(data.rows||[]).length} summary rows`;sdPayoutInfo.textContent=`Filtered total payout: ${money(data.totalPayment||'0')}`;return;}const state=agtPager('agtSmsDetailServer');const sig=agtSig({dateVal,rangeVal,userVal,search,len});if(state.signature!==sig){state.page=1;state.signature=sig;}const params=new URLSearchParams({page:String(state.page),limit:len,from:dateVal,to:dateVal,sort:'date',dir:'desc'});if(rangeVal)params.set('range',rangeVal);if(userVal)params.set('client',userVal);if(search)params.set('search',search);let data={rows:[],total:0,page:1,limit:25,totalPages:1,totalPayment:'0'};try{data=await API.get('/sms/paged?'+params.toString())}catch(e){}state.page=data.page||1;state.totalPages=data.totalPages||1;sdHead.innerHTML='<tr><th>Date</th><th>Client</th><th>Range</th><th>Number</th><th>CLI</th><th>Payout Rate</th><th>Message</th></tr>';const rows=data.rows||[];sdBody.innerHTML=rows.map(r=>`<tr><td class="muted">${(r.received_at||'').slice(0,19)}</td><td><span class="tag tag-cli">${r.client_name||'—'}</span></td><td><b>${r.range_name||'—'}</b></td><td class="mono">${r.number||''}</td><td class="mono">${r.cli||''}</td><td class="cell-money">${cleanDec(r.payout_rate||r.payout_amount||0)}</td><td class="msg-body">${r.message||''}</td></tr>`).join('')||`<tr><td colspan="7" class="muted" style="text-align:center;padding:24px">No records found</td></tr>`;sdInfo.textContent=`Showing ${shownSrv(data.page,data.limit,rows.length,data.total)} of ${data.total||0} rows`;sdPayoutInfo.textContent=`Filtered total payout: ${money(data.totalPayment||'0')}`;}
+async function renderSmsReport(){if(!document.getElementById('srBody'))return;const len=srLen.value||'25',search=(srSearch.value||'').trim();const state=agtPager('agtSmsReportServer');const sig=agtSig({len,search});if(state.signature!==sig){state.page=1;state.signature=sig;}const params=new URLSearchParams({page:String(state.page),limit:len,search,sort:'date',dir:'desc'});let data={rows:[],total:0,page:1,limit:25,totalPages:1};try{data=await API.get('/sms/paged?'+params.toString())}catch(e){}state.page=data.page||1;state.totalPages=data.totalPages||1;const rows=data.rows||[];srBody.innerHTML=rows.map(r=>`<tr><td class="muted">${(r.received_at||'').slice(0,19)}</td><td><span class="tag tag-cli">${r.client_name||'—'}</span></td><td>${r.range_name||'—'}</td><td class="mono">${r.cli||''}</td><td class="msg-body">${r.message||''}</td></tr>`).join('')||`<tr><td colspan="5" class="muted" style="text-align:center;padding:24px">No records found</td></tr>`;srInfo.textContent=`Showing ${shownSrv(data.page,data.limit,rows.length,data.total)} of ${data.total||0} records`;const pag=srInfo.closest('.table-foot')?.querySelector('.pagination');if(pag&&window.drawServerPagination)drawServerPagination(pag,state,renderSmsReport);}
+async function renderSmsDetail(){if(!document.getElementById('sdBody'))return;const dateVal=sdDate?.value||todayStr(),rangeVal=sdRange?.value||'',userVal=sdUser?.value||'',search=(sdSearch?.value||'').trim(),len=sdLen?.value||'25';const by=sdUseNumber?.checked?'number':(sdUseRange?.checked?'range':(sdUseUser?.checked?'client':''));if(by){const params=new URLSearchParams({from:dateVal,to:dateVal});if(rangeVal)params.set('range',rangeVal);if(userVal)params.set('client',userVal);if(search)params.set('search',search);let data={rows:[]};try{data=await API.get('/stats-summary/'+by+'?'+params.toString())}catch(e){}sdHead.innerHTML=`<tr><th>${by}</th><th>Total OTPs</th><th>Total Payout</th></tr>`;sdBody.innerHTML=(data.rows||[]).map(x=>`<tr><td><span class="tag tag-blue">${x.key||'—'}</span></td><td class="cell-money">${x.sms||0}</td><td class="cell-money">${money(x.payment||'0')}</td></tr>`).join('')||`<tr><td colspan="3" class="muted" style="text-align:center;padding:24px">No records found</td></tr>`;sdInfo.textContent=`Showing ${(data.rows||[]).length} summary rows`;sdPayoutInfo.textContent=`Filtered total payout: ${money(data.totalPayment||'0')}`;return;}const state=agtPager('agtSmsDetailServer');const sig=agtSig({dateVal,rangeVal,userVal,search,len});if(state.signature!==sig){state.page=1;state.signature=sig;}const params=new URLSearchParams({page:String(state.page),limit:len,from:dateVal,to:dateVal,sort:'date',dir:'desc'});if(rangeVal)params.set('range',rangeVal);if(userVal)params.set('client',userVal);if(search)params.set('search',search);let data={rows:[],total:0,page:1,limit:25,totalPages:1,totalPayment:'0'};try{data=await API.get('/sms/paged?'+params.toString())}catch(e){}state.page=data.page||1;state.totalPages=data.totalPages||1;sdHead.innerHTML='<tr><th>Date</th><th>Client</th><th>Range</th><th>Number</th><th>CLI</th><th>Payout Rate</th><th>Message</th></tr>';const rows=data.rows||[];sdBody.innerHTML=rows.map(r=>`<tr><td class="muted">${(r.received_at||'').slice(0,19)}</td><td><span class="tag tag-cli">${r.client_name||'—'}</span></td><td><b>${r.range_name||'—'}</b></td><td class="mono">${r.number||''}</td><td class="mono">${r.cli||''}</td><td class="cell-money">${cleanDec(r.payout_rate||r.payout_amount||0)}</td><td class="msg-body">${r.message||''}</td></tr>`).join('')||`<tr><td colspan="7" class="muted" style="text-align:center;padding:24px">No records found</td></tr>`;sdInfo.textContent=`Showing ${shownSrv(data.page,data.limit,rows.length,data.total)} of ${data.total||0} rows`;sdPayoutInfo.textContent=`Filtered total payout: ${money(data.totalPayment||'0')}`;const pag=sdInfo.closest('.table-foot')?.querySelector('.pagination');if(pag&&window.drawServerPagination)drawServerPagination(pag,state,renderSmsDetail);}
+
+/* FAST SERVER-SIDE NUMBERS/STATS OVERRIDES */
+let agtNumSeq=0;
+function agtState(key){window.__agtFast=window.__agtFast||{};if(!window.__agtFast[key])window.__agtFast[key]={page:1,totalPages:1,signature:''};return window.__agtFast[key];}
+function agtShown(page,limit,len,total){return total===0?0:Math.min(total,((page-1)*Number(limit||25))+len)}
+async function renderNumbers(){
+  const body=document.getElementById('numBody'); if(!body)return;
+  rangeF=document.getElementById('numRange')?.value||'';clientF=document.getElementById('numClient')?.value||'';
+  const len=document.getElementById('numLen')?.value||'25',q=(document.getElementById('numSearch')?.value||'').trim();
+  const state=agtState('numbers');const sig=JSON.stringify({len,q,rangeF,clientF,cliF,sort:nSort.k,dir:nSort.d});if(state.signature!==sig){state.page=1;state.signature=sig;}
+  const params=new URLSearchParams({paged:'1',page:String(state.page),limit:len});
+  if(q)params.set('search',q); if(rangeF)params.set('range',rangeF); if(clientF)params.set('owner',clientF);
+  if(cliF===1)params.set('allocation','unallocated'); else if(cliF===2)params.set('allocation','allocated');
+  if(nSort.k){params.set('sort',nSort.k==='rate'?'myVal':nSort.k);params.set('dir',nSort.d===-1?'desc':'asc');}
+  const seq=++agtNumSeq;let data={rows:[],total:0,page:1,limit:25,totalPages:1};try{data=await API.get('/numbers?'+params.toString())}catch(e){console.warn(e)}if(seq!==agtNumSeq)return;
+  state.page=data.page||1;state.totalPages=data.totalPages||1;
+  numData=(data.rows||[]).map(r=>({id:r.id,range_id:r.range_id,range:r.range_name||'',number:r.number,rate:r.effective_rate||r.rate||'',client:r.client_name||'',client_id:r.client_id,sd:r.sd_limit||0,sw:r.sw_limit||0}));
+  body.innerHTML=numData.map(r=>`<tr><td><input type="checkbox" class="rc" data-id="${r.id}" onchange="updSel()"/></td><td>${r.range}</td><td><b>${r.number}</b></td><td class="cell-money">${r.rate}</td><td>${r.client?`<span class="tag tag-cli">${r.client}</span>`:'<span class="tag tag-gray">Unallocated</span>'}</td><td class="muted">SD : ${r.sd} | SW : ${r.sw}</td></tr>`).join('')||`<tr><td colspan="6" class="muted" style="text-align:center;padding:24px">No numbers found</td></tr>`;
+  numInfo.textContent=`Showing ${agtShown(data.page,data.limit,numData.length,data.total)} of ${data.total||0} numbers`;
+  const pag=numInfo.closest('.table-foot')?.querySelector('.pagination');if(pag&&window.drawServerPagination)drawServerPagination(pag,state,renderNumbers);updSel();
+}
+async function loadNumbers(){return renderNumbers();}
+async function loadNumberSummaryForBulk(){try{const rows=await API.get('/numbers/summary');baData=(rows||[]).map(r=>({id:r.range_id,range:r.range_name,total:r.total||0,alloc:r.allocated||0,avail:r.available||0,rate:r.rate||'0'}));}catch(e){baData=[];}renderBulk();}
+async function baUn(i){const q=parseInt(document.getElementById('bu'+i).value),row=baData[i];if(!q||!row){alert('Enter quantity.');return;}try{const r=await API.post('/numbers/unallocate-by-range',{range_id:row.id,qty:q});alert(`✅ ${r.count||0} numbers unallocated.`);await loadNumberSummaryForBulk();await renderNumbers();}catch(e){alert('❌ '+e.message)}}
+async function loadSms(){return renderSmsReport();}
+async function loadAgentPageData(page){
+  try{
+    if(page==='dashboard') return loadDashboard();
+    if(page==='rateCard') return loadRateCard();
+    if(page==='numbers') return loadNumbers();
+    if(page==='bulkAlloc'){ await Promise.allSettled([loadRateCard(),loadClients(),loadNumberSummaryForBulk()]); return; }
+    if(page==='clients'){ buildClients(); return loadClients(); }
+    if(page==='smsReport'){ if(!document.getElementById('srBody')) buildSmsReport(); return renderSmsReport(); }
+    if(page==='smsDetail'){ if(!document.getElementById('sdBody')) buildSmsDetail(); return renderSmsDetail(); }
+    if(page==='clientStats'){ if(!document.getElementById('csBody')) buildClientStats(); return renderClientStats(); }
+    if(['rangeStats','numberStats'].includes(page)){ const k=page.replace('Stats',''); if(!document.getElementById(k+'Body')) buildDrill(k); return renderDrill(k); }
+    if(page==='test'){ await loadRateCard(); return renderTest(); }
+    if(page==='payment'){ renderPay(); return loadAgentPayout(); }
+    if(page==='news') return loadNews();
+  }catch(e){console.warn('loadAgentPageData failed',page,e);}
+}
+
+/* FAST SERVER-SIDE SUMMARY STATS OVERRIDES */
+async function renderClientStats(){
+  const body=document.getElementById('csBody'); if(!body)return;
+  const len=document.getElementById('csLen')?.value||'25', q=(document.getElementById('csSearch')?.value||'').toLowerCase();
+  const params=new URLSearchParams(); if(q)params.set('search',q);
+  let data={rows:[],totalSms:0,totalPayment:'0'}; try{data=await API.get('/stats-summary/client?'+params.toString())}catch(e){console.warn(e)}
+  let rows=(data.rows||[]).map(x=>({name:x.key||'—',sms:+(x.sms||0),pay:x.payment||'0',nums:(numData||[]).filter(n=>n.client===x.key).length})).filter(x=>x.name.toLowerCase().includes(q));
+  const pag=API.paginateRows('agtFastClientStats',rows,len,'csInfo',renderClientStats);rows=pag.rows;
+  const tot=document.getElementById('csTot'); if(tot)tot.innerHTML=`<div class="stat-card v2"><div class="stat-info"><h3>${(data.rows||[]).length}</h3><p>Total Clients</p></div></div><div class="stat-card"><div class="stat-info"><h3>${Number(data.totalSms||0).toLocaleString()}</h3><p>Total SMS</p></div></div><div class="stat-card v5"><div class="stat-info"><h3>${money(data.totalPayment||'0')}</h3><p>Total Payment</p></div></div>`;
+  body.innerHTML=rows.map(x=>`<tr><td><span class="tag tag-cli">${x.name}</span></td><td><span class="tag tag-blue">${x.nums||'—'}</span></td><td class="cell-money">${x.sms.toLocaleString()}</td><td class="cell-money" style="color:#86efac">${money(x.pay)}</td></tr>`).join('')||`<tr><td colspan="4" class="muted" style="text-align:center;padding:24px">No clients with OTPs found</td></tr>`;
+  csInfo.textContent=`Showing ${rows.length} of ${pag.total} clients`;
+}
+async function renderDrill(kind){
+  const body=document.getElementById(kind+'Body');if(!body)return;
+  const len=document.getElementById(kind+'Len')?.value||'25', q=(document.getElementById(kind+'Search')?.value||'').toLowerCase(), c=document.getElementById(kind+'FCli')?.value||'';
+  const by=kind==='range'?'range':'number'; const params=new URLSearchParams(); if(c)params.set('client',c); if(q)params.set('search',q);
+  let data={rows:[],totalSms:0,totalPayment:'0'}; try{data=await API.get('/stats-summary/'+by+'?'+params.toString())}catch(e){console.warn(e)}
+  let rows=(data.rows||[]).map(x=>({val:x.key||'—',sms:+(x.sms||0),pay:x.payment||'0'})).filter(x=>x.val.toLowerCase().includes(q));
+  const pag=API.paginateRows('agtFastDrill'+kind,rows,len,kind+'Info',()=>renderDrill(kind));rows=pag.rows;
+  const tot=document.getElementById(kind+'Tot'); if(tot)tot.innerHTML=`<div class="stat-card v3"><div class="stat-info"><h3>${(data.rows||[]).length}</h3><p>Total ${kind==='range'?'Ranges':'Numbers'}</p></div></div><div class="stat-card"><div class="stat-info"><h3>${Number(data.totalSms||0).toLocaleString()}</h3><p>Total SMS</p></div></div><div class="stat-card v5"><div class="stat-info"><h3>${money(data.totalPayment||'0')}</h3><p>Total Payment</p></div></div>`;
+  body.innerHTML=rows.map(x=>`<tr><td><b>${kind==='number'?'<span class="mono">'+x.val+'</span>':x.val}</b></td><td><span class="tag tag-cli">${c||'All'}</span></td><td class="cell-money">${x.sms.toLocaleString()}</td><td class="cell-money" style="color:#86efac">${money(x.pay)}</td></tr>`).join('')||`<tr><td colspan="4" class="muted" style="text-align:center;padding:24px">No records found</td></tr>`;
+  document.getElementById(kind+'Info').textContent=`Showing ${rows.length} of ${pag.total} rows`;
+}
 
 /* FAST PRIORITY INIT */
 loadProfile();loadDashboard();
-buildSmsReport();buildSmsDetail();buildClientStats();
-buildDrill('range');buildDrill('number');
+buildSmsReport();buildSmsDetail();
 renderTest();renderPay();
-setTimeout(async()=>{try{await Promise.allSettled([loadRateCard(),loadClients()]);await Promise.allSettled([loadNumbers(),loadSms()]);}catch(e){console.warn('agent critical preload failed',e)}},50);
+setTimeout(async()=>{try{await Promise.allSettled([loadRateCard(),loadClients()]);await Promise.allSettled([renderNumbers(),renderSmsReport()]);}catch(e){console.warn('agent critical preload failed',e)}},50);
 setTimeout(()=>{Promise.allSettled([loadAgentPayout(),loadNews()]);},1200);
 </script>
 

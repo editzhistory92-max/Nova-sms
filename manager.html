@@ -758,7 +758,7 @@
   <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal('agentModal')">Cancel</button><button class="btn btn-teal" onclick="saveAgent()">Save</button></div>
 </div></div>
 
-<script src="/api.js?v=20260722-management-split"></script>
+<script src="/api.js?v=20260722-perf-bulk-ranges"></script>
 <script>
 if(window.API){ API.guard('manager'); }
 /* ===== NAV ===== */
@@ -1150,17 +1150,86 @@ function srvShown(page,limit,len,total){return total===0?0:Math.min(total,((page
 function srvSig(o){try{return JSON.stringify(o)}catch(e){return String(Date.now())}}
 function srvFoot(info,state,fn){const p=info?.closest('.table-foot')?.querySelector('.pagination');if(p&&window.drawServerPagination)drawServerPagination(p,state,fn)}
 function mgrPager(key){window.__mgrPager=window.__mgrPager||{};if(!window.__mgrPager[key])window.__mgrPager[key]={page:1,totalPages:1,signature:''};return window.__mgrPager[key];}
-async function renderSmsReport(){if(!document.getElementById('srBody'))return;const len=srLen.value||'25',search=(srSearch.value||'').trim();const state=mgrPager('mgrSmsReportServer');const sig=srvSig({len,search});if(state.signature!==sig){state.page=1;state.signature=sig;}const params=new URLSearchParams({page:String(state.page),limit:len,search,sort:'date',dir:'desc'});let data={rows:[],total:0,page:1,limit:25,totalPages:1};try{data=await API.get('/sms/paged?'+params.toString())}catch(e){console.warn(e)}state.page=data.page||1;state.totalPages=data.totalPages||1;const rows=data.rows||[];srBody.innerHTML=rows.map(r=>`<tr><td class="muted">${(r.received_at||'').slice(0,19)}</td><td><span class="tag tag-agt">${r.agent_name||'—'}</span></td><td>${r.range_name||'—'}</td><td class="mono">${r.cli||''}</td><td class="msg-body">${r.message||''}</td></tr>`).join('')||`<tr><td colspan="5" class="muted" style="text-align:center;padding:24px">No records found</td></tr>`;srInfo.textContent=`Showing ${srvShown(data.page,data.limit,rows.length,data.total)} of ${data.total||0} records`;}
-async function renderSmsDetail(){if(!document.getElementById('sdBody'))return;const dateVal=sdDate?.value||todayStr(),rangeVal=sdRange?.value||'',userVal=sdUser?.value||'',search=(sdSearch?.value||'').trim(),len=sdLen?.value||'25';const by=sdUseNumber?.checked?'number':(sdUseRange?.checked?'range':(sdUseUser?.checked?'agent':''));if(by){const params=new URLSearchParams({from:dateVal,to:dateVal});if(rangeVal)params.set('range',rangeVal);if(userVal)params.set('agent',userVal);if(search)params.set('search',search);let data={rows:[]};try{data=await API.get('/stats-summary/'+by+'?'+params.toString())}catch(e){}sdHead.innerHTML=`<tr><th>${by}</th><th>Total OTPs</th><th>Total Payout</th></tr>`;sdBody.innerHTML=(data.rows||[]).map(x=>`<tr><td><span class="tag tag-blue">${x.key||'—'}</span></td><td class="cell-money">${x.sms||0}</td><td class="cell-money">${money(x.payment||'0')}</td></tr>`).join('')||`<tr><td colspan="3" class="muted" style="text-align:center;padding:24px">No records found</td></tr>`;sdInfo.textContent=`Showing ${(data.rows||[]).length} summary rows`;sdPayoutInfo.textContent=`Filtered total payout: ${money(data.totalPayment||'0')}`;return;}const state=mgrPager('mgrSmsDetailServer');const sig=srvSig({dateVal,rangeVal,userVal,search,len});if(state.signature!==sig){state.page=1;state.signature=sig;}const params=new URLSearchParams({page:String(state.page),limit:len,from:dateVal,to:dateVal,sort:'date',dir:'desc'});if(rangeVal)params.set('range',rangeVal);if(userVal)params.set('agent',userVal);if(search)params.set('search',search);let data={rows:[],total:0,page:1,limit:25,totalPages:1,totalPayment:'0'};try{data=await API.get('/sms/paged?'+params.toString())}catch(e){}state.page=data.page||1;state.totalPages=data.totalPages||1;sdHead.innerHTML='<tr><th>Date</th><th>Agent</th><th>Range</th><th>Number</th><th>CLI</th><th>Payout Rate</th><th>SMS (Message Body)</th></tr>';const rows=data.rows||[];sdBody.innerHTML=rows.map(r=>`<tr><td class="muted">${(r.received_at||'').slice(0,19)}</td><td><span class="tag tag-agt">${r.agent_name||'—'}</span></td><td><b>${r.range_name||'—'}</b></td><td class="mono">${r.number||''}</td><td class="mono">${r.cli||''}</td><td class="cell-money">${cleanDec(r.payout_rate||r.payout_amount||0)}</td><td class="msg-body">${r.message||''}</td></tr>`).join('')||`<tr><td colspan="7" class="muted" style="text-align:center;padding:24px">No records found</td></tr>`;sdInfo.textContent=`Showing ${srvShown(data.page,data.limit,rows.length,data.total)} of ${data.total||0} rows`;sdPayoutInfo.textContent=`Filtered total payout: ${money(data.totalPayment||'0')}`;}
+async function renderSmsReport(){if(!document.getElementById('srBody'))return;const len=srLen.value||'25',search=(srSearch.value||'').trim();const state=mgrPager('mgrSmsReportServer');const sig=srvSig({len,search});if(state.signature!==sig){state.page=1;state.signature=sig;}const params=new URLSearchParams({page:String(state.page),limit:len,search,sort:'date',dir:'desc'});let data={rows:[],total:0,page:1,limit:25,totalPages:1};try{data=await API.get('/sms/paged?'+params.toString())}catch(e){console.warn(e)}state.page=data.page||1;state.totalPages=data.totalPages||1;const rows=data.rows||[];srBody.innerHTML=rows.map(r=>`<tr><td class="muted">${(r.received_at||'').slice(0,19)}</td><td><span class="tag tag-agt">${r.agent_name||'—'}</span></td><td>${r.range_name||'—'}</td><td class="mono">${r.cli||''}</td><td class="msg-body">${r.message||''}</td></tr>`).join('')||`<tr><td colspan="5" class="muted" style="text-align:center;padding:24px">No records found</td></tr>`;srInfo.textContent=`Showing ${srvShown(data.page,data.limit,rows.length,data.total)} of ${data.total||0} records`;srvFoot(srInfo,state,renderSmsReport);}
+async function renderSmsDetail(){if(!document.getElementById('sdBody'))return;const dateVal=sdDate?.value||todayStr(),rangeVal=sdRange?.value||'',userVal=sdUser?.value||'',search=(sdSearch?.value||'').trim(),len=sdLen?.value||'25';const by=sdUseNumber?.checked?'number':(sdUseRange?.checked?'range':(sdUseUser?.checked?'agent':''));if(by){const params=new URLSearchParams({from:dateVal,to:dateVal});if(rangeVal)params.set('range',rangeVal);if(userVal)params.set('agent',userVal);if(search)params.set('search',search);let data={rows:[]};try{data=await API.get('/stats-summary/'+by+'?'+params.toString())}catch(e){}sdHead.innerHTML=`<tr><th>${by}</th><th>Total OTPs</th><th>Total Payout</th></tr>`;sdBody.innerHTML=(data.rows||[]).map(x=>`<tr><td><span class="tag tag-blue">${x.key||'—'}</span></td><td class="cell-money">${x.sms||0}</td><td class="cell-money">${money(x.payment||'0')}</td></tr>`).join('')||`<tr><td colspan="3" class="muted" style="text-align:center;padding:24px">No records found</td></tr>`;sdInfo.textContent=`Showing ${(data.rows||[]).length} summary rows`;sdPayoutInfo.textContent=`Filtered total payout: ${money(data.totalPayment||'0')}`;return;}const state=mgrPager('mgrSmsDetailServer');const sig=srvSig({dateVal,rangeVal,userVal,search,len});if(state.signature!==sig){state.page=1;state.signature=sig;}const params=new URLSearchParams({page:String(state.page),limit:len,from:dateVal,to:dateVal,sort:'date',dir:'desc'});if(rangeVal)params.set('range',rangeVal);if(userVal)params.set('agent',userVal);if(search)params.set('search',search);let data={rows:[],total:0,page:1,limit:25,totalPages:1,totalPayment:'0'};try{data=await API.get('/sms/paged?'+params.toString())}catch(e){}state.page=data.page||1;state.totalPages=data.totalPages||1;sdHead.innerHTML='<tr><th>Date</th><th>Agent</th><th>Range</th><th>Number</th><th>CLI</th><th>Payout Rate</th><th>SMS (Message Body)</th></tr>';const rows=data.rows||[];sdBody.innerHTML=rows.map(r=>`<tr><td class="muted">${(r.received_at||'').slice(0,19)}</td><td><span class="tag tag-agt">${r.agent_name||'—'}</span></td><td><b>${r.range_name||'—'}</b></td><td class="mono">${r.number||''}</td><td class="mono">${r.cli||''}</td><td class="cell-money">${cleanDec(r.payout_rate||r.payout_amount||0)}</td><td class="msg-body">${r.message||''}</td></tr>`).join('')||`<tr><td colspan="7" class="muted" style="text-align:center;padding:24px">No records found</td></tr>`;sdInfo.textContent=`Showing ${srvShown(data.page,data.limit,rows.length,data.total)} of ${data.total||0} rows`;sdPayoutInfo.textContent=`Filtered total payout: ${money(data.totalPayment||'0')}`;srvFoot(sdInfo,state,renderSmsDetail);}
+
+/* ===== FAST SERVER-SIDE NUMBERS/STATS OVERRIDES ===== */
+let mgrNumSeq=0;
+function serverShown(page,limit,len,total){return total===0?0:Math.min(total,((page-1)*Number(limit||25))+len)}
+function mgrState(key){window.__mgrFast=window.__mgrFast||{};if(!window.__mgrFast[key])window.__mgrFast[key]={page:1,totalPages:1,signature:''};return window.__mgrFast[key];}
+async function renderNumbers(){
+  const body=document.getElementById('numBody'); if(!body) return;
+  rangeF=document.getElementById('numRange')?.value||''; agentF=document.getElementById('numAgent')?.value||'';
+  const len=document.getElementById('numLen')?.value||'25', q=(document.getElementById('numSearch')?.value||'').trim();
+  const state=mgrState('numbers'); const sig=JSON.stringify({len,q,rangeF,agentF,agFilter,sort:nSort.k,dir:nSort.d}); if(state.signature!==sig){state.page=1;state.signature=sig;}
+  const params=new URLSearchParams({paged:'1',page:String(state.page),limit:len});
+  if(q)params.set('search',q); if(rangeF)params.set('range',rangeF); if(agentF)params.set('owner',agentF);
+  if(agFilter===1)params.set('allocation','unallocated'); else if(agFilter===2)params.set('allocation','allocated');
+  if(nSort.k){params.set('sort',nSort.k==='rate'?'myVal':nSort.k);params.set('dir',nSort.d===-1?'desc':'asc');}
+  const seq=++mgrNumSeq; let data={rows:[],total:0,page:1,limit:25,totalPages:1};
+  try{data=await API.get('/numbers?'+params.toString());}catch(e){console.warn(e)}
+  if(seq!==mgrNumSeq) return;
+  state.page=data.page||1; state.totalPages=data.totalPages||1;
+  numData=(data.rows||[]).map(r=>({id:r.id,range_id:r.range_id,range:r.range_name||'',number:r.number,rate:r.effective_rate||r.rate||'',agent:r.agent_name||'',agent_id:r.agent_id,sd:r.sd_limit||0,sw:r.sw_limit||0}));
+  body.innerHTML=numData.map(r=>`<tr><td><input type="checkbox" class="rc" data-id="${r.id}" onchange="updSel()"/></td><td>${r.range}</td><td><b>${r.number}</b></td><td class="cell-money">${r.rate}</td><td>${r.agent?`<span class="tag tag-agt">${r.agent}</span>`:'<span class="tag tag-gray">Unallocated</span>'}</td><td class="muted">SD : ${r.sd} | SW : ${r.sw}</td></tr>`).join('')||`<tr><td colspan="6" class="muted" style="text-align:center;padding:24px">No numbers found</td></tr>`;
+  numInfo.textContent=`Showing ${serverShown(data.page,data.limit,numData.length,data.total)} of ${data.total||0} numbers`;
+  const pag=numInfo.closest('.table-foot')?.querySelector('.pagination'); if(pag&&window.drawServerPagination)drawServerPagination(pag,state,renderNumbers); updSel();
+}
+async function loadNumbers(){ return renderNumbers(); }
+async function loadNumberSummaryForBulk(){
+  try{const rows=await API.get('/numbers/summary');baData=(rows||[]).map(r=>({id:r.range_id,range:r.range_name,total:r.total||0,alloc:r.allocated||0,avail:r.available||0,rate:r.rate||'0'}));}catch(e){baData=[];}
+  renderBulk();
+}
+async function baUn(i){const q=parseInt(document.getElementById('bu'+i).value),row=baData[i];if(!q||!row){alert('Enter quantity.');return;}try{const r=await API.post('/numbers/unallocate-by-range',{range_id:row.id,qty:q});alert(`✅ ${r.count||0} numbers unallocated.`);await loadNumberSummaryForBulk();await renderNumbers();}catch(e){alert('❌ '+e.message)}}
+async function loadSms(){ return renderSmsReport(); }
+async function loadManagerPageData(page){
+  try{
+    if(page==='dashboard') return loadDashboard();
+    if(page==='rateCard') return loadRateCard();
+    if(page==='numbers') return loadNumbers();
+    if(page==='bulkAlloc'){ await Promise.allSettled([loadRateCard(),loadAgents(),loadNumberSummaryForBulk()]); return; }
+    if(page==='agents'){ buildAgents(); return loadAgents(); }
+    if(page==='clients'){ buildClients(); return loadClients(); }
+    if(page==='smsReport'){ if(!document.getElementById('srBody')) buildSmsReport(); return renderSmsReport(); }
+    if(page==='smsDetail'){ if(!document.getElementById('sdBody')) buildSmsDetail(); return renderSmsDetail(); }
+    if(['clientStats','agentStats'].includes(page)){ const k=page.replace('Stats',''); if(!document.getElementById(k+'Body')) buildEntity(k); return renderEntity(k); }
+    if(['rangeStats','numberStats'].includes(page)){ const k=page.replace('Stats',''); if(!document.getElementById(k+'Body')) buildDrill(k); return renderDrill(k); }
+    if(page==='test'){ await loadRateCard(); return renderTest(); }
+    if(page==='credit'){ renderCredit(); return loadManagerPayout(); }
+    if(page==='cliLimit') return loadClim();
+    if(page==='news') return loadNews();
+  }catch(e){console.warn('loadManagerPageData failed',page,e);}
+}
+
+/* FAST SERVER-SIDE SUMMARY STATS OVERRIDES */
+async function renderEntity(kind){
+  const body=document.getElementById(kind+'Body'); if(!body)return;
+  const len=document.getElementById(kind+'Len')?.value||'25', q=(document.getElementById(kind+'Search')?.value||'').toLowerCase();
+  const params=new URLSearchParams(); if(kind==='client'){const a=document.getElementById('clientFAgt')?.value||''; if(a)params.set('agent',a);} if(q)params.set('search',q);
+  let data={rows:[],totalSms:0,totalPayment:'0'}; try{data=await API.get('/stats-summary/'+kind+'?'+params.toString())}catch(e){console.warn(e)}
+  let list=(data.rows||[]).map(x=>({name:x.key||'—',sms:+(x.sms||0),pay:x.payment||'0'})).filter(x=>x.name.toLowerCase().includes(q));
+  const pag=API.paginateRows('mgrFastEntity'+kind,list,len,kind+'Info',()=>renderEntity(kind));list=pag.rows;
+  const tot=document.getElementById(kind+'Tot'); if(tot) tot.innerHTML=`<div class="stat-card v2"><div class="stat-info"><h3>${(data.rows||[]).length}</h3><p>Total ${kind==='client'?'Clients':'Agents'}</p></div></div><div class="stat-card"><div class="stat-info"><h3>${Number(data.totalSms||0).toLocaleString()}</h3><p>Total SMS</p></div></div><div class="stat-card v5"><div class="stat-info"><h3>${money(data.totalPayment||'0')}</h3><p>Total Payment</p></div></div>`;
+  body.innerHTML=list.map(x=>{const extra=kind==='client'?`<td><span class="tag tag-agt">${document.getElementById('clientFAgt')?.value||'—'}</span></td>`:`<td><span class="tag tag-cli">${(agentClients[x.name]||[]).length||'—'}</span></td>`;return `<tr><td><span class="tag ${kind==='client'?'tag-cli':'tag-agt'}">${x.name}</span></td>${extra}<td class="cell-money">${x.sms.toLocaleString()}</td><td class="cell-money" style="color:#6ee7b7">${money(x.pay)}</td></tr>`}).join('')||`<tr><td colspan="4" class="muted" style="text-align:center;padding:24px">No records found</td></tr>`;
+  document.getElementById(kind+'Info').textContent=`Showing ${list.length} of ${pag.total} ${kind}s`;
+}
+async function renderDrill(kind){
+  const body=document.getElementById(kind+'Body'); if(!body)return;
+  const len=document.getElementById(kind+'Len')?.value||'25', q=(document.getElementById(kind+'Search')?.value||'').toLowerCase(), a=document.getElementById(kind+'FAgt')?.value||'';
+  const by=kind==='range'?'range':'number'; const params=new URLSearchParams(); if(a)params.set('agent',a); if(q)params.set('search',q);
+  let data={rows:[],totalSms:0,totalPayment:'0'}; try{data=await API.get('/stats-summary/'+by+'?'+params.toString())}catch(e){console.warn(e)}
+  let rows=(data.rows||[]).map(x=>({val:x.key||'—',sms:+(x.sms||0),pay:x.payment||'0'})).filter(x=>x.val.toLowerCase().includes(q));
+  const pag=API.paginateRows('mgrFastDrill'+kind,rows,len,kind+'Info',()=>renderDrill(kind));rows=pag.rows;
+  const tot=document.getElementById(kind+'Tot'); if(tot) tot.innerHTML=`<div class="stat-card v3"><div class="stat-info"><h3>${(data.rows||[]).length}</h3><p>Total ${kind==='range'?'Ranges':'Numbers'}</p></div></div><div class="stat-card"><div class="stat-info"><h3>${Number(data.totalSms||0).toLocaleString()}</h3><p>Total SMS</p></div></div><div class="stat-card v5"><div class="stat-info"><h3>${money(data.totalPayment||'0')}</h3><p>Total Payment</p></div></div>`;
+  body.innerHTML=rows.map(x=>`<tr><td><b>${kind==='number'?'<span class="mono">'+x.val+'</span>':x.val}</b></td><td><span class="tag tag-agt">${a||'All'}</span></td><td><span class="tag tag-cli">—</span></td><td class="cell-money">${x.sms.toLocaleString()}</td><td class="cell-money" style="color:#6ee7b7">${money(x.pay)}</td></tr>`).join('')||`<tr><td colspan="5" class="muted" style="text-align:center;padding:24px">No records found</td></tr>`;
+  document.getElementById(kind+'Info').textContent=`Showing ${rows.length} of ${pag.total} rows`;
+}
 
 /* ===== FAST PRIORITY INIT ===== */
 loadProfile();loadDashboard();
-// Build frequently used page structures immediately.
 buildSmsReport();buildSmsDetail();
-buildEntity('client');buildEntity('agent');
-buildDrill('range');buildDrill('number');
 renderTest();renderCredit();
-setTimeout(async()=>{try{await Promise.allSettled([loadRateCard(),loadAgents(),loadClients()]);await Promise.allSettled([loadNumbers(),loadSms()]);}catch(e){console.warn('manager critical preload failed',e)}},50);
+setTimeout(async()=>{try{await Promise.allSettled([loadRateCard(),loadAgents(),loadClients()]);await Promise.allSettled([renderNumbers(),renderSmsReport()]);}catch(e){console.warn('manager critical preload failed',e)}},50);
 setTimeout(()=>{Promise.allSettled([loadManagerPayout(),loadClim(),loadNews()]);},1200);
 
 function toggleManagerSidebar(){document.querySelector('.appbar')?.classList.toggle('show');document.getElementById('mgrMobileOverlay')?.classList.toggle('show');}

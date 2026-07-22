@@ -7,3 +7,4 @@ backend/data.sqlite
 data.sqlite
 .DS_Store
 npm-debug.log*
+backend/backups/

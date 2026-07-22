@@ -508,6 +508,18 @@
           </div>
           <div class="hint" style="color:#5c6a86;font-size:11.5px">Note: Admin can allocate numbers/ranges to <b>Managers</b> only. Managers can then allocate to their agents.</div>
         </div>
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-head"><div><h3>Bulk Range Creation</h3><div class="sub">Enter one range name per line. Existing ranges will be skipped automatically.</div></div><button class="btn btn-green" onclick="bulkCreateRanges()">Create Ranges</button></div>
+          <div class="form-grid" style="grid-template-columns:2fr 180px;gap:14px;align-items:end">
+            <div class="form-group"><label>Range Names</label><textarea id="bulkRangeNames" style="width:100%;min-height:120px;border:1px solid var(--border2);border-radius:9px;padding:10px" placeholder="Afghanistan
+Azerbaijan
+Bangladesh
+Canada
+Egypt
+Nigeria"></textarea><div class="hint">Default rates will be NA. You can edit payout/currency later from the table below.</div></div>
+            <div class="form-group"><label>Default Currency</label><select id="bulkRangeCurrency"><option value="USD">USD</option><option value="EUR">EUR</option><option value="PKR">PKR</option></select><button class="btn btn-purple" style="width:100%;margin-top:10px" onclick="bulkCreateRanges()">Create All</button></div>
+          </div>
+        </div>
         <div class="table-wrap" style="padding:16px 18px;margin-top:0">
           <div class="table-controls">
             <div class="tc-left"><label>Show Records:</label>
@@ -1189,7 +1201,7 @@
   <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal('newsModal')">Cancel</button><button class="btn btn-purple" onclick="saveNews()">Save</button></div>
 </div></div>
 
-<script src="/api.js?v=20260722-management-split"></script>
+<script src="/api.js?v=20260722-perf-bulk-ranges"></script>
 <script>
 /* auth guard — management uses admin credentials */
 if(window.API){ API.guard('admin'); }
@@ -1328,6 +1340,23 @@ async function saveRate(){if(!rName.value.trim()){alert('Range name is required.
   const body={name:rName.value.trim(),prefix:rPrefix.value.trim(),test_number:rTest.value.trim(),test_numbers:rTest.value.trim(),currency:rCur.value,rate_1_1:r1.value.trim()||'NA',rate_7_1:r2.value.trim()||'NA',rate_7_7:r3.value.trim()||'NA',rate_30_45:r4.value.trim()||'NA',memo:rMemo.value.trim()};
   try{ if(editRateId<0) await API.post('/ranges',body); else await API.put('/ranges/'+editRateId,body); closeModal('rateModal'); loadRates(); }catch(e){ alert('❌ '+e.message); }
 }
+async function bulkCreateRanges(){
+  const text=(document.getElementById('bulkRangeNames')?.value||'').trim();
+  const currency=document.getElementById('bulkRangeCurrency')?.value||'USD';
+  if(!text){alert('Enter range names first.');return;}
+  const names=text.split(/[\r\n,;]+/).map(x=>x.trim()).filter(Boolean);
+  if(!names.length){alert('Enter valid range names.');return;}
+  try{
+    const r=await API.post('/ranges/bulk-create',{names,currency});
+    alert(`✅ Bulk range creation complete.
+Inserted: ${r.inserted||0}
+Restored: ${r.restored||0}
+Skipped existing: ${r.skipped||0}`);
+    document.getElementById('bulkRangeNames').value='';
+    await loadRates();
+  }catch(e){alert('❌ '+e.message)}
+}
+
 async function delRate(id){
   if(!confirm('Delete this range from active Range Management?')) return;
   const deleteSms = (typeof askDeleteSmsHistory==='function') ? askDeleteSmsHistory() : false;

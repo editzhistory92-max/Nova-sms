@@ -487,6 +487,13 @@ function createTables() {
   db.run(`CREATE INDEX IF NOT EXISTS idx_sms_client_cli_date ON sms_records(client_id, cli, received_at)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_sms_range_cli_date ON sms_records(range_id, cli, received_at)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_sms_number_cli_date ON sms_records(number, cli, received_at)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_sms_test_date ON sms_records(is_test, received_at)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_sms_manager_date ON sms_records(manager_id, received_at)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_sms_agent_date ON sms_records(agent_id, received_at)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_sms_client_date ON sms_records(client_id, received_at)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_sms_range_date ON sms_records(range_id, received_at)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_sms_number_date ON sms_records(number, received_at)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_ranges_name_nocase ON ranges(name COLLATE NOCASE)`);
 
   db.run(`CREATE INDEX IF NOT EXISTS idx_numbers_import_batch ON numbers(import_batch_id)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_numbers_import_source ON numbers(import_source)`);
@@ -496,6 +503,9 @@ function createTables() {
   db.run(`CREATE INDEX IF NOT EXISTS idx_numbers_manager ON numbers(manager_id)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_numbers_agent ON numbers(agent_id)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_numbers_client ON numbers(client_id)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_numbers_manager_range_number ON numbers(manager_id, range_id, number)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_numbers_agent_range_number ON numbers(agent_id, range_id, number)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_numbers_client_range_number ON numbers(client_id, range_id, number)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_limit_rules_type_active ON daily_limit_rules(limit_type, active)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_limit_rules_range ON daily_limit_rules(range_id)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_limit_rules_cli ON daily_limit_rules(cli)`);

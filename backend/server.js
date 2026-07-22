@@ -25,6 +25,40 @@ app.use(express.text({ type: ['text/plain', 'text/*', 'application/xml', 'applic
 const upload = multer();
 const importJobs = new Map();
 
+
+// Short in-memory GET cache: removes duplicate heavy queries during rapid UI navigation.
+// Any non-GET /api request clears this cache, so changes/incoming SMS are visible immediately after writes.
+const apiReadCache = new Map();
+function clearApiReadCache(){ try { apiReadCache.clear(); } catch (_) {} }
+app.use('/api', (req, res, next) => { if (req.method !== 'GET') clearApiReadCache(); next(); });
+function cachedJson(req, res, ttlMs, producer) {
+  if (String(req.query._nocache || '') === '1') return res.json(producer());
+  const uid = req.user ? `${req.user.id}:${req.user.role}` : 'anon';
+  const key = `${uid}:${req.originalUrl}`;
+  const now = Date.now();
+  const hit = apiReadCache.get(key);
+  if (hit && hit.expires > now) return res.json(hit.value);
+  const value = producer();
+  apiReadCache.set(key, { value, expires: now + Math.max(250, ttlMs || 1000) });
+  if (apiReadCache.size > 400) {
+    const cutoff = Date.now();
+    for (const [k, v] of apiReadCache) if (v.expires <= cutoff || apiReadCache.size > 350) apiReadCache.delete(k);
+  }
+  return res.json(value);
+}
+function pad2(n){ return String(n).padStart(2,'0'); }
+function fmtUtcSql(ms){ const d=new Date(ms); return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth()+1)}-${pad2(d.getUTCDate())} ${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}:${pad2(d.getUTCSeconds())}`; }
+function ukLocalDateToUtcSql(dateStr, plusDays=0){
+  const m=String(dateStr||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(!m) return '';
+  const base=Date.UTC(+m[1], +m[2]-1, +m[3]+plusDays, 0, 0, 0);
+  let off=ukOffsetMinutes(new Date(base));
+  let utc=base - off*60000;
+  const off2=ukOffsetMinutes(new Date(utc));
+  if(off2!==off) utc=base - off2*60000;
+  return fmtUtcSql(utc);
+}
+
 // Clean URL routes (must be before static so /admin.html can redirect to /admin)
 const FRONTEND_ROOT = path.join(__dirname, '..');
 function sendFrontendPage(res, file) { res.sendFile(path.join(FRONTEND_ROOT, file)); }
@@ -365,15 +399,15 @@ function syncRangeTestNumbers(rangeId, testValue) {
 }
 
 /* ============ RANGES / RATE MANAGEMENT ============ */
-app.get('/api/ranges', authRequired, (req, res) => {
+app.get('/api/ranges', authRequired, (req, res) => cachedJson(req, res, 5000, () => {
   const includeDeleted = String(req.query.include_deleted || '').toLowerCase() === '1' || String(req.query.include_deleted || '').toLowerCase() === 'true';
   const where = includeDeleted ? '1=1' : "COALESCE(r.deleted_at,'')=''";
   const rows = db.all(`SELECT r.*,
     COALESCE((SELECT GROUP_CONCAT(test_number, ', ') FROM range_test_numbers t WHERE t.range_id=r.id AND t.active=1), r.test_number, '') AS test_numbers
-    FROM ranges r WHERE ${where} ORDER BY r.id DESC`);
+    FROM ranges r WHERE ${where} ORDER BY r.name COLLATE NOCASE ASC, r.id ASC`);
   rows.forEach(r => { if (r.test_numbers) r.test_number = r.test_numbers; });
-  res.json(rows);
-});
+  return rows;
+}));
 // only admin can set rates / create ranges
 app.post('/api/ranges', authRequired, requireRole('admin'), (req, res) => {
   const b = req.body || {};
@@ -387,6 +421,62 @@ app.post('/api/ranges', authRequired, requireRole('admin'), (req, res) => {
   logAction(req,'create_range','ranges',b.name);
   res.json({ ok: true });
 });
+
+function parseBulkRangeNames(value) {
+  const raw = Array.isArray(value) ? value : String(value || '').split(/[\r\n,;]+/);
+  const seen = new Set();
+  const out = [];
+  for (const item of raw) {
+    const name = String(item || '').trim().replace(/\s+/g, ' ');
+    if (!name) continue;
+    const key = name.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(name);
+  }
+  return out;
+}
+app.post('/api/ranges/bulk-create', authRequired, requireRole('admin'), (req, res) => {
+  const b = req.body || {};
+  const names = parseBulkRangeNames(b.names || b.text || b.range_names);
+  if (!names.length) return res.status(400).json({ error: 'Enter at least one range name' });
+  const currency = b.currency || 'USD';
+  const defaults = {
+    prefix: b.prefix || '',
+    rate_1_1: b.rate_1_1 || 'NA',
+    rate_7_1: b.rate_7_1 || 'NA',
+    rate_7_7: b.rate_7_7 || 'NA',
+    rate_30_45: b.rate_30_45 || 'NA',
+    memo: b.memo || ''
+  };
+  let inserted = 0, restored = 0, skipped = 0;
+  const created = [], existing = [];
+  try {
+    db.execNoSave('BEGIN');
+    for (const name of names) {
+      const old = db.get("SELECT id, COALESCE(deleted_at,'') AS deleted_at FROM ranges WHERE lower(name)=lower(?) LIMIT 1", [name]);
+      if (old) {
+        if (old.deleted_at) { db.runNoSave("UPDATE ranges SET deleted_at='' WHERE id=?", [old.id]); restored++; }
+        else skipped++;
+        existing.push(name);
+        continue;
+      }
+      const ins = db.runNoSave(`INSERT INTO ranges (name,prefix,test_number,currency,rate_1_1,rate_7_1,rate_7_7,rate_30_45,memo)
+        VALUES (?,?,?,?,?,?,?,?,?)`, [name, defaults.prefix, '', currency, defaults.rate_1_1, defaults.rate_7_1, defaults.rate_7_7, defaults.rate_30_45, defaults.memo]);
+      inserted++;
+      created.push({ id: ins.lastInsertRowid, name });
+    }
+    db.execNoSave('COMMIT');
+    db.save();
+  } catch (e) {
+    try { db.execNoSave('ROLLBACK'); } catch (_) {}
+    return res.status(500).json({ error: e.message || 'Bulk range creation failed' });
+  }
+  clearApiReadCache();
+  logAction(req, 'bulk_create_ranges', 'ranges', { inserted, restored, skipped, total: names.length });
+  res.json({ ok: true, inserted, restored, skipped, total: names.length, created, existing });
+});
+
 function normalizeRangeImportRow(row) {
   const get = (...keys) => {
     for (const k of keys) {
@@ -690,19 +780,24 @@ function buildNumberQuery(user, q) {
   }
   return { where: where.join(' AND '), params };
 }
-function numberSelectSql(where) {
-  return `SELECT n.*, r.name AS range_name,
-            COALESCE(NULLIF(n.rate,''), NULLIF(r.rate_30_45,''), NULLIF(r.rate_7_1,''), NULLIF(r.rate_7_7,''), NULLIF(r.rate_1_1,''), '0') AS effective_rate,
-            CASE WHEN n.manager_id IS NOT NULL THEN 'manager' WHEN n.agent_id IS NOT NULL THEN 'agent' WHEN n.client_id IS NOT NULL THEN 'client' ELSE 'unallocated' END AS owner_type,
-            cu.username AS client_name, au.username AS agent_name, mu.username AS manager_name
-     FROM numbers n
+function numberFromSql(where) {
+  return `FROM numbers n
      LEFT JOIN ranges r ON r.id=n.range_id
      LEFT JOIN users cu ON cu.id=n.client_id
      LEFT JOIN users au ON au.id=n.agent_id
      LEFT JOIN users mu ON mu.id=n.manager_id
      WHERE ${where}`;
 }
-app.get('/api/numbers/summary', authRequired, (req, res) => {
+function numberSelectSql(where, options = {}) {
+  const lastSms = options.lastSms ? `,
+            (SELECT MAX(s.received_at) FROM sms_records s WHERE s.number=n.number AND COALESCE(s.is_test,0)=0) AS last_sms_at` : '';
+  return `SELECT n.*, r.name AS range_name,
+            COALESCE(NULLIF(n.rate,''), NULLIF(r.rate_30_45,''), NULLIF(r.rate_7_1,''), NULLIF(r.rate_7_7,''), NULLIF(r.rate_1_1,''), '0') AS effective_rate,
+            CASE WHEN n.manager_id IS NOT NULL THEN 'manager' WHEN n.agent_id IS NOT NULL THEN 'agent' WHEN n.client_id IS NOT NULL THEN 'client' ELSE 'unallocated' END AS owner_type,
+            cu.username AS client_name, au.username AS agent_name, mu.username AS manager_name${lastSms}
+     ${numberFromSql(where)}`;
+}
+app.get('/api/numbers/summary', authRequired, (req, res) => cachedJson(req, res, 3000, () => {
   const scope = numberScope(req.user, 'n');
   const ownerExpr = req.user.role === 'admin'
     ? '(n.manager_id IS NOT NULL OR n.agent_id IS NOT NULL OR n.client_id IS NOT NULL)'
@@ -714,10 +809,11 @@ app.get('/api/numbers/summary', authRequired, (req, res) => {
       COALESCE(NULLIF(r.rate_30_45,''), NULLIF(r.rate_7_1,''), '0') AS rate
     FROM ranges r
     LEFT JOIN numbers n ON n.range_id=r.id AND ${scope.where}
+    WHERE COALESCE(r.deleted_at,'')=''
     GROUP BY r.id, r.name
-    ORDER BY r.name`, scope.params);
-  res.json(rows.map(r => ({...r, total:+(r.total||0), available:+(r.available||0), allocated:+(r.allocated||0)})));
-});
+    ORDER BY r.name COLLATE NOCASE ASC`, scope.params);
+  return rows.map(r => ({...r, total:+(r.total||0), available:+(r.available||0), allocated:+(r.allocated||0)}));
+}));
 
 // list numbers visible to caller (supports server-side pagination with ?paged=1)
 const NUMBER_PAGE_DEFAULT = 25;
@@ -726,35 +822,34 @@ function parsePositiveInt(v, fallback) {
   const n = parseInt(v, 10);
   return Number.isFinite(n) && n > 0 ? n : fallback;
 }
-app.get('/api/numbers', authRequired, (req, res) => {
+app.get('/api/numbers', authRequired, (req, res) => cachedJson(req, res, 1500, () => {
   const query = buildNumberQuery(req.user, req.query || {});
-  const baseSql = numberSelectSql(query.where);
+  const fromSql = numberFromSql(query.where);
 
-  // IMPORTANT: total is always a fresh database COUNT(*) after scope/search/filter.
-  // It never comes from import batch/file metadata.
-  const countRow = db.get(`SELECT COUNT(*) AS c FROM (${baseSql}) x`, query.params);
-  const total = countRow ? +(countRow.c || 0) : 0;
+  // Fast fresh COUNT(*) after scope/search/filter; no SELECT * subquery.
+  const total = +(db.get(`SELECT COUNT(n.id) AS c ${fromSql}`, query.params)?.c || 0);
 
   const paged = req.query.paged || req.query.page || req.query.limit;
   if (paged) {
     const requestedLimitRaw = String(req.query.limit || NUMBER_PAGE_DEFAULT);
     const isAll = requestedLimitRaw.toLowerCase() === 'all';
     const requestedLimit = isAll ? Math.max(1, total) : parsePositiveInt(requestedLimitRaw, NUMBER_PAGE_DEFAULT);
-    const limit = isAll ? Math.max(1, total) : Math.min(NUMBER_PAGE_MAX, Math.max(1, requestedLimit));
+    const limit = isAll ? Math.max(1, Math.min(total || 1, NUMBER_PAGE_MAX)) : Math.min(NUMBER_PAGE_MAX, Math.max(1, requestedLimit));
     const totalPages = isAll ? 1 : Math.max(1, Math.ceil(total / limit));
     const requestedPage = parsePositiveInt(req.query.page || '1', 1);
     const page = Math.min(Math.max(1, requestedPage), totalPages);
     const offset = (page - 1) * limit;
-    const sortMap = { range:'r.name', prefix:'n.prefix', number:'n.number', myVal:'n.rate', payVal:'n.payout', manager:'mu.username', agent:'au.username', client:'cu.username', owner:"COALESCE(mu.username,au.username,cu.username,'')" };
+    const sortMap = { range:'r.name COLLATE NOCASE', prefix:'n.prefix COLLATE NOCASE', number:'n.number', myVal:"CAST(COALESCE(NULLIF(n.rate,''),'0') AS REAL)", payVal:"CAST(COALESCE(NULLIF(n.payout,''),'0') AS REAL)", manager:'mu.username COLLATE NOCASE', agent:'au.username COLLATE NOCASE', client:'cu.username COLLATE NOCASE', owner:"COALESCE(mu.username,au.username,cu.username,'') COLLATE NOCASE" };
     const sortCol = sortMap[req.query.sort] || 'n.number';
     const dir = String(req.query.dir||'asc').toLowerCase()==='desc'?'DESC':'ASC';
-    const rows = db.all(`${baseSql} ORDER BY ${sortCol} ${dir}, n.id ASC LIMIT ? OFFSET ?`, [...query.params, limit, offset]);
-    return res.json({ rows, total, page, limit, totalPages, count_source: 'database_count' });
+    const withLastSms = String(req.query.last_sms || req.query.include_last_sms || '') === '1';
+    const rows = db.all(`${numberSelectSql(query.where, { lastSms: withLastSms })} ORDER BY ${sortCol} ${dir}, n.id ASC LIMIT ? OFFSET ?`, [...query.params, limit, offset]);
+    return { rows, total, page, limit, totalPages, count_source: 'fast_database_count' };
   }
 
-  const rows = db.all(`${baseSql} ORDER BY n.number ASC`, query.params);
-  res.json(rows);
-});
+  const rows = db.all(`${numberSelectSql(query.where)} ORDER BY n.number ASC`, query.params);
+  return rows;
+}));
 
 // allocate selected numbers to a target user (one level down)
 app.post('/api/numbers/allocate', authRequired, (req, res) => {
@@ -1043,8 +1138,8 @@ function buildSmsPagedQuery(user, q = {}) {
   const scope = smsScopeWhere(user, 's');
   const where = [scope.where, 'COALESCE(s.is_test,0)=0'];
   const params = [...scope.params];
-  if (q.from) { where.push(`${ukDateExpr('s.received_at')} >= date(?)`); params.push(String(q.from)); }
-  if (q.to) { where.push(`${ukDateExpr('s.received_at')} <= date(?)`); params.push(String(q.to)); }
+  if (q.from) { const start = ukLocalDateToUtcSql(String(q.from), 0); if (start) { where.push('s.received_at >= ?'); params.push(start); } }
+  if (q.to) { const end = ukLocalDateToUtcSql(String(q.to), 1); if (end) { where.push('s.received_at < ?'); params.push(end); } }
   if (q.range) { where.push('r.name=?'); params.push(String(q.range)); }
   if (q.range_id) { where.push('s.range_id=?'); params.push(+q.range_id); }
   if (q.number) { where.push('s.number=?'); params.push(String(q.number)); }
@@ -1066,7 +1161,7 @@ function buildSmsPagedQuery(user, q = {}) {
     WHERE ${where.join(' AND ')}`;
   return { baseSql, params };
 }
-app.get('/api/sms/paged', authRequired, (req, res) => {
+app.get('/api/sms/paged', authRequired, (req, res) => cachedJson(req, res, 1200, () => {
   const q = req.query || {};
   const built = buildSmsPagedQuery(req.user, q);
   const total = +(db.get(`SELECT COUNT(*) c ${built.baseSql}`, built.params)?.c || 0);
@@ -1084,9 +1179,9 @@ app.get('/api/sms/paged', authRequired, (req, res) => {
       cu.username AS client_name, au.username AS agent_name, mu.username AS manager_name
     ${built.baseSql}
     ORDER BY ${sortCol} ${dir}, s.id DESC LIMIT ? OFFSET ?`, [...built.params, limit, offset]);
-  res.json({ rows: attachSmsPayoutFields(rows), total, page, limit, totalPages, totalPayment });
-});
-app.get('/api/stats-summary/:by', authRequired, (req, res) => {
+  return { rows: attachSmsPayoutFields(rows), total, page, limit, totalPages, totalPayment };
+}));
+app.get('/api/stats-summary/:by', authRequired, (req, res) => cachedJson(req, res, 1500, () => {
   const by = req.params.by;
   const built = buildSmsPagedQuery(req.user, req.query || {});
   const groupMap = {
@@ -1098,7 +1193,7 @@ app.get('/api/stats-summary/:by', authRequired, (req, res) => {
     cli: { expr:'s.cli', label:'cli' }
   };
   const g = groupMap[by];
-  if (!g) return res.status(400).json({ error: 'Invalid stats dimension' });
+  if (!g) { res.status(400); return { error: 'Invalid stats dimension' }; }
   const extra = ['client','agent','manager'].includes(by) ? ` AND ${g.expr} IS NOT NULL AND ${g.expr}<>''` : '';
   const rows = db.all(`SELECT ${g.expr} AS key, COUNT(*) AS sms,
       COALESCE(SUM(CAST(COALESCE(NULLIF(s.payout_amount,''),'0') AS REAL)),0) AS payment
@@ -1108,8 +1203,8 @@ app.get('/api/stats-summary/:by', authRequired, (req, res) => {
     ORDER BY sms DESC, key ASC`, built.params).map(r => ({...r, payment: normalizeDecimalString(r.payment)||'0'}));
   const totalSms = rows.reduce((a,r)=>a+(+r.sms||0),0);
   const totalPayment = rows.reduce((a,r)=>decimalAdd(a,r.payment||'0'),'0');
-  res.json({ rows, totalSms, totalPayment, by });
-});
+  return { rows, totalSms, totalPayment, by };
+}));
 app.get('/api/sms', authRequired, (req, res) => {
   res.json(smsRowsForScope(req.user));
 });
