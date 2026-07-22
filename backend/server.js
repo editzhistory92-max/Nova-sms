@@ -34,6 +34,11 @@ app.get('/login.html', (req, res) => res.redirect(301, '/login'));
 app.get('/admin', (req, res) => sendFrontendPage(res, 'admin.html'));
 app.get('/admin.html', (req, res) => res.redirect(301, '/admin'));
 app.get('/admin/:page', (req, res) => sendFrontendPage(res, 'admin.html'));
+app.get('/management-login', (req, res) => sendFrontendPage(res, 'management-login.html'));
+app.get('/management-login.html', (req, res) => res.redirect(301, '/management-login'));
+app.get('/management', (req, res) => sendFrontendPage(res, 'management.html'));
+app.get('/management.html', (req, res) => res.redirect(301, '/management'));
+app.get('/management/:page', (req, res) => sendFrontendPage(res, 'management.html'));
 app.get('/manager', (req, res) => sendFrontendPage(res, 'manager.html'));
 app.get('/manager.html', (req, res) => res.redirect(301, '/manager'));
 app.get('/manager/:page', (req, res) => sendFrontendPage(res, 'manager.html'));
@@ -381,6 +386,55 @@ app.post('/api/ranges', authRequired, requireRole('admin'), (req, res) => {
   syncRangeTestNumbers(newRange ? newRange.id : ins.lastInsertRowid, b.test_numbers || b.test_number || '');
   logAction(req,'create_range','ranges',b.name);
   res.json({ ok: true });
+});
+function normalizeRangeImportRow(row) {
+  const get = (...keys) => {
+    for (const k of keys) {
+      const found = Object.keys(row || {}).find(x => x.trim().toLowerCase() === k.trim().toLowerCase());
+      if (found && row[found] !== undefined && row[found] !== null && String(row[found]).trim() !== '') return String(row[found]).trim();
+    }
+    return '';
+  };
+  const name = get('Range','Range Name','name','range_name','Country');
+  const payout = get('Payout','30/45','rate_30_45','Rate','Rate 30/45');
+  const currency = get('Currency','cur') || 'USD';
+  return {
+    name,
+    prefix: get('Prefix','prefix'),
+    test_number: get('Test Number','Test Numbers','test_number','test_numbers'),
+    currency: currency === '$' ? 'USD' : currency,
+    rate_1_1: get('1/1','rate_1_1') || 'NA',
+    rate_7_1: get('7/1','rate_7_1') || payout || 'NA',
+    rate_7_7: get('7/7','rate_7_7') || 'NA',
+    rate_30_45: payout || get('30/45','rate_30_45') || 'NA',
+    memo: get('Memo','memo','notes')
+  };
+}
+app.post('/api/ranges/import', authRequired, requireRole('admin'), (req,res)=>{
+  const rows = Array.isArray(req.body?.ranges) ? req.body.ranges : [];
+  const updateExisting = req.body?.update_existing !== false;
+  if(!rows.length) return res.status(400).json({error:'ranges[] required'});
+  let inserted=0, updated=0, skipped=0, errors=[];
+  for(const raw of rows){
+    const r=normalizeRangeImportRow(raw);
+    if(!r.name){ skipped++; errors.push({row: raw, error:'Range name missing'}); continue; }
+    const existing=db.get('SELECT id FROM ranges WHERE name=?',[r.name]);
+    if(existing && updateExisting){
+      db.run(`UPDATE ranges SET prefix=?,currency=?,rate_1_1=?,rate_7_1=?,rate_7_7=?,rate_30_45=?,memo=?,deleted_at='' WHERE id=?`,
+        [r.prefix,r.currency,r.rate_1_1,r.rate_7_1,r.rate_7_7,r.rate_30_45,r.memo,existing.id]);
+      syncRangeTestNumbers(existing.id, r.test_number || '');
+      updated++;
+    } else if(existing){ skipped++; }
+    else {
+      const ins=db.run(`INSERT INTO ranges (name,prefix,test_number,currency,rate_1_1,rate_7_1,rate_7_7,rate_30_45,memo) VALUES (?,?,?,?,?,?,?,?,?)`,
+        [r.name,r.prefix,'',r.currency,r.rate_1_1,r.rate_7_1,r.rate_7_7,r.rate_30_45,r.memo]);
+      const nr=db.get('SELECT id FROM ranges WHERE name=? ORDER BY id DESC LIMIT 1',[r.name]);
+      syncRangeTestNumbers(nr?nr.id:ins.lastInsertRowid, r.test_number || '');
+      inserted++;
+    }
+  }
+  logAction(req,'import_ranges_bulk','ranges',{inserted,updated,skipped,total:rows.length});
+  res.json({ok:true,inserted,updated,skipped,total:rows.length,errors});
 });
 app.put('/api/ranges/:id', authRequired, requireRole('admin'), (req, res) => {
   const b = req.body || {};

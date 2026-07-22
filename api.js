@@ -315,6 +315,7 @@
     return { rows: sliced, total: rows.length, page, totalPages };
   }
   function basePathForRole(role=ROLE()){
+    if(location.pathname.startsWith('/management')) return '/management';
     return {admin:'/admin',manager:'/manager',agent:'/agent',client:'/client',test:'/test'}[role] || '/login';
   }
   function pageUrl(page){ return basePathForRole() + '/' + encodeURIComponent(page || 'dashboard'); }
