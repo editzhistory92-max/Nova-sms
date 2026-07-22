@@ -435,17 +435,10 @@
       <div><h1>MUFASA SMS</h1><small>Admin Panel</small></div>
     </div>
     <nav class="sb-nav">
-      <div class="sb-section">Main</div>
+      <div class="sb-section">Daily Operations</div>
       <div class="nav-item active" data-page="dashboard"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg><span>Dashboard</span></div>
-
-      <div class="sb-section">SMS Module</div>
-      <div class="nav-item" id="smsNumParent" onclick="toggleSub('smsNumSub','smsNumParent')"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg><span>SMS Number Management</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
-      <div class="submenu" id="smsNumSub">
-        <div class="sub-item" data-page="allocation"><span class="dot"></span> Range Allocation</div>
-        <div class="sub-item" data-page="numbers"><span class="dot"></span> SMS Numbers</div>
-        <div class="sub-item" data-page="import"><span class="dot"></span> Import Numbers / Ranges</div>
-        <div class="sub-item" data-page="testImport"><span class="dot"></span> Import Test Numbers</div>
-      </div>
+      <div class="nav-item" data-page="numbers"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg><span>SMS Numbers</span></div>
+      <div class="nav-item" data-page="test"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18v-6a3 3 0 0 1 6 0v6"/><rect x="4" y="18" width="16" height="3"/><path d="M12 3v3"/></svg><span>SMS Test Panel</span></div>
 
       <div class="sb-section">Users</div>
       <div class="nav-item" id="userParent" onclick="toggleSub('userSub','userParent')"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span>User Management</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
@@ -454,9 +447,6 @@
         <div class="sub-item" data-page="agents"><span class="dot"></span> Agents</div>
         <div class="sub-item" data-page="clients"><span class="dot"></span> Clients</div>
       </div>
-
-      <div class="sb-section">Pricing</div>
-      <div class="nav-item" data-page="rates"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg><span>Rate Management</span></div>
 
       <div class="sb-section">Reports</div>
       <div class="nav-item" id="cdrParent" onclick="toggleSub('cdrSub','cdrParent')"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/></svg><span>SMS CDR Stats</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
@@ -471,26 +461,9 @@
         <div class="sub-item" data-page="numberStats"><span class="dot"></span> Number Stats</div>
       </div>
 
-      <div class="sb-section">System</div>
+      <div class="sb-section">Payments</div>
       <div class="nav-item" data-page="payments"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg><span>Credit / Payouts</span></div>
       <div class="nav-item" data-page="paymentConfig"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span>Payment Configuration</span></div>
-      <div class="nav-item" data-page="test"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18v-6a3 3 0 0 1 6 0v6"/><rect x="4" y="18" width="16" height="3"/><path d="M12 3v3"/></svg><span>SMS Test Panel</span></div>
-
-      <div class="sb-section">System Master</div>
-      <div class="nav-item" id="sysParent" onclick="toggleSub('sysSub','sysParent')"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>System Master</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
-      <div class="submenu" id="sysSub">
-        <div class="sub-item" data-page="news"><span class="dot"></span> News for Users</div>
-        <div class="sub-item" data-page="cliLimit"><span class="dot"></span> SMS CLI Limit</div>
-        <div class="sub-item" data-page="limitManagement"><span class="dot"></span> Limit Management</div>
-        <div class="sub-item" data-page="carrierIntegration"><span class="dot"></span> Carrier Integration</div>
-        <div class="sub-item" data-page="smppServer"><span class="dot"></span> SMPP Server</div>
-        <div class="sub-item" data-page="apiIntegration"><span class="dot"></span> API Integration</div>
-        <div class="sub-item" data-page="testGenerator"><span class="dot"></span> Test SMS Generator</div>
-        <div class="sub-item" data-page="integrations"><span class="dot"></span> Integration Layer</div>
-        <div class="sub-item" data-page="notificationRules"><span class="dot"></span> Notification Rules</div>
-        <div class="sub-item" data-page="systemLogs"><span class="dot"></span> System Logs</div>
-        <div class="sub-item" data-page="backupManagement"><span class="dot"></span> Backups</div>
-      </div>
     </nav>
   </aside>
   <div class="overlay" id="overlay" onclick="closeSidebar()"></div>
@@ -1211,12 +1184,27 @@
   <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal('newsModal')">Cancel</button><button class="btn btn-purple" onclick="saveNews()">Save</button></div>
 </div></div>
 
-<script src="/api.js?v=20260719-cdr-paged-frontend"></script>
+<script src="/api.js?v=20260722-management-split"></script>
 <script>
 /* auth guard — admin only */
 if(window.API){ API.guard('admin'); }
+window.MUFASA_PANEL_MODE='admin_light';
+const ADMIN_ALLOWED_PAGES=new Set(['dashboard','numbers','managers','agents','clients','smsReport','cliSearch','smsDetail','clientStats','agentStats','managerStats','rangeStats','numberStats','payments','paymentConfig','test']);
+function normalizePanelPage(id){ id=String(id||'dashboard'); return ADMIN_ALLOWED_PAGES.has(id)?id:'dashboard'; }
+function applyPanelSplitUi(){
+  if(window.MUFASA_PANEL_MODE!=='admin_light') return;
+  const actions=document.querySelector('#page-numbers .page-head .head-actions');
+  if(actions) actions.innerHTML='<button class="btn btn-blue" onclick="renderNumbers()">Refresh</button>';
+  const tr=document.querySelector('#page-numbers thead tr');
+  if(tr && !tr.dataset.adminLight){
+    tr.dataset.adminLight='1';
+    tr.innerHTML=`<th class="sortable" onclick="sortNumbers('range')">Range <span class="sort">⇅</span></th><th class="sortable" onclick="sortNumbers('prefix')">Prefix <span class="sort">⇅</span></th><th class="sortable" onclick="sortNumbers('number')">Number <span class="sort" id="numSortHint">⇅</span></th><th class="sortable" onclick="sortNumbers('myVal')">My Payout <span class="sort">⇅</span></th><th class="sortable" onclick="cycleClientFilter()">Owner <span class="sort" id="clientSortHint">⇅</span></th><th class="sortable" onclick="sortNumbers('payVal')">Payout <span class="sort">⇅</span></th><th>Limits</th>`;
+  }
+  const bulk=document.querySelector('#page-numbers .bulk-bar'); if(bulk) bulk.style.display='none';
+}
 /* =============== NAV =============== */
 function showPage(id, el){
+  id=normalizePanelPage(id);
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   const pg=document.getElementById('page-'+id); if(pg) pg.classList.add('active');
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
@@ -1226,6 +1214,7 @@ function showPage(id, el){
   if(typeof loadAdminPageData==='function') loadAdminPageData(id);
 }
 function showPageByName(id){
+  id=normalizePanelPage(id);
   const sub=document.querySelector('.sub-item[data-page="'+id+'"]');
   const nav=document.querySelector('.nav-item[data-page="'+id+'"]');
   if(sub){ sub.click(); } else if(nav){ nav.click(); } else { showPage(id); }
@@ -1422,12 +1411,12 @@ function renderNumbers(){
   if(numSort.key){rows.sort((a,b)=>((a[numSort.key]||'')+'').localeCompare((b[numSort.key]||'')+'',undefined,{numeric:true})*numSort.dir);}
   const pag=API.paginateRows('adminNumbers',rows,len,'numbersInfo',renderNumbers);const total=pag.total;rows=pag.rows;
   document.getElementById('numbersBody').innerHTML=rows.map(r=>`<tr>
-    <td><input type="checkbox" class="rowchk" data-id="${r._id}" onchange="updateSelInfo()"/></td>
+    ${window.MUFASA_PANEL_MODE==='admin_light'?'':`<td><input type="checkbox" class="rowchk" data-id="${r._id}" onchange="updateSelInfo()"/></td>`}
     <td>${r.range}</td><td class="muted">${r.prefix||'—'}</td><td><b>${r.number}</b></td>
     <td>${r.myPay}<br><span class="cell-sub cell-money">${r.myVal}</span></td>
-    <td>${r.client?`<span class="tag ${r.ownerType==='agent'?'tag-agt':'tag-mgr'}">${r.ownerType==='agent'?'Agent':'Manager'}: ${r.client} <span class="x" onclick="unassignOne(${r._id})">✕</span></span>`:`<span class="tag tag-gray">Unallocated</span>`}</td>
+    <td>${r.client?`<span class="tag ${r.ownerType==='agent'?'tag-agt':'tag-mgr'}">${r.ownerType==='agent'?'Agent':'Manager'}: ${r.client}${window.MUFASA_PANEL_MODE==='admin_light'?'':` <span class="x" onclick="unassignOne(${r._id})">✕</span>`}</span>`:`<span class="tag tag-gray">Unallocated</span>`}</td>
     <td>${r.payType}<br><span class="cell-sub">${r.payVal}</span></td>
-    <td class="muted">SD : ${r.sd} | SW : ${r.sw}</td></tr>`).join('')||`<tr><td colspan="8" class="muted" style="text-align:center;padding:24px">No numbers found</td></tr>`;
+    <td class="muted">SD : ${r.sd} | SW : ${r.sw}</td></tr>`).join('')||`<tr><td colspan="${window.MUFASA_PANEL_MODE==='admin_light'?7:8}" class="muted" style="text-align:center;padding:24px">No numbers found</td></tr>`;
   document.getElementById('numbersInfo').textContent=`Showing ${rows.length} of ${total} numbers`; updateSelInfo();
 }
 function toggleAll(cb){document.querySelectorAll('.rowchk').forEach(c=>c.checked=cb.checked);updateSelInfo();}
@@ -2579,12 +2568,12 @@ async function renderNumbers(){
     payType:r.payterm||'Weekly', payVal:'$ '+(r.payout||'0'), sd:r.sd_limit||0, sw:r.sw_limit||0
   }));
   document.getElementById('numbersBody').innerHTML=rows.map(r=>`<tr>
-    <td><input type="checkbox" class="rowchk" data-id="${r._id}" onchange="updateSelInfo()"/></td>
+    ${window.MUFASA_PANEL_MODE==='admin_light'?'':`<td><input type="checkbox" class="rowchk" data-id="${r._id}" onchange="updateSelInfo()"/></td>`}
     <td>${r.range}</td><td class="muted">${r.prefix||'—'}</td><td><b>${r.number}</b></td>
     <td>${r.myPay}<br><span class="cell-sub cell-money">${r.myVal}</span></td>
-    <td>${r.client?`<span class="tag ${r.ownerType==='agent'?'tag-agt':'tag-mgr'}">${r.ownerType==='agent'?'Agent':'Manager'}: ${r.client} <span class="x" onclick="unassignOne(${r._id})">✕</span></span>`:`<span class="tag tag-gray">Unallocated</span>`}</td>
+    <td>${r.client?`<span class="tag ${r.ownerType==='agent'?'tag-agt':'tag-mgr'}">${r.ownerType==='agent'?'Agent':'Manager'}: ${r.client}${window.MUFASA_PANEL_MODE==='admin_light'?'':` <span class="x" onclick="unassignOne(${r._id})">✕</span>`}</span>`:`<span class="tag tag-gray">Unallocated</span>`}</td>
     <td>${r.payType}<br><span class="cell-sub">${r.payVal}</span></td>
-    <td class="muted">SD : ${r.sd} | SW : ${r.sw}</td></tr>`).join('')||`<tr><td colspan="8" class="muted" style="text-align:center;padding:24px">No numbers found</td></tr>`;
+    <td class="muted">SD : ${r.sd} | SW : ${r.sw}</td></tr>`).join('')||`<tr><td colspan="${window.MUFASA_PANEL_MODE==='admin_light'?7:8}" class="muted" style="text-align:center;padding:24px">No numbers found</td></tr>`;
   const shown=total===0?0:Math.min(total,((state.page-1)*pageLimit)+rows.length);
   document.getElementById('numbersInfo').textContent=`Showing ${shown} of ${total} numbers`;
   const pag=document.getElementById('numbersInfo').closest('.table-foot').querySelector('.pagination');
@@ -2602,17 +2591,23 @@ async function ensureAdminManagers(){
   }catch(e){}
 }
 async function ensureAdminSms(){ if(!smsRecords || !smsRecords.length) await loadSmsRecords(); }
+async function fillSmsDetailLiteFilters(){
+  try{ await Promise.allSettled([ensureAdminRates(), ensureAdminManagers()]); }catch(e){}
+  const rangeSel=document.getElementById('sdRange'), userSel=document.getElementById('sdUser');
+  if(rangeSel && (!rangeSel.options || rangeSel.options.length<=1)) rangeSel.innerHTML='<option value="">All Ranges</option>'+((ratesData||[]).map(r=>`<option value="${r.name}">${r.name}</option>`).join(''));
+  if(userSel && (!userSel.options || userSel.options.length<=1)) userSel.innerHTML='<option value="">All Managers</option>'+((usersData.manager||[]).map(m=>`<option value="${m.username}">${m.username}</option>`).join(''));
+}
 async function loadAdminPageData(page){
   try{
     if(page==='dashboard') return loadDashboard();
-    if(page==='numbers') return loadNumbers();
-    if(page==='allocation') return loadNumberSummary();
+    if(page==='numbers'){ await ensureAdminRates(); await ensureAdminManagers(); return loadNumbers(); }
+    if(page==='allocation'){ await ensureAdminRates(); await ensureAdminManagers(); return loadNumberSummary(); }
     if(page==='rates') return loadRates();
-    if(page==='smsReport'){ if(!document.getElementById('srBody')) buildSmsReport(); return ensureAdminSms(); }
-    if(page==='smsDetail'){ if(!document.getElementById('sdBody')) buildSmsDetail(); return ensureAdminSms(); }
+    if(page==='smsReport'){ if(!document.getElementById('srBody')) buildSmsReport(); return renderSmsReport(); }
+    if(page==='smsDetail'){ if(!document.getElementById('sdBody')) buildSmsDetail(); await fillSmsDetailLiteFilters(); return renderSmsDetail(); }
     if(['clientStats','agentStats','managerStats'].includes(page)){ const k=page.replace('Stats',''); if(!document.getElementById(k+'SBody')) buildEntityStats(k); return ensureAdminSms(); }
     if(['rangeStats','numberStats'].includes(page)){ const k=page.replace('Stats',''); if(!document.getElementById(k+'SBody')) buildDrillStats(k); return ensureAdminSms(); }
-    if(page==='test'){ await ensureAdminRates(); await ensureAdminSms(); return renderTest(); }
+    if(page==='test'){ await ensureAdminRates(); return renderTest(); }
     if(page==='managers') return buildUserPage('manager');
     if(page==='agents') return buildUserPage('agent');
     if(page==='clients') return buildUserPage('client');
@@ -2688,24 +2683,12 @@ async function renderSmsDetail(){
   setServerFoot(sdInfo,state,renderSmsDetail);
 }
 
-/* =============== FAST PRIORITY INIT (instant UI + background data) =============== */
+/* =============== ADMIN LIGHT INIT (daily operations only) =============== */
+if(typeof applyPanelSplitUi==='function') applyPanelSplitUi();
 loadDashboard();
-// Build high-priority page structures immediately so clicking menus shows UI instantly.
-renderAlloc();
-buildSmsReport();buildSmsDetail();
-buildEntityStats('client');buildEntityStats('agent');buildEntityStats('manager');
-buildDrillStats('range');buildDrillStats('number');
-renderTest();
-// Fetch critical data right after first paint. Do not block menu/UI.
-setTimeout(async()=>{
-  try{
-    await Promise.allSettled([loadRates(), ensureAdminManagers()]);
-    await Promise.allSettled([loadNumbers(), loadSmsRecords(), loadNumberSummary()]);
-  }catch(e){console.warn('critical preload failed',e)}
-},50);
-// Less-used admin/system pages load later in background.
-setTimeout(()=>{Promise.allSettled([loadImportBatches(),refreshNumberDbTools(),loadNews(),loadPayments(),loadAdminPayout(),loadPaymentConfig(),loadCliLimits()]);},1200);
-setTimeout(()=>{Promise.allSettled([loadCarrierSettings(),loadIntegrations(),loadNotificationRules(),loadTestGeneratorSettings(),loadLimitManagement(),loadSmppServer(),loadApiIntegrations()]);},2200);
+// Admin Panel is intentionally light: no import/rate/system-master preloads here.
+// Daily pages load on click through loadAdminPageData().
+setTimeout(()=>{Promise.allSettled([ensureAdminManagers()]);},250);
 </script>
 </body>
 </html>

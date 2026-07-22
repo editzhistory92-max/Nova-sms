@@ -1,0 +1,47 @@
+Mufasa SMS — Railway Persistent DB + Backup Setup
+
+1) Railway Volume
+Create/attach a Railway Volume and mount it at:
+/data
+
+2) Railway Variables
+Add these in Railway Service → Variables:
+
+NODE_ENV=production
+JWT_SECRET=your-long-random-secret
+DB_FILE=/data/data.sqlite
+BACKUP_DIR=/data/backups
+BACKUP_ENABLED=true
+BACKUP_INTERVAL_HOURS=3
+BACKUP_RETENTION_DAYS=30
+
+3) Files to replace/add
+Main folder:
+- admin.html
+- README.md
+- RAILWAY_DEPLOYMENT.md
+- .env.example
+- package.json
+- package-lock.json
+
+Backend folder:
+- backend/server.js
+- backend/db.js
+- backend/backup.js   (NEW)
+
+4) Admin Panel
+Open:
+System Master → Backups
+
+Available actions:
+- Create Backup Now
+- Download Latest
+- Download any backup
+- Restore selected backup (requires confirmation)
+- Delete backup
+
+5) Notes
+- Backups are stored in /data/backups on Railway.
+- Database is stored in /data/data.sqlite.
+- Automatic backups run every 3 hours by default.
+- Retention default is 30 days.

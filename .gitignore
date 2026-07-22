@@ -1,5 +1,9 @@
-"backend/data.sqlite" 
-"backend/backups/" 
-"backend/data.sqlite" 
-"backend/backups/" 
-"node_modules/" 
+node_modules/
+backend/node_modules/
+*.log
+.env
+backend/.env
+backend/data.sqlite
+data.sqlite
+.DS_Store
+npm-debug.log*

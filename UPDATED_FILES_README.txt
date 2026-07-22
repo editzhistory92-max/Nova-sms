@@ -1,54 +1,60 @@
-LATEST UPDATED FILES - MUFASA SMS
-=================================
+MUFASA SMS — Management/Admin Split Update
+Date: 2026-07-22
+Cache marker: /api.js?v=20260722-management-split
 
-Current latest bundle includes:
-- New Management Panel: /management-login and /management
-- Management Panel uses Admin credentials but separate UI route
-- Bulk Range Import endpoint: POST /api/ranges/import
-- Bulk TXT Number Import by filename -> Range Name in Management Panel
-- Existing HTTP/SMPP/API integrations preserved
-- Server-side SMS/CDR pagination endpoints still included
+What changed:
+1) Admin Panel is now daily-operations only.
+   Visible Admin sidebar now contains:
+   - Dashboard
+   - SMS Numbers
+   - SMS Test Panel
+   - User Management
+   - SMS CDR Stats / Reports
+   - Credit / Payouts
+   - Payment Configuration
 
-Current cache marker in HTML:
-/api.js?v=20260719-cdr-paged-frontend
+2) Removed from Admin sidebar:
+   - SMS Number Management parent menu
+   - Range Allocation
+   - Import Numbers / Import Ranges
+   - Import Test Numbers
+   - Rate Management
+   - System Master and all System Master submenus
 
-Files included:
+3) New Management Panel now contains maintenance/config only:
+   - Range Allocation
+   - Import Numbers / Import Ranges
+   - Import Test Numbers
+   - Rate Management
+   - System Master:
+     News for Users, SMS CLI Limit, Limit Management, Carrier Integration,
+     SMPP Server, API Integration, Test SMS Generator, Integration Layer,
+     Notification Rules, System Logs, Backups
+
+4) Performance/loading split:
+   - Admin no longer preloads import/rate/system-master modules.
+   - Admin no longer builds all CDR pages at startup.
+   - Admin SMS Report / SMS Detail use server-side /api/sms/paged on demand.
+   - Management has separate route-storage key: ms_last_page_management.
+   - Management default page is Rate Management.
+
+Files changed in this update:
 - admin.html
 - management.html
 - management-login.html
-- manager.html
-- agent.html
-- client.html
-- test.html
-- test-login.html
-- login.html
 - api.js
-- backend/server.js
-- backend/schema.js
-- backend/seed.js
-- backend/auth.js
-- backend/db.js
-- backend/backup.js
-- backend/smppServer.js
-- package files
-- assets
+- All panel HTML files have refreshed /api.js cache marker.
 
-Do NOT push database/backups/node_modules.
-
-Local Git:
-git add -A
-git commit -m "Add Management Panel and bulk import improvements"
-git push origin main
-
-VPS:
-cd ~/Mufasa-sms
-git pull --ff-only origin main
-npm install
-pm2 flush mufasa-sms
-pm2 restart mufasa-sms --update-env
-pm2 list
-
-Verify:
-grep -n "management-login\|management/:page" backend/server.js
-grep -n "ranges/import" backend/server.js
-grep -n "Bulk Number Import by TXT Files" management.html
+Deployment reminder:
+1) Extract this zip into Windows local repo: F:\ms-sms-service
+2) From Windows local repo:
+   git add -A
+   git commit -m "Split Admin and Management panels"
+   git push origin main
+3) On VPS:
+   cd ~/Mufasa-sms
+   git pull --ff-only origin main
+   npm install
+   pm2 flush mufasa-sms
+   pm2 restart mufasa-sms --update-env
+   pm2 list

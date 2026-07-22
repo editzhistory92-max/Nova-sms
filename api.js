@@ -318,7 +318,9 @@
     if(location.pathname.startsWith('/management')) return '/management';
     return {admin:'/admin',manager:'/manager',agent:'/agent',client:'/client',test:'/test'}[role] || '/login';
   }
-  function pageUrl(page){ return basePathForRole() + '/' + encodeURIComponent(page || 'dashboard'); }
+  function defaultPageForCurrentPanel(){ return location.pathname.startsWith('/management') ? 'rates' : 'dashboard'; }
+  function pageUrl(page){ return basePathForRole() + '/' + encodeURIComponent(page || defaultPageForCurrentPanel()); }
+  function panelKeyForStorage(){ return location.pathname.startsWith('/management') ? 'management' : (ROLE()||''); }
   function pageFromUrl(){
     const base=basePathForRole();
     const path=location.pathname.replace(/\/+$/,'');
@@ -354,14 +356,14 @@
 
   function initRoutePersistence(){
     if(!TOKEN()) return;
-    const key='ms_last_page_'+(ROLE()||'');
+    const key='ms_last_page_'+panelKeyForStorage();
     document.addEventListener('click', (e)=>{
       const el=e.target.closest('[data-page]');
       if(el && el.dataset && el.dataset.page) localStorage.setItem(key, el.dataset.page);
     }, true);
     setTimeout(()=>{
       const fromRoute = pageFromUrl();
-      const page=fromRoute || localStorage.getItem(key) || 'dashboard';
+      const page=fromRoute || localStorage.getItem(key) || defaultPageForCurrentPanel();
       if(!page || page==='dashboard'){document.documentElement.style.visibility='visible'; return;}
       activatePageFromHistory(page);
       document.documentElement.style.visibility='visible';
@@ -499,7 +501,7 @@
 
   function activatePageFromHistory(page){
     if(!page) page='dashboard';
-    try{ localStorage.setItem('ms_last_page_'+(ROLE()||''), page); }catch(e){}
+    try{ localStorage.setItem('ms_last_page_'+panelKeyForStorage(), page); }catch(e){}
     if(typeof window.showPageByName==='function') { window.showPageByName(page); return; }
     const safePage=String(page).replace(/"/g,'\\"');
     const el=document.querySelector(`[data-page="${safePage}"]`);
@@ -516,7 +518,7 @@
     initPageLinks(); initPageLinkClicks();
     const linkMo=new MutationObserver(()=>{ clearTimeout(window.__msPageLinkTimer); window.__msPageLinkTimer=setTimeout(initPageLinks,120); });
     linkMo.observe(document.body,{childList:true,subtree:true});
-    const initialPage=pageFromUrl() || localStorage.getItem('ms_last_page_'+(ROLE()||'')) || currentPageName();
+    const initialPage=pageFromUrl() || localStorage.getItem('ms_last_page_'+panelKeyForStorage()) || currentPageName() || defaultPageForCurrentPanel();
     try{ history.replaceState({msPanel:true,page:initialPage},'',pageUrl(initialPage)); }catch(e){}
     document.addEventListener('click',(e)=>{
       if(e.target.closest('a.ms-page-link-overlay')) return;
@@ -527,7 +529,7 @@
     }, true);
     window.addEventListener('popstate',(e)=>{
       if(e.state && e.state.msPanel){ activatePageFromHistory(e.state.page || 'dashboard'); }
-      else { try{ history.pushState({msPanel:true,page:'dashboard'},'',location.pathname); }catch(_){} activatePageFromHistory('dashboard'); }
+      else { const def=defaultPageForCurrentPanel(); try{ history.pushState({msPanel:true,page:def},'',location.pathname); }catch(_){} activatePageFromHistory(def); }
     });
   }
   function initIdleLogout(){
