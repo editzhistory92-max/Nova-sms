@@ -1,69 +1,80 @@
-MUFASA SMS — Corrected Admin/Management Split
+MUFASA SMS — Full Cleanup + Range/Test Number Bulk Import
 Date: 2026-07-22
-Cache marker: /api.js?v=20260722-admin-sms-ops-split
+Cache marker: /api.js?v=20260722-full-cleanup-test-range-import
 
-Correction made per requirement:
-The Management Panel should NOT take the complete SMS Number Management module.
-Only these modules remain in Management:
-- System Master (all options)
-- Rate Management
-- Import Numbers / Import Ranges
-- Import Test Numbers
+Removed completely from runtime/UI:
+1) Notification system
+   - No notification bell/polling on frontend
+   - No Notification Rules page
+   - No /api/notifications or /api/notification-rules backend routes
+   - No incoming-SMS notification milestone checks/writes
+   - Old DB tables are not dropped for data safety, but schema no longer creates them for fresh DBs.
 
-Admin Panel now keeps daily SMS number operations:
-- SMS Number Management menu restored
-- Range Allocation restored in Admin
-- SMS Numbers restored with full operational actions:
-  Allocate Selected, Unallocate Selected, Delete Selected,
-  Move to Test Panel, Delete Filtered, Delete ALL Numbers,
-  Smart Divide, filters, owner/unallocated management
-- Delete Selected Range Numbers added inside Admin SMS Numbers page
-- Admin direct Manager/Agent allocation UI remains available in Allocate Selected
+2) News system
+   - Removed News pages/menus from Manager, Agent, Client
+   - Removed News for Users from Management
+   - Removed backend /api/news routes
+   - Old DB table is not dropped for safety.
 
-Management Panel cleanup:
-- Range Allocation removed from Management navigation
-- Hidden SMS Numbers/Range Allocation pages removed from Management DOM
-- Destructive number delete cards removed from Management Import page
-- Bulk Range Creation remains in Management -> Rate Management
+3) PDF / Print export buttons
+   - PDF and Print buttons removed/auto-hidden.
+   - Copy / CSV / Excel remain.
 
-Performance features from previous update kept:
-- Server-side /api/numbers pagination for Admin/Manager/Agent/Client
-- Optimized /api/sms/paged date filtering and short backend cache
-- /api/stats-summary on stats pages
-- Alphabetical range sorting
-- Bulk Range Creation endpoint: POST /api/ranges/bulk-create
+4) Settings popup simplified
+   - Notification sound/popup settings removed.
+   - Dark mode remains optional.
 
-Files changed in this package:
-- admin.html
-- management.html
-- manager.html
-- agent.html
-- client.html
-- api.js
-- backend/server.js
-- backend/schema.js
-- .gitignore
+5) Integration Layer placeholder removed
+   - Management placeholder Integration Layer removed.
+   - Real API Integration remains.
+   - Carrier HTTP Integration remains.
 
-Deploy:
-1) Extract this zip into Windows local repo: F:\ms-sms-service
-2) Commit/push from Windows local repo only:
-   cd /d F:\ms-sms-service
-   git add -A
-   git commit -m "Correct admin management split for SMS operations"
-   git push origin main
-3) VPS pull/restart:
-   cd ~/Mufasa-sms
-   git fetch origin main
-   git pull --ff-only origin main
-   npm install
-   pm2 flush mufasa-sms
-   pm2 restart mufasa-sms --update-env
-   pm2 list
+6) SMPP removed from runtime/UI
+   - Management SMPP page removed.
+   - Backend SMPP routes removed.
+   - Startup no longer starts SMPP listener on port 2775.
+   - smpp package dependency removed from package.json.
+   - backend/smppServer.js is a harmless disabled stub to overwrite older deployments safely.
 
-Important:
-If backend/data.sqlite or backend/backups are still tracked in Git, untrack from Windows local repo before future deploys:
-  git rm --cached backend/data.sqlite
-  git rm --cached -r backend/backups
-  git add .gitignore
-  git commit -m "Stop tracking database and backups"
-  git push origin main
+7) Test SMS Generator removed
+   - Management Test SMS Generator page removed.
+   - Backend /api/test-generator routes removed.
+   - Public/Admin Test Panel demo traffic remains separate and was not removed.
+
+New bulk range + test number import:
+- Management Panel -> Rate Management -> Bulk Range + Test Numbers Import
+- Supports: TXT, CSV, XLS, XLSX
+- File logic:
+  Range name line
+  test number lines under it
+  next non-number line = next range
+- Automatically creates ranges
+- Automatically imports test numbers into Test Panel (range_test_numbers)
+- Rate/currency fields stay default/NA unless edited later
+
+Example file:
+Nigeria MTN
+08031234567
+08039876543
+08035556677
+Pakistan Jazz
+03001234567
+03019876543
+03025556677
+UK EE
+447700900001
+447700900002
+447700900003
+
+Backend endpoint added:
+POST /api/ranges/import-test-bulk
+multipart field: file
+
+Note on better-sqlite3 migration:
+Not included in this cleanup zip because it is a bigger DB-layer migration and must be done separately with a full backup/rollback plan. This cleanup removes several unnecessary reads/writes first.
+
+VPS commands after GitHub push:
+cd ~/Mufasa-sms
+git pull --ff-only origin main
+npm install && pm2 flush mufasa-sms && pm2 restart mufasa-sms --update-env && pm2 list
+pm2 logs mufasa-sms --lines 80

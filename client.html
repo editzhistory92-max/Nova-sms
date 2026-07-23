@@ -153,8 +153,6 @@
   .pagination button.active{background:var(--rose);color:#fff;border-color:var(--rose)}
   .pagination button:hover:not(.active){background:var(--panel2);color:var(--text)}
   .masknote{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:#fda4af;background:rgba(251,113,133,.12);padding:5px 11px;border-radius:8px;border:1px solid rgba(251,113,133,.3)}
-  .news-item{background:var(--panel);border:1px solid var(--border);border-left:3px solid var(--rose);border-radius:12px;padding:16px 18px;margin-bottom:12px}
-  .news-item h4{font-size:14.5px;margin-bottom:5px}.news-item .meta{color:var(--muted);font-size:11.5px;margin-bottom:8px}.news-item p{color:#d6dae8;font-size:13px;line-height:1.6}
 
   /* ===== Unified Clean Theme (Admin / Manager / Agent / Client) ===== */
   :root{
@@ -396,7 +394,6 @@
       <div class="tab" data-page="numbers"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>SMS Numbers</div>
       <div class="tab" data-page="stats"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/></svg>SMS Stats</div>
       <div class="tab" data-page="test"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18v-6a3 3 0 0 1 6 0v6"/><rect x="4" y="18" width="16" height="3"/><path d="M12 3v3"/></svg>SMS Test Panel</div>
-      <div class="tab" data-page="news"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22V4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v18l-4-3-4 3-4-3-4 3z"/><line x1="8" y1="7" x2="16" y2="7"/></svg>News</div>
     </nav>
   </aside>
   <div class="sb-overlay" id="sbOverlay" onclick="closeSb()"></div>
@@ -407,7 +404,6 @@
         <button class="hamburger" onclick="openSb()"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
         <span class="clock" id="clock">Fri, 2026-07-03 05:33:57</span>
         <div class="sp"></div>
-        <button class="tb-btn" title="News"><span class="dot"></span><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></button>
         <button class="tb-btn" title="Fullscreen" onclick="toggleFull()"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>
         <div class="who"><div class="av">A</div><div><div class="nm">Client</div><div class="rl">Client</div></div></div>
         <button class="tb-btn" title="Logout" onclick="logout()"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></button>
@@ -441,7 +437,7 @@
       </div></div>
       <div class="table-wrap" style="padding:15px 17px;margin-top:0"><div class="table-controls">
         <div class="tc-left"><label>Show Records:</label><select id="numLen" onchange="renderNumbers()"><option>10</option><option selected>25</option><option>50</option><option value="All">All</option></select>
-        <div class="exp-btns"><button class="btn btn-blue">Copy</button><button class="btn btn-blue">CSV</button><button class="btn btn-green">Excel</button><button class="btn btn-red">PDF</button><button class="btn btn-blue">Print</button></div></div>
+        <div class="exp-btns"><button class="btn btn-blue">Copy</button><button class="btn btn-blue">CSV</button><button class="btn btn-green">Excel</button></div></div>
         <div class="tc-right"><label>Search:</label><input type="text" id="numSearch" oninput="renderNumbers()" placeholder="Search..."/></div></div></div>
       <div class="table-wrap"><div class="tscroll"><table>
         <thead><tr><th class="sortable" onclick="sortNum('range')">Range <span class="sort">⇅</span></th><th class="sortable" onclick="sortNum('number')">Number <span class="sort" id="nSortHint">⇅</span></th><th>Payterm</th><th>Status</th><th>Last SMS Time</th><th>Limits</th></tr></thead>
@@ -466,7 +462,7 @@
       </div>
       <div class="table-wrap" style="padding:15px 17px;margin-top:0"><div class="table-controls">
         <div class="tc-left"><label>Show Records:</label><select id="stLen" onchange="renderStats()"><option>10</option><option selected>25</option><option>50</option><option value="All">All</option></select>
-        <div class="exp-btns"><button class="btn btn-blue">Copy</button><button class="btn btn-blue">CSV</button><button class="btn btn-green">Excel</button><button class="btn btn-red">PDF</button><button class="btn btn-blue">Print</button></div></div>
+        <div class="exp-btns"><button class="btn btn-blue">Copy</button><button class="btn btn-blue">CSV</button><button class="btn btn-green">Excel</button></div></div>
         <div class="tc-right"><label>Search:</label><input type="text" id="stSearch" oninput="renderStats()" placeholder="Search..."/></div></div></div>
       <div class="table-wrap"><div class="tscroll"><table>
         <thead><tr><th>Date</th><th>Range</th><th>Number</th><th>CLI</th><th>OTP Code</th><th>Copy</th><th>Message</th></tr></thead>
@@ -494,12 +490,6 @@
             <thead><tr><th>Date</th><th>Range</th><th>Number</th><th>CLI</th><th>SMS</th></tr></thead><tbody id="trBody"></tbody></table></div></div></div>
       </div>
     </section>
-
-    <!-- NEWS -->
-    <section class="page" id="page-news">
-      <div class="page-head"><div><h2>News &amp; Announcements</h2><div class="breadcrumb"><b>System</b> › News</div></div></div>
-      <div id="newsFeed"></div>
-    </section>
     </div>
   </div>
 </div>
@@ -516,7 +506,7 @@
   </div>
 </div>
 
-<script src="/api.js?v=20260722-admin-sms-ops-split"></script>
+<script src="/api.js?v=20260722-full-cleanup-test-range-import"></script>
 <script>
 if(window.API){ API.guard('client'); }
 /* NAV */
@@ -541,7 +531,6 @@ let stats=[];
 let smsRecords=[];
 let testNumbers=[];
 let recentTests=[];
-let newsFeed=[];
 
 /* CLI masking (test panel) */
 function maskCLI(cli){if(!cli)return '';if(cli.length<=2)return cli;return cli.slice(0,2)+'x'.repeat(cli.length-2);}
@@ -616,10 +605,6 @@ async function renderTest(){const rf=document.getElementById('testRange').value,
 }
 
 /* NEWS (API) */
-async function loadNews(){ try{ newsFeed=(await API.get('/news')).map(n=>({title:n.title,body:n.body,by:n.created_by||'Admin',date:(n.created_at||'').slice(0,19)})); }catch(e){ newsFeed=[]; } renderNews(); }
-function renderNews(){document.getElementById('newsFeed').innerHTML=newsFeed.map(n=>`<div class="news-item"><h4>${n.title}</h4><div class="meta">📢 ${n.by} · ${n.date}</div><p>${n.body}</p></div>`).join('')||'<div class="muted">No news yet</div>';}
-
-
 function cleanDec(v){let s=String(v??'').replace(/[$,\s]/g,'');const m=s.match(/-?\d+(?:\.\d+)?/);if(!m)return '0';s=m[0];if(!s.includes('.'))return String(BigInt(s));let[a,b]=s.split('.');b=(b||'').replace(/0+$/,'');a=String(BigInt(a||'0'));return b?`${a}.${b}`:a;}
 function decAdd(a,b){a=cleanDec(a);b=cleanDec(b);const[ai,af='']=a.split('.'),[bi,bf='']=b.split('.');const sc=Math.max(af.length,bf.length);let sum=(BigInt(ai+af.padEnd(sc,'0'))+BigInt(bi+bf.padEnd(sc,'0'))).toString();let neg=sum.startsWith('-');if(neg)sum=sum.slice(1);if(!sc)return(neg?'-':'')+sum;sum=sum.padStart(sc+1,'0');let out=sum.slice(0,-sc)+'.'+sum.slice(-sc);out=out.replace(/\.0+$/,'').replace(/(\.\d*?)0+$/,'$1');return(neg?'-':'')+out;}
 function sumPay(rows){return (rows||[]).reduce((a,r)=>decAdd(a,r.pay||r.payout_amount||r.payout_rate||0),'0');}
@@ -640,7 +625,6 @@ async function loadClientPageData(page){
     if(page==='numbers') return loadNumbers();
     if(page==='stats') return loadStats();
     if(page==='test'){ await loadRanges(); await loadStats(); return renderTest(); }
-    if(page==='news') return loadNews();
   }catch(e){console.warn('loadClientPageData failed',page,e);}
 }
 
@@ -672,7 +656,6 @@ async function loadStats(){ await renderStats(); renderNumbers(); }
 /* FAST PRIORITY INIT */
 loadProfile();loadDashboard();renderTest();
 setTimeout(async()=>{try{await loadRanges();await Promise.allSettled([loadNumbers(),loadStats()]);}catch(e){console.warn('client critical preload failed',e)}},50);
-setTimeout(()=>{loadNews();},1000);
 setTimeout(showClientWelcome,700);
 </script>
 

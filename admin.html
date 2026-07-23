@@ -481,7 +481,6 @@
       <span class="tb-date" id="clock">Fri, 2026-07-03 05:33:57</span>
       <div class="tb-right">
         <button class="tb-btn" title="Theme"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.2" y1="4.2" x2="5.6" y2="5.6"/><line x1="18.4" y1="18.4" x2="19.8" y2="19.8"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/></svg></button>
-        <button class="tb-btn" title="Notifications"><span class="badge"></span><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></button>
         <button class="tb-btn" title="Fullscreen" onclick="toggleFull()"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>
         <div class="avatar">A</div>
         <button class="tb-btn" title="Settings"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
@@ -523,7 +522,7 @@
           <div class="table-controls">
             <div class="tc-left"><label>Show Records:</label>
               <select id="allocLen" onchange="renderAlloc()"><option>10</option><option selected>25</option><option>50</option><option>100</option><option value="All">All</option></select>
-              <div class="exp-btns"><button class="btn btn-blue">Copy</button><button class="btn btn-blue">CSV</button><button class="btn btn-green">Excel</button><button class="btn btn-red">PDF</button><button class="btn btn-blue">Print</button></div>
+              <div class="exp-btns"><button class="btn btn-blue">Copy</button><button class="btn btn-blue">CSV</button><button class="btn btn-green">Excel</button></div>
             </div>
             <div class="tc-right"><label>Search:</label><input type="text" id="allocSearch" oninput="renderAlloc()" placeholder="Search..." /></div>
           </div>
@@ -565,7 +564,7 @@
           <div class="table-controls">
             <div class="tc-left"><label>Show Records:</label>
               <select id="numLen" onchange="renderNumbers()"><option selected>25</option><option>50</option><option>100</option><option>500</option><option>1000</option><option>5000</option><option value="All">All</option></select>
-              <div class="exp-btns"><button class="btn btn-blue">Copy</button><button class="btn btn-blue">CSV</button><button class="btn btn-green">Excel</button><button class="btn btn-red">PDF</button><button class="btn btn-blue">Print</button></div>
+              <div class="exp-btns"><button class="btn btn-blue">Copy</button><button class="btn btn-blue">CSV</button><button class="btn btn-green">Excel</button></div>
             </div>
             <div class="tc-right"><label>Search:</label><input type="text" id="numSearch" oninput="renderNumbers()" placeholder="Search..." /></div>
           </div>
@@ -701,7 +700,7 @@
             <h3 style="margin-bottom:12px;font-size:16px">SMS Test Numbers</h3>
             <div class="table-wrap" style="padding:14px 16px;margin-top:0"><div class="table-controls">
               <div class="tc-left"><label>Show Records:</label><select id="testNumLen" onchange="renderTest()"><option>10</option><option selected>25</option><option>50</option></select>
-                <div class="exp-btns"><button class="btn btn-blue">Copy</button><button class="btn btn-blue">CSV</button><button class="btn btn-green">Excel</button><button class="btn btn-red">PDF</button><button class="btn btn-blue">Print</button></div></div>
+                <div class="exp-btns"><button class="btn btn-blue">Copy</button><button class="btn btn-blue">CSV</button><button class="btn btn-green">Excel</button></div></div>
               <div class="tc-right"><label>Search:</label><input type="text" id="testNumSearch" oninput="renderTest()" placeholder="Search..."/></div>
             </div></div>
             <div class="table-wrap"><div class="tscroll"><table>
@@ -713,7 +712,7 @@
             <h3 style="margin-bottom:12px;font-size:16px">Recent SMS Test</h3>
             <div class="table-wrap" style="padding:14px 16px;margin-top:0"><div class="table-controls">
               <div class="tc-left"><label>Show Records:</label><select id="testRecLen" onchange="renderTest()"><option>10</option><option selected>25</option><option>50</option></select>
-                <div class="exp-btns"><button class="btn btn-blue">Copy</button><button class="btn btn-blue">CSV</button><button class="btn btn-green">Excel</button><button class="btn btn-red">PDF</button><button class="btn btn-blue">Print</button></div></div>
+                <div class="exp-btns"><button class="btn btn-blue">Copy</button><button class="btn btn-blue">CSV</button><button class="btn btn-green">Excel</button></div></div>
               <div class="tc-right"><label>Search:</label><input type="text" id="testRecSearch" oninput="renderTest()" placeholder="Search..."/></div>
             </div></div>
             <div class="table-wrap"><div class="tscroll"><table>
@@ -792,18 +791,8 @@
   <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal('allocAllModal')">Cancel</button><button class="btn btn-blue" onclick="confirmAllocAll()">Allocate</button></div>
 </div></div>
 
-<!-- ============ NEWS MODAL ============ -->
-<div class="modal-overlay" id="newsModal"><div class="modal">
-  <div class="modal-head"><h3 id="newsModalTitle">Edit News</h3><button class="modal-close" onclick="closeModal('newsModal')">×</button></div>
-  <div class="modal-body">
-    <div class="form-group"><label>Send to</label><select id="mNewsAudience"><option value="all">All Users</option><option value="manager">Managers only</option><option value="agent">Agents only</option><option value="client">Clients only</option></select></div>
-    <div class="form-group"><label>Title <span class="req">*</span></label><input type="text" id="mNewsTitle" placeholder="Title"/></div>
-    <div class="form-group"><label>Message <span class="req">*</span></label><textarea id="mNewsBody" style="width:100%;min-height:90px;background:var(--row);border:1px solid var(--border2);border-radius:9px;color:var(--text);padding:11px 12px;font-size:13px;font-family:inherit;resize:vertical"></textarea></div>
-  </div>
-  <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal('newsModal')">Cancel</button><button class="btn btn-purple" onclick="saveNews()">Save</button></div>
-</div></div>
 
-<script src="/api.js?v=20260722-admin-sms-ops-split"></script>
+<script src="/api.js?v=20260722-full-cleanup-test-range-import"></script>
 <script>
 /* auth guard — admin only */
 if(window.API){ API.guard('admin'); }
@@ -933,15 +922,17 @@ fillSelect('allocManager',managers.map(m=>m+' (Manager)'));
 function fmtRate(v){return v==='NA'||v===''?'<span class="muted">NA</span>':'<span class="cell-money">$ '+v+'</span>';}
 async function loadRates(){ try{ ratesData = await API.get('/ranges'); }catch(e){ ratesData=[]; } renderRates(); }
 function renderRates(){
-  const len=document.getElementById('rateLen').value,q=(document.getElementById('rateSearch').value||'').toLowerCase();
+  const rateLenEl=document.getElementById('rateLen'), rateSearchEl=document.getElementById('rateSearch'), ratesBodyEl=document.getElementById('ratesBody'), ratesInfoEl=document.getElementById('ratesInfo');
+  if(!rateLenEl || !rateSearchEl || !ratesBodyEl || !ratesInfoEl) return;
+  const len=rateLenEl.value,q=(rateSearchEl.value||'').toLowerCase();
   let rows=(ratesData||[]).filter(r=>(r.name||'').toLowerCase().includes(q)||(r.test_number||'').includes(q));
   const pag=API.paginateRows('adminRates',rows,len,'ratesInfo',renderRates);const total=pag.total;rows=pag.rows;
-  document.getElementById('ratesBody').innerHTML=rows.map(r=>`<tr>
+  ratesBodyEl.innerHTML=rows.map(r=>`<tr>
     <td><b>${r.name}</b></td><td class="muted">${r.prefix||'—'}</td><td>${r.test_number||'—'}</td><td><span class="tag tag-green">${r.currency}</span></td>
     <td>${fmtRate(r.rate_1_1)}</td><td>${fmtRate(r.rate_7_1)}</td><td>${fmtRate(r.rate_7_7)}</td><td>${fmtRate(r.rate_30_45)}</td><td class="muted">${r.memo||'—'}</td>
     <td style="white-space:nowrap"><button class="btn btn-amber btn-sm" onclick="openRateModal(${r.id})">Set Rate</button>
     <button class="icon-btn btn-red" onclick="delRate(${r.id})"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button></td></tr>`).join('');
-  document.getElementById('ratesInfo').textContent=`Showing ${rows.length} of ${total} ranges`;
+  ratesInfoEl.textContent=`Showing ${rows.length} of ${total} ranges`;
 }
 let editRateId=-1;
 function openRateModal(id){editRateId=id;document.getElementById('rateModalTitle').textContent=id<0?'Add Range':'Set Range Rate';
@@ -1135,7 +1126,7 @@ function buildUserPage(role){const m=roleMeta[role];
   <div class="table-wrap" style="padding:16px 18px;margin-top:0"><div style="font-weight:600;margin-bottom:12px">MANAGE ${m.title.toUpperCase()}</div>
     <div class="table-controls"><div class="tc-left"><label>Show Records:</label>
       <select id="${role}Len" onchange="renderUsers('${role}')"><option>10</option><option selected>25</option><option>50</option><option>100</option><option value="All">All</option></select>
-      <div class="exp-btns"><button class="btn btn-blue">Copy</button><button class="btn btn-blue">CSV</button><button class="btn btn-green">Excel</button><button class="btn btn-red">PDF</button><button class="btn btn-blue">Print</button></div></div>
+      <div class="exp-btns"><button class="btn btn-blue">Copy</button><button class="btn btn-blue">CSV</button><button class="btn btn-green">Excel</button></div></div>
       <div class="tc-right"><label>Search:</label><input type="text" id="${role}Search" oninput="renderUsers('${role}')" placeholder="Search..."/></div></div></div>
   <div class="table-wrap"><div class="tscroll"><table>
     <thead><tr><th><input type="checkbox" onclick="toggleAllUsers('${role}',this)"/></th><th>Username</th><th>Name</th><th>Email</th><th>Contact</th><th>Skype</th><th>Active</th><th>Action</th></tr></thead>
@@ -1206,7 +1197,7 @@ function aggregate(records, groupKey){
   records.forEach(r=>{const k=r[groupKey];if(!map[k])map[k]={key:k,sms:0,otp:0,rec:r};map[k].sms+=r.sms;map[k].otp+=r.otp;});
   return Object.values(map);
 }
-function expBtns(){return `<div class="exp-btns"><button class="btn btn-blue">Copy</button><button class="btn btn-blue">CSV</button><button class="btn btn-green">Excel</button><button class="btn btn-red">PDF</button><button class="btn btn-blue">Print</button></div>`;}
+function expBtns(){return `<div class="exp-btns"><button class="btn btn-blue">Copy</button><button class="btn btn-blue">CSV</button><button class="btn btn-green">Excel</button></div>`;}
 
 /* ---- SMS Report (summary) ---- */
 function buildSmsReport(){
@@ -1502,30 +1493,6 @@ async function renderTest(){
   }).join('')||`<tr><td colspan="5" class="muted" style="text-align:center;padding:24px">No test panel SMS found</td></tr>`;
 }
 
-/* =============== SYSTEM MASTER: NEWS (API-backed) =============== */
-let newsData=[];
-const audLabel={all:'All Users',manager:'Managers',agent:'Agents',client:'Clients'};
-async function loadNews(){ try{ newsData=await API.get('/news'); }catch(e){ newsData=[]; } renderNews(); }
-function renderNews(){
-  document.getElementById('newsBody2').innerHTML=(newsData||[]).map(n=>`<tr>
-    <td class="muted">${(n.created_at||'').slice(0,19)}</td><td><b>${n.title}</b></td><td class="msg-body">${n.body}</td>
-    <td><span class="tag tag-blue">${audLabel[n.audience]||n.audience}</span></td>
-    <td>${n.active?'<span class="tag tag-green">Published</span>':'<span class="tag tag-gray">Draft</span>'}</td>
-    <td style="white-space:nowrap">
-      <button class="icon-btn btn-red" onclick="delNews(${n.id})"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button></td></tr>`).join('')||`<tr><td colspan="6" class="muted" style="text-align:center;padding:24px">No news yet</td></tr>`;
-  document.getElementById('newsInfo').textContent=`${(newsData||[]).length} news posts`;
-}
-async function postNews(){
-  const t=document.getElementById('newsTitle').value.trim(),b=document.getElementById('newsBody').value.trim(),a=document.getElementById('newsAudience').value;
-  if(!t||!b){alert('Title and message are required.');return;}
-  try{ await API.post('/news',{title:t,body:b,audience:a}); document.getElementById('newsTitle').value='';document.getElementById('newsBody').value='';
-    alert('✅ News published for '+(audLabel[a]||a)+' panels.'); loadNews(); }catch(e){ alert('❌ '+e.message); }
-}
-function openNewsModal(){document.getElementById('newsModalTitle').textContent='Add News';mNewsTitle.value='';mNewsBody.value='';mNewsAudience.value='all';document.getElementById('newsModal').classList.add('show');}
-async function saveNews(){if(!mNewsTitle.value.trim()||!mNewsBody.value.trim()){alert('Title and message are required.');return;}
-  try{ await API.post('/news',{title:mNewsTitle.value.trim(),body:mNewsBody.value.trim(),audience:mNewsAudience.value}); closeModal('newsModal'); loadNews(); }catch(e){ alert('❌ '+e.message); }}
-async function delNews(id){if(confirm('Delete this news?')){try{await API.del('/news/'+id);loadNews();}catch(e){alert('❌ '+e.message);}}}
-
 /* =============== SYSTEM MASTER: SMS CLI LIMIT (API-backed) =============== */
 let cliLimits=[];
 function climTypeChange(){document.getElementById('climMgrGroup').style.display=document.getElementById('climType').value==='specific'?'block':'none';}
@@ -1640,8 +1607,12 @@ async function loadRates(){ try{ ratesData=await API.get('/ranges'); }catch(e){ 
   if(delSel) delSel.innerHTML='<option value="">Select Range</option>'+((ratesData||[]).map(r=>`<option value="${r.id}">${r.name}</option>`).join(''));
   try{ testNumbers=(await API.get('/test-numbers')).map(t=>({range:t.range_name,prefix:t.prefix||'',num:t.number,payout:t.payout||'Ask',created_at:t.created_at||''})); }
   catch(e){ testNumbers=[]; }
-  renderRates(); rebuildAllocData(); renderAlloc(); renderTest(); if(typeof loadLimitManagement==='function') loadLimitManagement();
+  if(document.getElementById('ratesBody')) renderRates();
+  rebuildAllocData();
+  if(document.getElementById('allocBody')) renderAlloc();
+  if(document.getElementById('testNumBody') || document.getElementById('testRecBody')) renderTest();
 }
+
 async function loadNumbers(){ try{ numbersData=await API.get('/numbers'); }catch(e){ numbersData=[]; }
   rebuildAllocData(); renderNumbers(); renderAlloc(); populateTestGeneratorNumbers();
 }
@@ -1706,32 +1677,8 @@ async function loadPaymentConfig(){
 async function savePaymentConfig(){
   try{await API.put('/payment-config',{cycle_type:pcType.value,start_day:+pcStartDay.value,release_day:+pcReleaseDay.value,custom_start:pcCustomStart.value,custom_end:pcCustomEnd.value,custom_release:pcCustomRelease.value});alert('✅ Payment configuration saved');loadPaymentConfig();loadAdminPayout();}catch(e){alert('❌ '+e.message)}
 }
-async function loadIntegrations(){
-  try{const rows=await API.get('/integration-connectors');const b=document.getElementById('icBody');if(!b)return;
-    b.innerHTML=rows.map(r=>`<tr><td><b>${r.name}</b></td><td><span class="tag tag-blue">${r.connector_type}</span></td><td>${r.direction}</td><td>${statusTag(r.status)}</td><td class="mono">${r.endpoint_url||'—'}</td><td class="msg-body">${r.notes||'—'}</td><td><button class="btn btn-red btn-sm" onclick="deleteIntegration(${r.id})">Delete</button></td></tr>`).join('')||`<tr><td colspan="7" class="muted" style="text-align:center;padding:20px">No connectors configured yet</td></tr>`;
-    icInfo.textContent=`${rows.length} connectors`;
-  }catch(e){console.warn(e)}
-}
-async function saveIntegration(){
-  if(!icName.value.trim()){alert('Connector name required');return;}
-  try{await API.post('/integration-connectors',{name:icName.value.trim(),connector_type:icType.value,direction:icDirection.value,status:icStatus.value,endpoint_url:icEndpoint.value.trim(),notes:icNotes.value.trim(),config_json:'{}'});icName.value='';icEndpoint.value='';icNotes.value='';loadIntegrations();}catch(e){alert('❌ '+e.message)}
-}
-async function deleteIntegration(id){if(confirm('Connector delete?')){try{await API.del('/integration-connectors/'+id);loadIntegrations();}catch(e){alert('❌ '+e.message)}}}
-
-
 /* =============== NOTIFICATION RULES + SYSTEM LOGS =============== */
 function miniEsc(v){return String(v??'').replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));}
-async function loadNotificationRules(){
-  try{const rows=await API.get('/notification-rules');const b=document.getElementById('nrBody');if(!b)return;
-    b.innerHTML=rows.map(r=>`<tr><td><b>${miniEsc(r.name)}</b></td><td><span class="tag tag-blue">${r.scope}</span></td><td>${r.period}</td><td class="mono">${r.thresholds}</td><td>${r.notify_roles}</td><td>${r.active?'<span class="tag tag-green">Active</span>':'<span class="tag tag-gray">Off</span>'}</td><td><button class="btn btn-red btn-sm" onclick="deleteNotificationRule(${r.id})">Delete</button></td></tr>`).join('')||`<tr><td colspan="7" class="muted" style="text-align:center;padding:20px">No notification rules found</td></tr>`;
-    nrInfo.textContent=`${rows.length} rules`;
-  }catch(e){console.warn(e)}
-}
-async function saveNotificationRule(){
-  if(!nrName.value.trim()){alert('Rule name required');return;}
-  try{await API.post('/notification-rules',{name:nrName.value.trim(),scope:nrScope.value,period:nrPeriod.value,thresholds:nrThresholds.value.trim(),notify_roles:nrRoles.value.trim(),active:true});nrName.value='';loadNotificationRules();}catch(e){alert('❌ '+e.message)}
-}
-async function deleteNotificationRule(id){if(confirm('Rule delete?')){try{await API.del('/notification-rules/'+id);loadNotificationRules();}catch(e){alert('❌ '+e.message)}}}
 function showLogTab(t){
   ['Activity','Number','Webhook','Failed'].forEach(x=>{const el=document.getElementById('log'+x);if(el)el.style.display='none';});
   const map={activity:'logActivity',number:'logNumber',webhook:'logWebhook',failed:'logFailed'};
@@ -1863,42 +1810,6 @@ function exportCarrierLogsCsv(){
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='carrier-webhook-logs.csv';a.click();URL.revokeObjectURL(a.href);
 }
 
-/* =============== SMPP SERVER =============== */
-let smppUsers=[];
-function smppHostGuess(){ return location.hostname || 'YOUR_VPS_IP'; }
-async function loadSmppServer(){
-  try{
-    const st=await API.get('/smpp-server/status');
-    if(document.getElementById('smppHost')) smppHost.textContent=smppHostGuess();
-    if(document.getElementById('smppPorts')) smppPorts.textContent=(st.ports||[]).join(', ')||'2775';
-    if(document.getElementById('smppSessionCount')) smppSessionCount.textContent=(st.sessions||[]).length||0;
-  }catch(e){console.warn(e)}
-  try{ smppUsers=await API.get('/smpp-server/users'); renderSmppUsers(); }catch(e){smppUsers=[];renderSmppUsers();}
-  try{ const sessions=await API.get('/smpp-server/sessions'); renderSmppSessions(sessions||[]); }catch(e){renderSmppSessions([])}
-  try{ const logs=await API.get('/smpp-server/logs?limit=300'); renderSmppLogs(logs||[]); }catch(e){renderSmppLogs([])}
-}
-function renderSmppUsers(){
-  const b=document.getElementById('smppUserBody'); if(!b)return;
-  b.innerHTML=(smppUsers||[]).map(u=>`<tr><td><b>${u.username}</b></td><td>${u.port||2775}</td><td><span class="tag tag-blue">${u.bind_type||'any'}</span></td><td>${u.mapping||'destination_to_number'}</td><td class="mono">${u.allowed_ip||'Any'}</td><td>${u.enabled?'<span class="tag tag-green">Enabled</span>':'<span class="tag tag-gray">Disabled</span>'}</td><td>${u.active_sessions||0}</td><td style="white-space:nowrap"><button class="btn btn-blue btn-sm" onclick="toggleSmppUser(${u.id},${u.enabled?0:1})">${u.enabled?'Disable':'Enable'}</button> <button class="btn btn-amber btn-sm" onclick="changeSmppPassword(${u.id})">Password</button> <button class="btn btn-red btn-sm" onclick="deleteSmppUser(${u.id})">Delete</button></td></tr>`).join('')||`<tr><td colspan="8" class="muted" style="text-align:center;padding:20px">No SMPP users yet</td></tr>`;
-  smppUserInfo.textContent=`${(smppUsers||[]).length} SMPP users`;
-}
-function renderSmppSessions(rows){
-  const b=document.getElementById('smppSessionBody'); if(!b)return;
-  b.innerHTML=(rows||[]).map(s=>`<tr><td class="mono">${s.session_id||'—'}</td><td>${s.username||'—'}</td><td class="mono">${s.ip||'—'}</td><td>${s.port||'—'}</td><td>${s.bind_type||'—'}</td><td>${s.status==='connected'?'<span class="tag tag-green">Connected</span>':'<span class="tag tag-gray">Disconnected</span>'}</td><td>${(s.connected_at||'').slice(0,19)}</td><td>${(s.last_seen||'').slice(0,19)}</td></tr>`).join('')||`<tr><td colspan="8" class="muted" style="text-align:center;padding:20px">No sessions</td></tr>`;
-}
-function renderSmppLogs(rows){
-  const b=document.getElementById('smppLogBody'); if(!b)return;
-  b.innerHTML=(rows||[]).map(l=>`<tr><td>${(l.created_at||'').slice(0,19)}</td><td>${l.username||'—'}</td><td class="mono">${l.ip||'—'}</td><td>${l.event||''}</td><td>${l.status||''}</td><td class="mono">${l.number||''}</td><td>${l.cli||''}</td><td class="msg-body">${l.error||''}</td></tr>`).join('')||`<tr><td colspan="8" class="muted" style="text-align:center;padding:20px">No SMPP logs</td></tr>`;
-}
-async function createSmppUser(){
-  const body={username:smppUsername.value.trim(),password:smppPassword.value,port:+(smppPort.value||2775),bind_type:smppBindType.value,mapping:smppMapping.value,allowed_ip:smppAllowedIp.value.trim(),notes:smppNotes.value.trim(),enabled:true};
-  try{const r=await API.post('/smpp-server/users',body);alert(`✅ SMPP user created\n\nHost: ${smppHostGuess()}\nPort: ${r.user.port}\nUsername: ${r.user.username}\nPassword: ${r.password}\n\nSave this password now.`);smppUsername.value='';smppPassword.value='';smppAllowedIp.value='';smppNotes.value='';loadSmppServer();}catch(e){alert('❌ '+e.message)}
-}
-async function toggleSmppUser(id,en){const u=(smppUsers||[]).find(x=>x.id===id);if(!u)return;try{await API.put('/smpp-server/users/'+id,{...u,enabled:!!en});loadSmppServer();}catch(e){alert('❌ '+e.message)}}
-async function changeSmppPassword(id){const p=prompt('New SMPP password (blank = auto generate):','')||'';try{const r=await API.post('/smpp-server/users/'+id+'/password',{password:p});alert('✅ New password: '+r.password);loadSmppServer();}catch(e){alert('❌ '+e.message)}}
-async function deleteSmppUser(id){if(!confirm('Delete this SMPP user?'))return;try{await API.del('/smpp-server/users/'+id);loadSmppServer();}catch(e){alert('❌ '+e.message)}}
-async function restartSmppServer(){try{const r=await API.post('/smpp-server/restart',{});alert('✅ SMPP server restarted. Ports: '+((r.ports||[]).join(', ')||'—'));loadSmppServer();}catch(e){alert('❌ '+e.message)}}
-
 /* =============== API INTEGRATION =============== */
 let apiIntegrations=[];
 function resetApiIntegrationForm(){['apiIntId','apiIntName','apiIntUrl','apiIntToken'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});apiIntAuth.value='query_token';apiIntEnabled.value='1';apiIntTokenParam.value='token';apiIntTokenHeader.value='Authorization';apiIntInterval.value='5';apiIntDt1.value='dt1';apiIntDt2.value='dt2';apiIntRecordsParam.value='records';apiIntRecordsLimit.value='100';}
@@ -1909,53 +1820,6 @@ async function saveApiIntegration(){const body={name:apiIntName.value.trim(),bas
 async function fetchApiIntegrationNow(id){try{const r=await API.post('/api-integrations/'+id+'/fetch',{});alert(`✅ Fetch done\nTotal: ${r.total||0}\nSaved: ${r.success||0}\nFailed: ${r.failed||0}\nDuplicate: ${r.duplicate||0}`);loadApiIntegrations();loadApiIntegrationLogs();}catch(e){alert('❌ '+e.message)}}
 async function deleteApiIntegration(id){if(!confirm('Delete this API connector?'))return;try{await API.del('/api-integrations/'+id);loadApiIntegrations();}catch(e){alert('❌ '+e.message)}}
 async function loadApiIntegrationLogs(){try{const rows=await API.get('/api-integration-logs?limit=500');const b=document.getElementById('apiIntLogBody');if(!b)return;b.innerHTML=(rows||[]).map(r=>`<tr><td>${(r.created_at||r.request_time||'').slice(0,19)}</td><td>${r.integration_name||'—'}</td><td>${r.status==='success'?'<span class="tag tag-green">Success</span>':(r.status==='duplicate'?'<span class="tag tag-amber">Duplicate</span>':'<span class="tag tag-red">Failed</span>')}</td><td>${r.reason||''}</td><td class="mono">${r.number||''}</td><td>${r.cli||''}</td><td class="mono">${r.provider_message_id||''}</td><td class="msg-body">${(r.message||'').slice(0,120)}</td></tr>`).join('')||`<tr><td colspan="8" class="muted" style="text-align:center;padding:20px">No API logs</td></tr>`;}catch(e){console.warn(e)}}
-
-/* =============== TEST SMS GENERATOR (QA) =============== */
-async function loadTestGeneratorSettings(){
-  try{
-    const st=await API.get('/test-generator/settings');
-    if(!document.getElementById('tgEnabled')) return;
-    tgEnabled.value=st.enabled? '1':'0';
-    tgMaxBatch.value=st.max_batch_size||100;
-    tgDefaultCli.value=st.default_cli||'TestCLI';
-    tgDefaultMsg.value=st.default_message||'Your test verification code is {code}';
-    tgCli.value=tgDefaultCli.value;
-    tgMessage.value=tgDefaultMsg.value;
-    populateTestGeneratorNumbers();
-  }catch(e){console.warn(e)}
-}
-function populateTestGeneratorNumbers(){
-  const sel=document.getElementById('tgNumber'); if(!sel) return;
-  const allocated=(numbersData||[]).filter(n=>n.client_id).map(n=>({number:n.number, label:`${n.number} — ${n.client_name||'Client'} / ${n.range_name||''}`}));
-  sel.innerHTML='<option value="">Auto: use allocated client numbers</option>'+allocated.map(n=>`<option value="${n.number}">${n.label}</option>`).join('');
-}
-async function saveTestGeneratorSettings(){
-  try{
-    await API.put('/test-generator/settings',{enabled:tgEnabled.value==='1',max_batch_size:+tgMaxBatch.value,default_cli:tgDefaultCli.value.trim()||'TestCLI',default_message:tgDefaultMsg.value.trim()||'Your test verification code is {code}'});
-    alert('✅ Test module settings saved.');
-    loadTestGeneratorSettings();
-  }catch(e){alert('❌ '+e.message)}
-}
-async function generateTestSms(){
-  const number=tgNumber.value;
-  const cli=(tgCli.value||tgDefaultCli.value||'TestCLI').trim();
-  const message=(tgMessage.value||tgDefaultMsg.value||'Your test verification code is {code}').trim();
-  const quantity=Math.max(1,parseInt(tgQty.value||1));
-  try{
-    const res=await API.post('/test-generator/generate',{number,cli,message,quantity});
-    tgResult.textContent=`Batch: ${res.batch_id}\nGenerated: ${res.generated}\nFailed: ${res.failed}`;
-    await loadSmsRecords(); await loadDashboard();
-  }catch(e){tgResult.textContent='Error: '+e.message;alert('❌ '+e.message)}
-}
-async function clearGeneratedTestSms(){
-  if(!confirm('Clear all generated test SMS records? Real carrier SMS will not be removed.')) return;
-  try{
-    const r=await API.post('/test-generator/clear',{});
-    tgResult.textContent=`Deleted test SMS records: ${r.deleted}`;
-    await loadSmsRecords(); await loadDashboard();
-  }catch(e){alert('❌ '+e.message)}
-}
-
 
 /* =============== DATABASE BACKUPS =============== */
 let backupRows=[];
@@ -2233,15 +2097,10 @@ async function loadAdminPageData(page){
     if(page==='import'){ await ensureAdminRates(); await loadImportBatches(); return refreshNumberDbTools(); }
     if(page==='cliLimit'){ await ensureAdminSms(); fillSelect('climCli',cliPool,false); await ensureAdminManagers(); fillSelect('climMgr',(usersData.manager||[]).map(m=>m.username),false); return loadCliLimits(); }
     if(page==='limitManagement'){ await ensureAdminRates(); return loadLimitManagement(); }
-    if(page==='news') return loadNews();
     if(page==='payments'){ await loadPayments(); return loadAdminPayout(); }
     if(page==='paymentConfig') return loadPaymentConfig();
     if(page==='carrierIntegration') return loadCarrierSettings();
-    if(page==='smppServer') return loadSmppServer();
     if(page==='apiIntegration'){ await loadApiIntegrations(); return loadApiIntegrationLogs(); }
-    if(page==='testGenerator'){ await loadTestGeneratorSettings(); return populateTestGeneratorNumbers(); }
-    if(page==='integrations') return loadIntegrations();
-    if(page==='notificationRules') return loadNotificationRules();
     if(page==='systemLogs') return loadSystemLogs();
     if(page==='backupManagement') return loadBackups();
   }catch(e){console.warn('loadAdminPageData failed',page,e);}

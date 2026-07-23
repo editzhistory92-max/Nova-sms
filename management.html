@@ -445,15 +445,10 @@
       <div class="sb-section">System Master</div>
       <div class="nav-item" id="sysParent" onclick="toggleSub('sysSub','sysParent')"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>System Master</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
       <div class="submenu" id="sysSub">
-        <div class="sub-item" data-page="news"><span class="dot"></span> News for Users</div>
         <div class="sub-item" data-page="cliLimit"><span class="dot"></span> SMS CLI Limit</div>
         <div class="sub-item" data-page="limitManagement"><span class="dot"></span> Limit Management</div>
         <div class="sub-item" data-page="carrierIntegration"><span class="dot"></span> Carrier Integration</div>
-        <div class="sub-item" data-page="smppServer"><span class="dot"></span> SMPP Server</div>
         <div class="sub-item" data-page="apiIntegration"><span class="dot"></span> API Integration</div>
-        <div class="sub-item" data-page="testGenerator"><span class="dot"></span> Test SMS Generator</div>
-        <div class="sub-item" data-page="integrations"><span class="dot"></span> Integration Layer</div>
-        <div class="sub-item" data-page="notificationRules"><span class="dot"></span> Notification Rules</div>
         <div class="sub-item" data-page="systemLogs"><span class="dot"></span> System Logs</div>
         <div class="sub-item" data-page="backupManagement"><span class="dot"></span> Backups</div>
       </div>
@@ -468,7 +463,6 @@
       <span class="tb-date" id="clock">Fri, 2026-07-03 05:33:57</span>
       <div class="tb-right">
         <button class="tb-btn" title="Theme"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.2" y1="4.2" x2="5.6" y2="5.6"/><line x1="18.4" y1="18.4" x2="19.8" y2="19.8"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/></svg></button>
-        <button class="tb-btn" title="Notifications"><span class="badge"></span><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></button>
         <button class="tb-btn" title="Fullscreen" onclick="toggleFull()"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>
         <div class="avatar">A</div>
         <button class="tb-btn" title="Settings"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
@@ -588,11 +582,32 @@ Nigeria"></textarea><div class="hint">Default rates will be NA. You can edit pay
             <div class="form-group"><label>Default Currency</label><select id="bulkRangeCurrency"><option value="USD">USD</option><option value="EUR">EUR</option><option value="PKR">PKR</option></select><button class="btn btn-purple" style="width:100%;margin-top:10px" onclick="bulkCreateRanges()">Create All</button></div>
           </div>
         </div>
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-head"><div><h3>Bulk Range + Test Numbers Import</h3><div class="sub">Single file creates ranges and imports their test numbers into Test Panel automatically.</div></div><button class="btn btn-green" onclick="importRangeTestBulkFile()">Import File</button></div>
+          <div class="form-grid" style="grid-template-columns:1fr 220px;gap:14px;align-items:end">
+            <div>
+              <div class="upload-box" onclick="document.getElementById('rangeTestBulkFile').click()">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                <div>Upload TXT / CSV / XLS / XLSX<br><b>Range line, then test number lines</b></div>
+              </div>
+              <input type="file" id="rangeTestBulkFile" accept=".txt,.csv,.xls,.xlsx" style="display:none" onchange="handleFile('rangeTestBulkFile','rangeTestBulkInfo')" />
+              <div id="rangeTestBulkInfo" class="hint" style="margin-top:12px"></div>
+            </div>
+            <div class="form-group"><label>Default Currency</label><select id="rangeTestBulkCurrency"><option value="USD">USD</option><option value="EUR">EUR</option><option value="PKR">PKR</option></select><button class="btn btn-purple" style="width:100%;margin-top:10px" onclick="importRangeTestBulkFile()">Create + Import Test Numbers</button></div>
+          </div>
+          <pre style="background:#f8fafc;border:1px solid var(--border);border-radius:12px;padding:12px;margin-top:12px;color:#0f2454;white-space:pre-wrap">Nigeria MTN
+08031234567
+08039876543
+Pakistan Jazz
+03001234567
+03019876543</pre>
+        </div>
+
         <div class="table-wrap" style="padding:16px 18px;margin-top:0">
           <div class="table-controls">
             <div class="tc-left"><label>Show Records:</label>
               <select id="rateLen" onchange="renderRates()"><option>10</option><option selected>25</option><option>50</option><option>100</option><option>500</option><option value="All">All</option></select>
-              <div class="exp-btns"><button class="btn btn-blue">Copy</button><button class="btn btn-blue">CSV</button><button class="btn btn-green">Excel</button><button class="btn btn-red">PDF</button><button class="btn btn-blue">Print</button></div>
+              <div class="exp-btns"><button class="btn btn-blue">Copy</button><button class="btn btn-blue">CSV</button><button class="btn btn-green">Excel</button></div>
             </div>
             <div class="tc-right"><label>Search:</label><input type="text" id="rateSearch" oninput="renderRates()" placeholder="Search..." /></div>
           </div>
@@ -673,42 +688,6 @@ Nigeria"></textarea><div class="hint">Default rates will be NA. You can edit pay
         </div>
       </section>
 
-
-
-      <section class="page" id="page-testGenerator">
-        <div class="page-head"><div><h2>Test SMS Generator</h2><div class="breadcrumb"><b>System Master</b> › Development & QA</div></div></div>
-        <div class="card" style="margin-bottom:16px">
-          <div class="card-head"><div><h3>Temporary QA Testing Tool</h3><div class="sub">Generate test SMS records through the same processing logic used by production incoming SMS. This module is controlled by a feature flag and can be disabled anytime.</div></div></div>
-          <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr;gap:14px">
-            <div class="form-group"><label>Module Status</label><select id="tgEnabled"><option value="0">Disabled</option><option value="1">Enabled</option></select></div>
-            <div class="form-group"><label>Max Batch Size</label><input type="number" id="tgMaxBatch" value="100" min="1" max="1000" /></div>
-            <div class="form-group"><label>Default CLI</label><input id="tgDefaultCli" placeholder="TestCLI" /></div>
-          </div>
-          <div class="form-group"><label>Default Message Template</label><input id="tgDefaultMsg" placeholder="Your test verification code is {code}" /><div class="hint">Supported placeholders: <b>{code}</b>, <b>{number}</b>, <b>{index}</b></div></div>
-          <button class="btn btn-purple" onclick="saveTestGeneratorSettings()">Save Test Module Settings</button>
-        </div>
-
-        <div class="grid2" style="grid-template-columns:1fr 1fr">
-          <div class="card">
-            <div class="card-head"><div><h3>Generate Test SMS</h3><div class="sub">Select an allocated number, or leave empty to use recently allocated client numbers.</div></div></div>
-            <div class="form-group"><label>Target Number</label><select id="tgNumber"><option value="">Auto: use allocated client numbers</option></select></div>
-            <div class="form-grid" style="grid-template-columns:1fr 1fr;gap:14px">
-              <div class="form-group"><label>CLI / Sender</label><input id="tgCli" placeholder="TestCLI" /></div>
-              <div class="form-group"><label>Quantity</label><input type="number" id="tgQty" value="1" min="1" /></div>
-            </div>
-            <div class="form-group"><label>Message</label><textarea id="tgMessage" style="width:100%;min-height:90px;border:1px solid var(--border2);border-radius:9px;padding:10px" placeholder="Your test verification code is {code}"></textarea></div>
-            <div class="hint" style="margin-bottom:12px">Generated messages are marked as <b>test</b> in the database and can be cleared later. They still update dashboards, reports, stats, notifications and earnings so the full workflow can be tested.</div>
-            <button class="btn btn-green" onclick="generateTestSms()">Generate Test SMS</button>
-          </div>
-          <div class="card">
-            <div class="card-head"><div><h3>Test Data Control</h3><div class="sub">Use this after QA to remove generated test SMS records.</div></div></div>
-            <div class="hint" style="margin-bottom:12px">This clears records created by the Test SMS Generator only. Real carrier SMS records are not removed.</div>
-            <button class="btn btn-red" onclick="clearGeneratedTestSms()">Clear Generated Test SMS</button>
-            <div id="tgResult" class="hint" style="margin-top:14px;white-space:pre-wrap"></div>
-          </div>
-        </div>
-      </section>
-
       <section class="page" id="page-carrierIntegration">
         <div class="page-head"><div><h2>Carrier Integration</h2><div class="breadcrumb"><b>System Master</b> › Carrier HTTP Settings</div></div></div>
         <div class="card" id="carrierLockCard" style="margin-bottom:16px;display:none;border:1px solid rgba(212,175,55,.35)">
@@ -739,7 +718,7 @@ Nigeria"></textarea><div class="hint">Default rates will be NA. You can edit pay
             <div class="form-group"><label>Future Auth Token</label><input id="ciToken" placeholder="Optional / future" /></div>
           </div>
           <div class="card" style="margin:10px 0 14px;padding:14px;background:#F8FAFC!important">
-            <div class="card-head" style="margin-bottom:8px"><div><h3 style="font-size:14px">HTTP Integration Active</h3><div class="sub">HTTP callback is active. SMPP Server is available separately in System Master → SMPP Server.</div></div></div>
+            <div class="card-head" style="margin-bottom:8px"><div><h3 style="font-size:14px">HTTP Integration Active</h3><div class="sub">HTTP callback is active. API Integration is available separately in System Master → API Integration.</div></div></div>
             <div class="hint"><b>Production endpoint:</b> <code>POST /api/incoming-sms</code></div>
             <div class="hint" style="margin-top:6px"><b>Accepted content types:</b> application/json, application/x-www-form-urlencoded, multipart/form-data</div>
           </div></div>
@@ -757,37 +736,10 @@ Nigeria"></textarea><div class="hint">Default rates will be NA. You can edit pay
         </div>
       </section>
 
-      <section class="page" id="page-smppServer">
-        <div class="page-head"><div><h2>SMPP Server</h2><div class="breadcrumb"><b>System Master</b> › Incoming SMPP Server</div></div><div class="head-actions"><button class="btn btn-blue" onclick="loadSmppServer()">Refresh</button><button class="btn btn-purple" onclick="restartSmppServer()">Restart SMPP Server</button></div></div>
-        <div class="stats-grid">
-          <div class="stat-card dash-metric d-blue"><div class="stat-info"><p>Host</p><h3 id="smppHost">—</h3><span>Give this host/IP to carrier</span></div><div class="dash-go">IP</div></div>
-          <div class="stat-card dash-metric d-green"><div class="stat-info"><p>Listening Ports</p><h3 id="smppPorts">—</h3><span>SMPP server ports</span></div><div class="dash-go">P</div></div>
-          <div class="stat-card dash-metric d-orange"><div class="stat-info"><p>Active Sessions</p><h3 id="smppSessionCount">0</h3><span>Connected carriers</span></div><div class="dash-go">↔</div></div>
-        </div>
-        <div class="card" style="margin-bottom:16px">
-          <div class="card-head"><div><h3>Create / Update SMPP User</h3><div class="sub">Carrier will bind to our SMPP server using System ID and Password. Supports transceiver/transmitter/receiver and submit_sm/deliver_sm/data_sm.</div></div><button class="btn btn-green" onclick="createSmppUser()">Create User</button></div>
-          <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr 1fr;gap:14px">
-            <div class="form-group"><label>Username / System ID</label><input id="smppUsername" placeholder="auto or e.g. carrier1"></div>
-            <div class="form-group"><label>Password</label><input id="smppPassword" placeholder="auto if blank"></div>
-            <div class="form-group"><label>Port</label><input id="smppPort" type="number" value="2775"></div>
-            <div class="form-group"><label>Bind Type</label><select id="smppBindType"><option value="any">Any</option><option value="transceiver">Transceiver</option><option value="transmitter">Transmitter</option><option value="receiver">Receiver</option></select></div>
-          </div>
-          <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr;gap:14px">
-            <div class="form-group"><label>Mapping</label><select id="smppMapping"><option value="destination_to_number">destination_addr = Number, source_addr = CLI</option><option value="source_to_number">source_addr = Number, destination_addr = CLI</option></select></div>
-            <div class="form-group"><label>Allowed IP(s)</label><input id="smppAllowedIp" placeholder="optional: 1.2.3.4, 5.6.7.8"></div>
-            <div class="form-group"><label>Notes</label><input id="smppNotes" placeholder="optional"></div>
-          </div>
-          <div class="hint">Default Host/IP: your VPS public IP/domain. Default port: <b>2775</b>. Open firewall port if needed: <code>ufw allow 2775/tcp</code></div>
-        </div>
-        <div class="table-wrap" style="margin-bottom:16px"><div class="tscroll"><table><thead><tr><th>User</th><th>Port</th><th>Bind</th><th>Mapping</th><th>Allowed IP</th><th>Enabled</th><th>Sessions</th><th>Action</th></tr></thead><tbody id="smppUserBody"></tbody></table></div><div class="table-foot"><div class="info" id="smppUserInfo"></div></div></div>
-        <div class="card" style="margin-bottom:16px"><div class="card-head"><div><h3>Active Connections</h3><div class="sub">Connected / disconnected carrier sessions.</div></div></div><div class="table-wrap"><div class="tscroll"><table><thead><tr><th>Session</th><th>User</th><th>IP</th><th>Port</th><th>Bind</th><th>Status</th><th>Connected</th><th>Last Seen</th></tr></thead><tbody id="smppSessionBody"></tbody></table></div></div></div>
-        <div class="card"><div class="card-head"><div><h3>SMPP Logs</h3><div class="sub">Bind, connection and incoming SMS logs.</div></div></div><div class="table-wrap"><div class="tscroll"><table><thead><tr><th>Time</th><th>User</th><th>IP</th><th>Event</th><th>Status</th><th>Number</th><th>CLI</th><th>Error</th></tr></thead><tbody id="smppLogBody"></tbody></table></div></div></div>
-      </section>
-
       <section class="page" id="page-apiIntegration">
         <div class="page-head"><div><h2>API Integration</h2><div class="breadcrumb"><b>System Master</b> › Polling API Incoming</div></div><div class="head-actions"><button class="btn btn-blue" onclick="loadApiIntegrations()">Refresh</button></div></div>
         <div class="card" style="margin-bottom:16px">
-          <div class="card-head"><div><h3>Add / Update API Connector</h3><div class="sub">Independent from HTTP and SMPP. The panel fetches API every 5 seconds and processes matched numbers like HTTP incoming SMS.</div></div><button class="btn btn-green" onclick="saveApiIntegration()">Save Connector</button></div>
+          <div class="card-head"><div><h3>Add / Update API Connector</h3><div class="sub">Independent from HTTP callback. The panel fetches API every 5 seconds and processes matched numbers like HTTP incoming SMS.</div></div><button class="btn btn-green" onclick="saveApiIntegration()">Save Connector</button></div>
           <input type="hidden" id="apiIntId" value="">
           <div class="form-grid" style="grid-template-columns:1fr 2fr 1fr 1fr;gap:14px">
             <div class="form-group"><label>Name</label><input id="apiIntName" placeholder="e.g. Lamix API"></div>
@@ -811,47 +763,6 @@ Nigeria"></textarea><div class="hint">Default rates will be NA. You can edit pay
         </div>
         <div class="table-wrap" style="margin-bottom:16px"><div class="tscroll"><table><thead><tr><th>Name</th><th>URL</th><th>Auth</th><th>Token</th><th>Interval</th><th>Status</th><th>Last Success</th><th>Error</th><th>Action</th></tr></thead><tbody id="apiIntBody"></tbody></table></div><div class="table-foot"><div class="info" id="apiIntInfo"></div></div></div>
         <div class="card"><div class="card-head"><div><h3>API Integration Logs</h3><div class="sub">Success, failed, ignored and duplicate records.</div></div><button class="btn btn-blue" onclick="loadApiIntegrationLogs()">Refresh Logs</button></div><div class="table-wrap"><div class="tscroll"><table><thead><tr><th>Time</th><th>Connector</th><th>Status</th><th>Reason</th><th>Number</th><th>CLI</th><th>Message ID</th><th>Message</th></tr></thead><tbody id="apiIntLogBody"></tbody></table></div></div></div>
-      </section>
-
-      <section class="page" id="page-integrations">
-        <div class="page-head"><div><h2>Integration Layer</h2><div class="breadcrumb"><b>System Master</b> › Provider Connectors</div></div></div>
-        <div class="card" style="margin-bottom:16px">
-          <div class="card-head"><div><h3>Add / Update Connector</h3><div class="sub">Provider method is not finalized. This layer keeps HTTP/API/Webhook/File/Sync support modular.</div></div></div>
-          <div class="form-grid" style="grid-template-columns:1.2fr 1fr 1fr 1fr;gap:14px">
-            <div class="form-group"><label>Name</label><input id="icName" placeholder="e.g. Upstream HTTP Provider" /></div>
-            <div class="form-group"><label>Type</label><select id="icType"><option>HTTP</option><option>API</option><option>WEBHOOK</option><option>FILE</option><option>PANEL_SYNC</option><option>MANUAL</option></select></div>
-            <div class="form-group"><label>Direction</label><select id="icDirection"><option value="both">Both</option><option value="number_provision">Number Provision</option><option value="sms_receiving">SMS Receiving</option></select></div>
-            <div class="form-group"><label>Status</label><select id="icStatus"><option value="disabled">Disabled</option><option value="testing">Testing</option><option value="active">Active</option></select></div>
-          </div>
-          <div class="form-group"><label>Endpoint URL / Host</label><input id="icEndpoint" placeholder="https://provider.com/api" /></div>
-          <div class="form-group"><label>Notes / Config JSON</label><textarea id="icNotes" style="width:100%;min-height:75px;border:1px solid var(--border2);border-radius:9px;padding:10px" placeholder="Provider details, credentials placeholder, webhook format notes..."></textarea></div>
-          <button class="btn btn-purple" onclick="saveIntegration()">Save Connector</button>
-        </div>
-        <div class="table-wrap"><div class="tscroll"><table>
-          <thead><tr><th>Name</th><th>Type</th><th>Direction</th><th>Status</th><th>Endpoint</th><th>Notes</th><th>Action</th></tr></thead><tbody id="icBody"></tbody>
-        </table></div><div class="table-foot"><div class="info" id="icInfo"></div></div></div>
-      </section>
-
-
-
-      <section class="page" id="page-notificationRules">
-        <div class="page-head"><div><h2>Notification Rules</h2><div class="breadcrumb"><b>System Master</b> › Milestone Notifications</div></div></div>
-        <div class="card" style="margin-bottom:16px">
-          <div class="card-head"><div><h3>Add Milestone Rule</h3><div class="sub">Notifications are sent only when a threshold is reached. Number-wise scope is disabled.</div></div></div>
-          <div class="form-grid" style="grid-template-columns:1.2fr 1fr 1fr 1.4fr;gap:14px">
-            <div class="form-group"><label>Rule Name</label><input id="nrName" placeholder="e.g. Client Daily Milestones" /></div>
-            <div class="form-group"><label>Scope</label><select id="nrScope"><option value="global">Global</option><option value="manager">Manager</option><option value="agent">Agent</option><option value="client">Client</option><option value="range">Range</option><option value="cli">CLI</option></select></div>
-            <div class="form-group"><label>Period</label><select id="nrPeriod"><option value="daily">Daily</option><option value="payment_cycle">Payment Cycle</option><option value="monthly">Monthly</option><option value="lifetime">Lifetime</option></select></div>
-            <div class="form-group"><label>Thresholds</label><input id="nrThresholds" value="100,500,1000,5000,10000" /></div>
-          </div>
-          <div class="form-grid" style="grid-template-columns:1fr 1fr;gap:14px">
-            <div class="form-group"><label>Notify Roles</label><input id="nrRoles" value="admin,manager,agent" placeholder="admin,manager,agent,client" /></div>
-            <div class="form-group" style="display:flex;align-items:end"><button class="btn btn-purple" onclick="saveNotificationRule()" style="width:100%">Save Rule</button></div>
-          </div>
-        </div>
-        <div class="table-wrap"><div class="tscroll"><table>
-          <thead><tr><th>Name</th><th>Scope</th><th>Period</th><th>Thresholds</th><th>Notify Roles</th><th>Active</th><th>Action</th></tr></thead><tbody id="nrBody"></tbody>
-        </table></div><div class="table-foot"><div class="info" id="nrInfo"></div></div></div>
       </section>
 
       <section class="page" id="page-systemLogs">
@@ -905,7 +816,7 @@ Nigeria"></textarea><div class="hint">Default rates will be NA. You can edit pay
             <h3 style="margin-bottom:12px;font-size:16px">SMS Test Numbers</h3>
             <div class="table-wrap" style="padding:14px 16px;margin-top:0"><div class="table-controls">
               <div class="tc-left"><label>Show Records:</label><select id="testNumLen" onchange="renderTest()"><option>10</option><option selected>25</option><option>50</option></select>
-                <div class="exp-btns"><button class="btn btn-blue">Copy</button><button class="btn btn-blue">CSV</button><button class="btn btn-green">Excel</button><button class="btn btn-red">PDF</button><button class="btn btn-blue">Print</button></div></div>
+                <div class="exp-btns"><button class="btn btn-blue">Copy</button><button class="btn btn-blue">CSV</button><button class="btn btn-green">Excel</button></div></div>
               <div class="tc-right"><label>Search:</label><input type="text" id="testNumSearch" oninput="renderTest()" placeholder="Search..."/></div>
             </div></div>
             <div class="table-wrap"><div class="tscroll"><table>
@@ -917,7 +828,7 @@ Nigeria"></textarea><div class="hint">Default rates will be NA. You can edit pay
             <h3 style="margin-bottom:12px;font-size:16px">Recent SMS Test</h3>
             <div class="table-wrap" style="padding:14px 16px;margin-top:0"><div class="table-controls">
               <div class="tc-left"><label>Show Records:</label><select id="testRecLen" onchange="renderTest()"><option>10</option><option selected>25</option><option>50</option></select>
-                <div class="exp-btns"><button class="btn btn-blue">Copy</button><button class="btn btn-blue">CSV</button><button class="btn btn-green">Excel</button><button class="btn btn-red">PDF</button><button class="btn btn-blue">Print</button></div></div>
+                <div class="exp-btns"><button class="btn btn-blue">Copy</button><button class="btn btn-blue">CSV</button><button class="btn btn-green">Excel</button></div></div>
               <div class="tc-right"><label>Search:</label><input type="text" id="testRecSearch" oninput="renderTest()" placeholder="Search..."/></div>
             </div></div>
             <div class="table-wrap"><div class="tscroll"><table>
@@ -947,26 +858,6 @@ Nigeria"></textarea><div class="hint">Default rates will be NA. You can edit pay
           <thead><tr><th>File</th><th>Created</th><th>Modified</th><th>Size</th><th>Actions</th></tr></thead>
           <tbody id="backupBody"></tbody>
         </table></div><div class="table-foot"><div class="info" id="backupInfo"></div></div></div>
-      </section>
-
-      <!-- ========== SYSTEM MASTER: NEWS ========== -->
-      <section class="page" id="page-news">
-        <div class="page-head"><div><h2>News for Users</h2><div class="breadcrumb"><b>System Master</b> › News</div></div>
-          <div class="head-actions"><button class="btn btn-purple" onclick="openNewsModal(-1)">+ Post News</button></div>
-        </div>
-        <div class="card" style="margin-bottom:16px">
-          <div class="card-head"><div><h3>Broadcast a Notice</h3><div class="sub">This notice will appear in selected user panels.</div></div></div>
-          <div class="form-group"><label>Send to</label>
-            <select id="newsAudience" style="max-width:280px"><option value="all">All Users (Manager + Agent + Client)</option><option value="manager">Managers only</option><option value="agent">Agents only</option><option value="client">Clients only</option></select>
-          </div>
-          <div class="form-group"><label>Title</label><input type="text" id="newsTitle" placeholder="e.g. Scheduled maintenance tonight"/></div>
-          <div class="form-group"><label>Message</label><textarea id="newsBody" placeholder="Write the message to publish..." style="width:100%;min-height:90px;background:var(--row);border:1px solid var(--border2);border-radius:9px;color:var(--text);padding:11px 12px;font-size:13px;font-family:inherit;resize:vertical"></textarea></div>
-          <button class="btn btn-purple" onclick="postNews()">Publish News</button>
-        </div>
-        <div class="table-wrap"><div class="tscroll"><table>
-          <thead><tr><th>Date</th><th>Title</th><th>Message</th><th>Audience</th><th>Status</th><th>Action</th></tr></thead>
-          <tbody id="newsBody2"></tbody>
-        </table></div><div class="table-foot"><div class="info" id="newsInfo"></div></div></div>
       </section>
 
       <!-- ========== SYSTEM MASTER: SMS CLI LIMIT ========== -->
@@ -1090,23 +981,13 @@ Nigeria"></textarea><div class="hint">Default rates will be NA. You can edit pay
   <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal('allocAllModal')">Cancel</button><button class="btn btn-blue" onclick="confirmAllocAll()">Allocate</button></div>
 </div></div>
 
-<!-- ============ NEWS MODAL ============ -->
-<div class="modal-overlay" id="newsModal"><div class="modal">
-  <div class="modal-head"><h3 id="newsModalTitle">Edit News</h3><button class="modal-close" onclick="closeModal('newsModal')">×</button></div>
-  <div class="modal-body">
-    <div class="form-group"><label>Send to</label><select id="mNewsAudience"><option value="all">All Users</option><option value="manager">Managers only</option><option value="agent">Agents only</option><option value="client">Clients only</option></select></div>
-    <div class="form-group"><label>Title <span class="req">*</span></label><input type="text" id="mNewsTitle" placeholder="Title"/></div>
-    <div class="form-group"><label>Message <span class="req">*</span></label><textarea id="mNewsBody" style="width:100%;min-height:90px;background:var(--row);border:1px solid var(--border2);border-radius:9px;color:var(--text);padding:11px 12px;font-size:13px;font-family:inherit;resize:vertical"></textarea></div>
-  </div>
-  <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal('newsModal')">Cancel</button><button class="btn btn-purple" onclick="saveNews()">Save</button></div>
-</div></div>
 
-<script src="/api.js?v=20260722-admin-sms-ops-split"></script>
+<script src="/api.js?v=20260722-full-cleanup-test-range-import"></script>
 <script>
 /* auth guard — management uses admin credentials */
 if(window.API){ API.guard('admin'); }
 window.MUFASA_PANEL_MODE='management';
-const MANAGEMENT_ALLOWED_PAGES=new Set(['import','testImport','rates','news','cliLimit','limitManagement','carrierIntegration','smppServer','apiIntegration','testGenerator','integrations','notificationRules','systemLogs','backupManagement']);
+const MANAGEMENT_ALLOWED_PAGES=new Set(['import','testImport','rates','cliLimit','limitManagement','carrierIntegration','apiIntegration','systemLogs','backupManagement']);
 function normalizePanelPage(id){ id=String(id||'rates'); return MANAGEMENT_ALLOWED_PAGES.has(id)?id:'rates'; }
 function applyPanelSplitUi(){ /* Management Panel keeps maintenance/config modules only. */ }
 /* =============== NAV =============== */
@@ -1240,6 +1121,28 @@ async function saveRate(){if(!rName.value.trim()){alert('Range name is required.
   const body={name:rName.value.trim(),prefix:rPrefix.value.trim(),test_number:rTest.value.trim(),test_numbers:rTest.value.trim(),currency:rCur.value,rate_1_1:r1.value.trim()||'NA',rate_7_1:r2.value.trim()||'NA',rate_7_7:r3.value.trim()||'NA',rate_30_45:r4.value.trim()||'NA',memo:rMemo.value.trim()};
   try{ if(editRateId<0) await API.post('/ranges',body); else await API.put('/ranges/'+editRateId,body); closeModal('rateModal'); loadRates(); }catch(e){ alert('❌ '+e.message); }
 }
+async function importRangeTestBulkFile(){
+  const file=document.getElementById('rangeTestBulkFile')?.files?.[0];
+  if(!file){alert('Please select TXT / CSV / XLS / XLSX file first.');return;}
+  const fd=new FormData();
+  fd.append('file',file);
+  fd.append('currency',document.getElementById('rangeTestBulkCurrency')?.value||'USD');
+  try{
+    const token=sessionStorage.getItem('ms_token');
+    const res=await fetch('/api/ranges/import-test-bulk',{method:'POST',headers:{Authorization:'Bearer '+token},body:fd});
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.error||('HTTP '+res.status));
+    alert(`✅ Import complete.
+Ranges processed: ${data.total_ranges||0}
+New ranges: ${data.inserted||0}
+Restored: ${data.restored||0}
+Test numbers added: ${data.added_test_numbers||0}`);
+    document.getElementById('rangeTestBulkFile').value='';
+    document.getElementById('rangeTestBulkInfo').innerHTML='';
+    await loadRates();
+  }catch(e){alert('❌ '+e.message)}
+}
+
 async function bulkCreateRanges(){
   const text=(document.getElementById('bulkRangeNames')?.value||'').trim();
   const currency=document.getElementById('bulkRangeCurrency')?.value||'USD';
@@ -1482,7 +1385,7 @@ function buildUserPage(role){const m=roleMeta[role];
   <div class="table-wrap" style="padding:16px 18px;margin-top:0"><div style="font-weight:600;margin-bottom:12px">MANAGE ${m.title.toUpperCase()}</div>
     <div class="table-controls"><div class="tc-left"><label>Show Records:</label>
       <select id="${role}Len" onchange="renderUsers('${role}')"><option>10</option><option selected>25</option><option>50</option><option>100</option><option value="All">All</option></select>
-      <div class="exp-btns"><button class="btn btn-blue">Copy</button><button class="btn btn-blue">CSV</button><button class="btn btn-green">Excel</button><button class="btn btn-red">PDF</button><button class="btn btn-blue">Print</button></div></div>
+      <div class="exp-btns"><button class="btn btn-blue">Copy</button><button class="btn btn-blue">CSV</button><button class="btn btn-green">Excel</button></div></div>
       <div class="tc-right"><label>Search:</label><input type="text" id="${role}Search" oninput="renderUsers('${role}')" placeholder="Search..."/></div></div></div>
   <div class="table-wrap"><div class="tscroll"><table>
     <thead><tr><th><input type="checkbox" onclick="toggleAllUsers('${role}',this)"/></th><th>Username</th><th>Name</th><th>Email</th><th>Contact</th><th>Skype</th><th>Active</th><th>Action</th></tr></thead>
@@ -1553,7 +1456,7 @@ function aggregate(records, groupKey){
   records.forEach(r=>{const k=r[groupKey];if(!map[k])map[k]={key:k,sms:0,otp:0,rec:r};map[k].sms+=r.sms;map[k].otp+=r.otp;});
   return Object.values(map);
 }
-function expBtns(){return `<div class="exp-btns"><button class="btn btn-blue">Copy</button><button class="btn btn-blue">CSV</button><button class="btn btn-green">Excel</button><button class="btn btn-red">PDF</button><button class="btn btn-blue">Print</button></div>`;}
+function expBtns(){return `<div class="exp-btns"><button class="btn btn-blue">Copy</button><button class="btn btn-blue">CSV</button><button class="btn btn-green">Excel</button></div>`;}
 
 /* ---- SMS Report (summary) ---- */
 function buildSmsReport(){
@@ -1849,30 +1752,6 @@ async function renderTest(){
   }).join('')||`<tr><td colspan="5" class="muted" style="text-align:center;padding:24px">No test panel SMS found</td></tr>`;
 }
 
-/* =============== SYSTEM MASTER: NEWS (API-backed) =============== */
-let newsData=[];
-const audLabel={all:'All Users',manager:'Managers',agent:'Agents',client:'Clients'};
-async function loadNews(){ try{ newsData=await API.get('/news'); }catch(e){ newsData=[]; } renderNews(); }
-function renderNews(){
-  document.getElementById('newsBody2').innerHTML=(newsData||[]).map(n=>`<tr>
-    <td class="muted">${(n.created_at||'').slice(0,19)}</td><td><b>${n.title}</b></td><td class="msg-body">${n.body}</td>
-    <td><span class="tag tag-blue">${audLabel[n.audience]||n.audience}</span></td>
-    <td>${n.active?'<span class="tag tag-green">Published</span>':'<span class="tag tag-gray">Draft</span>'}</td>
-    <td style="white-space:nowrap">
-      <button class="icon-btn btn-red" onclick="delNews(${n.id})"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button></td></tr>`).join('')||`<tr><td colspan="6" class="muted" style="text-align:center;padding:24px">No news yet</td></tr>`;
-  document.getElementById('newsInfo').textContent=`${(newsData||[]).length} news posts`;
-}
-async function postNews(){
-  const t=document.getElementById('newsTitle').value.trim(),b=document.getElementById('newsBody').value.trim(),a=document.getElementById('newsAudience').value;
-  if(!t||!b){alert('Title and message are required.');return;}
-  try{ await API.post('/news',{title:t,body:b,audience:a}); document.getElementById('newsTitle').value='';document.getElementById('newsBody').value='';
-    alert('✅ News published for '+(audLabel[a]||a)+' panels.'); loadNews(); }catch(e){ alert('❌ '+e.message); }
-}
-function openNewsModal(){document.getElementById('newsModalTitle').textContent='Add News';mNewsTitle.value='';mNewsBody.value='';mNewsAudience.value='all';document.getElementById('newsModal').classList.add('show');}
-async function saveNews(){if(!mNewsTitle.value.trim()||!mNewsBody.value.trim()){alert('Title and message are required.');return;}
-  try{ await API.post('/news',{title:mNewsTitle.value.trim(),body:mNewsBody.value.trim(),audience:mNewsAudience.value}); closeModal('newsModal'); loadNews(); }catch(e){ alert('❌ '+e.message); }}
-async function delNews(id){if(confirm('Delete this news?')){try{await API.del('/news/'+id);loadNews();}catch(e){alert('❌ '+e.message);}}}
-
 /* =============== SYSTEM MASTER: SMS CLI LIMIT (API-backed) =============== */
 let cliLimits=[];
 function climTypeChange(){document.getElementById('climMgrGroup').style.display=document.getElementById('climType').value==='specific'?'block':'none';}
@@ -2053,32 +1932,8 @@ async function loadPaymentConfig(){
 async function savePaymentConfig(){
   try{await API.put('/payment-config',{cycle_type:pcType.value,start_day:+pcStartDay.value,release_day:+pcReleaseDay.value,custom_start:pcCustomStart.value,custom_end:pcCustomEnd.value,custom_release:pcCustomRelease.value});alert('✅ Payment configuration saved');loadPaymentConfig();loadAdminPayout();}catch(e){alert('❌ '+e.message)}
 }
-async function loadIntegrations(){
-  try{const rows=await API.get('/integration-connectors');const b=document.getElementById('icBody');if(!b)return;
-    b.innerHTML=rows.map(r=>`<tr><td><b>${r.name}</b></td><td><span class="tag tag-blue">${r.connector_type}</span></td><td>${r.direction}</td><td>${statusTag(r.status)}</td><td class="mono">${r.endpoint_url||'—'}</td><td class="msg-body">${r.notes||'—'}</td><td><button class="btn btn-red btn-sm" onclick="deleteIntegration(${r.id})">Delete</button></td></tr>`).join('')||`<tr><td colspan="7" class="muted" style="text-align:center;padding:20px">No connectors configured yet</td></tr>`;
-    icInfo.textContent=`${rows.length} connectors`;
-  }catch(e){console.warn(e)}
-}
-async function saveIntegration(){
-  if(!icName.value.trim()){alert('Connector name required');return;}
-  try{await API.post('/integration-connectors',{name:icName.value.trim(),connector_type:icType.value,direction:icDirection.value,status:icStatus.value,endpoint_url:icEndpoint.value.trim(),notes:icNotes.value.trim(),config_json:'{}'});icName.value='';icEndpoint.value='';icNotes.value='';loadIntegrations();}catch(e){alert('❌ '+e.message)}
-}
-async function deleteIntegration(id){if(confirm('Connector delete?')){try{await API.del('/integration-connectors/'+id);loadIntegrations();}catch(e){alert('❌ '+e.message)}}}
-
-
 /* =============== NOTIFICATION RULES + SYSTEM LOGS =============== */
 function miniEsc(v){return String(v??'').replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));}
-async function loadNotificationRules(){
-  try{const rows=await API.get('/notification-rules');const b=document.getElementById('nrBody');if(!b)return;
-    b.innerHTML=rows.map(r=>`<tr><td><b>${miniEsc(r.name)}</b></td><td><span class="tag tag-blue">${r.scope}</span></td><td>${r.period}</td><td class="mono">${r.thresholds}</td><td>${r.notify_roles}</td><td>${r.active?'<span class="tag tag-green">Active</span>':'<span class="tag tag-gray">Off</span>'}</td><td><button class="btn btn-red btn-sm" onclick="deleteNotificationRule(${r.id})">Delete</button></td></tr>`).join('')||`<tr><td colspan="7" class="muted" style="text-align:center;padding:20px">No notification rules found</td></tr>`;
-    nrInfo.textContent=`${rows.length} rules`;
-  }catch(e){console.warn(e)}
-}
-async function saveNotificationRule(){
-  if(!nrName.value.trim()){alert('Rule name required');return;}
-  try{await API.post('/notification-rules',{name:nrName.value.trim(),scope:nrScope.value,period:nrPeriod.value,thresholds:nrThresholds.value.trim(),notify_roles:nrRoles.value.trim(),active:true});nrName.value='';loadNotificationRules();}catch(e){alert('❌ '+e.message)}
-}
-async function deleteNotificationRule(id){if(confirm('Rule delete?')){try{await API.del('/notification-rules/'+id);loadNotificationRules();}catch(e){alert('❌ '+e.message)}}}
 function showLogTab(t){
   ['Activity','Number','Webhook','Failed'].forEach(x=>{const el=document.getElementById('log'+x);if(el)el.style.display='none';});
   const map={activity:'logActivity',number:'logNumber',webhook:'logWebhook',failed:'logFailed'};
@@ -2210,42 +2065,6 @@ function exportCarrierLogsCsv(){
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='carrier-webhook-logs.csv';a.click();URL.revokeObjectURL(a.href);
 }
 
-/* =============== SMPP SERVER =============== */
-let smppUsers=[];
-function smppHostGuess(){ return location.hostname || 'YOUR_VPS_IP'; }
-async function loadSmppServer(){
-  try{
-    const st=await API.get('/smpp-server/status');
-    if(document.getElementById('smppHost')) smppHost.textContent=smppHostGuess();
-    if(document.getElementById('smppPorts')) smppPorts.textContent=(st.ports||[]).join(', ')||'2775';
-    if(document.getElementById('smppSessionCount')) smppSessionCount.textContent=(st.sessions||[]).length||0;
-  }catch(e){console.warn(e)}
-  try{ smppUsers=await API.get('/smpp-server/users'); renderSmppUsers(); }catch(e){smppUsers=[];renderSmppUsers();}
-  try{ const sessions=await API.get('/smpp-server/sessions'); renderSmppSessions(sessions||[]); }catch(e){renderSmppSessions([])}
-  try{ const logs=await API.get('/smpp-server/logs?limit=300'); renderSmppLogs(logs||[]); }catch(e){renderSmppLogs([])}
-}
-function renderSmppUsers(){
-  const b=document.getElementById('smppUserBody'); if(!b)return;
-  b.innerHTML=(smppUsers||[]).map(u=>`<tr><td><b>${u.username}</b></td><td>${u.port||2775}</td><td><span class="tag tag-blue">${u.bind_type||'any'}</span></td><td>${u.mapping||'destination_to_number'}</td><td class="mono">${u.allowed_ip||'Any'}</td><td>${u.enabled?'<span class="tag tag-green">Enabled</span>':'<span class="tag tag-gray">Disabled</span>'}</td><td>${u.active_sessions||0}</td><td style="white-space:nowrap"><button class="btn btn-blue btn-sm" onclick="toggleSmppUser(${u.id},${u.enabled?0:1})">${u.enabled?'Disable':'Enable'}</button> <button class="btn btn-amber btn-sm" onclick="changeSmppPassword(${u.id})">Password</button> <button class="btn btn-red btn-sm" onclick="deleteSmppUser(${u.id})">Delete</button></td></tr>`).join('')||`<tr><td colspan="8" class="muted" style="text-align:center;padding:20px">No SMPP users yet</td></tr>`;
-  smppUserInfo.textContent=`${(smppUsers||[]).length} SMPP users`;
-}
-function renderSmppSessions(rows){
-  const b=document.getElementById('smppSessionBody'); if(!b)return;
-  b.innerHTML=(rows||[]).map(s=>`<tr><td class="mono">${s.session_id||'—'}</td><td>${s.username||'—'}</td><td class="mono">${s.ip||'—'}</td><td>${s.port||'—'}</td><td>${s.bind_type||'—'}</td><td>${s.status==='connected'?'<span class="tag tag-green">Connected</span>':'<span class="tag tag-gray">Disconnected</span>'}</td><td>${(s.connected_at||'').slice(0,19)}</td><td>${(s.last_seen||'').slice(0,19)}</td></tr>`).join('')||`<tr><td colspan="8" class="muted" style="text-align:center;padding:20px">No sessions</td></tr>`;
-}
-function renderSmppLogs(rows){
-  const b=document.getElementById('smppLogBody'); if(!b)return;
-  b.innerHTML=(rows||[]).map(l=>`<tr><td>${(l.created_at||'').slice(0,19)}</td><td>${l.username||'—'}</td><td class="mono">${l.ip||'—'}</td><td>${l.event||''}</td><td>${l.status||''}</td><td class="mono">${l.number||''}</td><td>${l.cli||''}</td><td class="msg-body">${l.error||''}</td></tr>`).join('')||`<tr><td colspan="8" class="muted" style="text-align:center;padding:20px">No SMPP logs</td></tr>`;
-}
-async function createSmppUser(){
-  const body={username:smppUsername.value.trim(),password:smppPassword.value,port:+(smppPort.value||2775),bind_type:smppBindType.value,mapping:smppMapping.value,allowed_ip:smppAllowedIp.value.trim(),notes:smppNotes.value.trim(),enabled:true};
-  try{const r=await API.post('/smpp-server/users',body);alert(`✅ SMPP user created\n\nHost: ${smppHostGuess()}\nPort: ${r.user.port}\nUsername: ${r.user.username}\nPassword: ${r.password}\n\nSave this password now.`);smppUsername.value='';smppPassword.value='';smppAllowedIp.value='';smppNotes.value='';loadSmppServer();}catch(e){alert('❌ '+e.message)}
-}
-async function toggleSmppUser(id,en){const u=(smppUsers||[]).find(x=>x.id===id);if(!u)return;try{await API.put('/smpp-server/users/'+id,{...u,enabled:!!en});loadSmppServer();}catch(e){alert('❌ '+e.message)}}
-async function changeSmppPassword(id){const p=prompt('New SMPP password (blank = auto generate):','')||'';try{const r=await API.post('/smpp-server/users/'+id+'/password',{password:p});alert('✅ New password: '+r.password);loadSmppServer();}catch(e){alert('❌ '+e.message)}}
-async function deleteSmppUser(id){if(!confirm('Delete this SMPP user?'))return;try{await API.del('/smpp-server/users/'+id);loadSmppServer();}catch(e){alert('❌ '+e.message)}}
-async function restartSmppServer(){try{const r=await API.post('/smpp-server/restart',{});alert('✅ SMPP server restarted. Ports: '+((r.ports||[]).join(', ')||'—'));loadSmppServer();}catch(e){alert('❌ '+e.message)}}
-
 /* =============== API INTEGRATION =============== */
 let apiIntegrations=[];
 function resetApiIntegrationForm(){['apiIntId','apiIntName','apiIntUrl','apiIntToken'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});apiIntAuth.value='query_token';apiIntEnabled.value='1';apiIntTokenParam.value='token';apiIntTokenHeader.value='Authorization';apiIntInterval.value='5';apiIntDt1.value='dt1';apiIntDt2.value='dt2';apiIntRecordsParam.value='records';apiIntRecordsLimit.value='100';}
@@ -2256,53 +2075,6 @@ async function saveApiIntegration(){const body={name:apiIntName.value.trim(),bas
 async function fetchApiIntegrationNow(id){try{const r=await API.post('/api-integrations/'+id+'/fetch',{});alert(`✅ Fetch done\nTotal: ${r.total||0}\nSaved: ${r.success||0}\nFailed: ${r.failed||0}\nDuplicate: ${r.duplicate||0}`);loadApiIntegrations();loadApiIntegrationLogs();}catch(e){alert('❌ '+e.message)}}
 async function deleteApiIntegration(id){if(!confirm('Delete this API connector?'))return;try{await API.del('/api-integrations/'+id);loadApiIntegrations();}catch(e){alert('❌ '+e.message)}}
 async function loadApiIntegrationLogs(){try{const rows=await API.get('/api-integration-logs?limit=500');const b=document.getElementById('apiIntLogBody');if(!b)return;b.innerHTML=(rows||[]).map(r=>`<tr><td>${(r.created_at||r.request_time||'').slice(0,19)}</td><td>${r.integration_name||'—'}</td><td>${r.status==='success'?'<span class="tag tag-green">Success</span>':(r.status==='duplicate'?'<span class="tag tag-amber">Duplicate</span>':'<span class="tag tag-red">Failed</span>')}</td><td>${r.reason||''}</td><td class="mono">${r.number||''}</td><td>${r.cli||''}</td><td class="mono">${r.provider_message_id||''}</td><td class="msg-body">${(r.message||'').slice(0,120)}</td></tr>`).join('')||`<tr><td colspan="8" class="muted" style="text-align:center;padding:20px">No API logs</td></tr>`;}catch(e){console.warn(e)}}
-
-/* =============== TEST SMS GENERATOR (QA) =============== */
-async function loadTestGeneratorSettings(){
-  try{
-    const st=await API.get('/test-generator/settings');
-    if(!document.getElementById('tgEnabled')) return;
-    tgEnabled.value=st.enabled? '1':'0';
-    tgMaxBatch.value=st.max_batch_size||100;
-    tgDefaultCli.value=st.default_cli||'TestCLI';
-    tgDefaultMsg.value=st.default_message||'Your test verification code is {code}';
-    tgCli.value=tgDefaultCli.value;
-    tgMessage.value=tgDefaultMsg.value;
-    populateTestGeneratorNumbers();
-  }catch(e){console.warn(e)}
-}
-function populateTestGeneratorNumbers(){
-  const sel=document.getElementById('tgNumber'); if(!sel) return;
-  const allocated=(numbersData||[]).filter(n=>n.client_id).map(n=>({number:n.number, label:`${n.number} — ${n.client_name||'Client'} / ${n.range_name||''}`}));
-  sel.innerHTML='<option value="">Auto: use allocated client numbers</option>'+allocated.map(n=>`<option value="${n.number}">${n.label}</option>`).join('');
-}
-async function saveTestGeneratorSettings(){
-  try{
-    await API.put('/test-generator/settings',{enabled:tgEnabled.value==='1',max_batch_size:+tgMaxBatch.value,default_cli:tgDefaultCli.value.trim()||'TestCLI',default_message:tgDefaultMsg.value.trim()||'Your test verification code is {code}'});
-    alert('✅ Test module settings saved.');
-    loadTestGeneratorSettings();
-  }catch(e){alert('❌ '+e.message)}
-}
-async function generateTestSms(){
-  const number=tgNumber.value;
-  const cli=(tgCli.value||tgDefaultCli.value||'TestCLI').trim();
-  const message=(tgMessage.value||tgDefaultMsg.value||'Your test verification code is {code}').trim();
-  const quantity=Math.max(1,parseInt(tgQty.value||1));
-  try{
-    const res=await API.post('/test-generator/generate',{number,cli,message,quantity});
-    tgResult.textContent=`Batch: ${res.batch_id}\nGenerated: ${res.generated}\nFailed: ${res.failed}`;
-    await loadSmsRecords(); await loadDashboard();
-  }catch(e){tgResult.textContent='Error: '+e.message;alert('❌ '+e.message)}
-}
-async function clearGeneratedTestSms(){
-  if(!confirm('Clear all generated test SMS records? Real carrier SMS will not be removed.')) return;
-  try{
-    const r=await API.post('/test-generator/clear',{});
-    tgResult.textContent=`Deleted test SMS records: ${r.deleted}`;
-    await loadSmsRecords(); await loadDashboard();
-  }catch(e){alert('❌ '+e.message)}
-}
-
 
 /* =============== DATABASE BACKUPS =============== */
 let backupRows=[];
@@ -2580,15 +2352,10 @@ async function loadAdminPageData(page){
     if(page==='import'){ await ensureAdminRates(); await loadImportBatches(); return refreshNumberDbTools(); }
     if(page==='cliLimit'){ await ensureAdminSms(); fillSelect('climCli',cliPool,false); await ensureAdminManagers(); fillSelect('climMgr',(usersData.manager||[]).map(m=>m.username),false); return loadCliLimits(); }
     if(page==='limitManagement'){ await ensureAdminRates(); return loadLimitManagement(); }
-    if(page==='news') return loadNews();
     if(page==='payments'){ await loadPayments(); return loadAdminPayout(); }
     if(page==='paymentConfig') return loadPaymentConfig();
     if(page==='carrierIntegration') return loadCarrierSettings();
-    if(page==='smppServer') return loadSmppServer();
     if(page==='apiIntegration'){ await loadApiIntegrations(); return loadApiIntegrationLogs(); }
-    if(page==='testGenerator'){ await loadTestGeneratorSettings(); return populateTestGeneratorNumbers(); }
-    if(page==='integrations') return loadIntegrations();
-    if(page==='notificationRules') return loadNotificationRules();
     if(page==='systemLogs') return loadSystemLogs();
     if(page==='backupManagement') return loadBackups();
   }catch(e){console.warn('loadAdminPageData failed',page,e);}

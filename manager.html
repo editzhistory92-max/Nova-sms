@@ -194,12 +194,6 @@
   .allocate-num{width:80px !important;padding:7px 9px !important}
   .readonly-note{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:#fbbf24;background:rgba(245,158,11,.12);padding:5px 11px;border-radius:8px;border:1px solid rgba(245,158,11,.3)}
 
-  /* news feed items */
-  .news-item{background:var(--panel);border:1px solid var(--border);border-left:3px solid var(--teal);border-radius:12px;padding:16px 18px;margin-bottom:12px}
-  .news-item h4{font-size:14.5px;margin-bottom:5px}
-  .news-item .meta{color:var(--muted);font-size:11.5px;margin-bottom:8px}
-  .news-item p{color:#cfe0dc;font-size:13px;line-height:1.6}
-
   /* modal */
   .modal-overlay{display:none;position:fixed;inset:0;background:rgba(3,8,10,.72);backdrop-filter:blur(3px);z-index:100;align-items:center;justify-content:center;padding:20px}
   .modal-overlay.show{display:flex;animation:fade .2s ease}
@@ -494,7 +488,6 @@
     </div>
     <div class="spacer"></div>
     <span class="clock" id="clock">Fri, 2026-07-03 05:33:57</span>
-    <button class="tb-btn" title="News"><span class="dot"></span><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></button>
     <button class="tb-btn" title="Fullscreen" onclick="toggleFull()"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>
     <div class="who"><div class="av">K</div><div><div class="nm">Manager</div><div class="rl">Manager</div></div></div>
     <button class="tb-btn" title="Logout" onclick="logout()"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></button>
@@ -536,7 +529,6 @@
     <div class="navtab" data-page="test"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18v-6a3 3 0 0 1 6 0v6"/><rect x="4" y="18" width="16" height="3"/><path d="M12 3v3"/></svg><span class="lbl">Test Panel</span></div>
     <div class="navtab" data-page="credit"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg><span class="lbl">Credit / Payouts</span></div>
     <div class="navtab" data-page="cliLimit"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 6v6l4 2"/></svg><span class="lbl">CLI Limits</span></div>
-    <div class="navtab" data-page="news"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22V4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v18l-4-3-4 3-4-3-4 3z"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="14" y2="11"/></svg><span class="lbl">News</span></div>
   </nav>
 </header>
 
@@ -544,7 +536,6 @@
   <button class="mgr-topbar-menu" type="button" onclick="toggleManagerSidebar()" aria-label="Menu">☰</button>
   <span class="clock" id="mgrTopClock">Tue, 2026-07-07 10:33:07</span>
   <div class="tb-right">
-    <button class="tb-btn" title="News"><span class="dot"></span><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></button>
     <button class="tb-btn" title="Fullscreen" onclick="toggleFull()"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>
     <div class="who"><div class="av">M</div><div><div class="nm">Manager</div><div class="rl">Manager</div></div></div>
     <button class="tb-btn" title="Settings"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
@@ -576,7 +567,7 @@
     </div>
     <div class="table-wrap" style="padding:15px 17px;margin-top:0"><div class="table-controls">
       <div class="tc-left"><label>Show Records:</label><select id="rcLen" onchange="renderRateCard()"><option>10</option><option selected>25</option><option>50</option><option value="All">All</option></select>
-      <div class="exp-btns"><button class="btn btn-blue">Copy</button><button class="btn btn-blue">CSV</button><button class="btn btn-green">Excel</button><button class="btn btn-red">PDF</button><button class="btn btn-blue">Print</button></div></div>
+      <div class="exp-btns"><button class="btn btn-blue">Copy</button><button class="btn btn-blue">CSV</button><button class="btn btn-green">Excel</button></div></div>
       <div class="tc-right"><label>Search:</label><input type="text" id="rcSearch" oninput="renderRateCard()" placeholder="Search..."/></div></div></div>
     <div class="table-wrap"><div class="tscroll"><table>
       <thead><tr><th>Range</th><th>Prefix</th><th>Currency</th><th>1/1</th><th>7/1</th><th>7/7</th><th>30/45</th></tr></thead>
@@ -602,7 +593,7 @@
       </div>
       <div class="table-controls">
         <div class="tc-left"><label>Show Records:</label><select id="numLen" onchange="renderNumbers()"><option>10</option><option selected>25</option><option>50</option><option value="All">All</option></select>
-        <div class="exp-btns"><button class="btn btn-blue">Copy</button><button class="btn btn-blue">CSV</button><button class="btn btn-green">Excel</button><button class="btn btn-red">PDF</button><button class="btn btn-blue">Print</button></div></div>
+        <div class="exp-btns"><button class="btn btn-blue">Copy</button><button class="btn btn-blue">CSV</button><button class="btn btn-green">Excel</button></div></div>
         <div class="tc-right"><label>Search:</label><input type="text" id="numSearch" oninput="renderNumbers()" placeholder="Search..."/></div></div>
       <div class="bulk-bar"><span class="info" id="selInfo">0 selected</span></div>
     </div>
@@ -709,12 +700,6 @@
       <div class="table-foot"><div class="info" id="climInfo"></div></div></div>
   </section>
 
-  <!-- ========== NEWS (feed) ========== -->
-  <section class="page" id="page-news">
-    <div class="page-head"><div><h2>News &amp; Announcements</h2><div class="breadcrumb"><b>System</b> › News</div></div></div>
-    <div id="newsFeed"></div>
-  </section>
-
 </div>
 
 <!-- ============ ALLOCATE ALL MODAL ============ -->
@@ -758,7 +743,7 @@
   <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal('agentModal')">Cancel</button><button class="btn btn-teal" onclick="saveAgent()">Save</button></div>
 </div></div>
 
-<script src="/api.js?v=20260722-admin-sms-ops-split"></script>
+<script src="/api.js?v=20260722-full-cleanup-test-range-import"></script>
 <script>
 if(window.API){ API.guard('manager'); }
 /* ===== NAV ===== */
@@ -810,7 +795,6 @@ let agentsData=[];
 let clientsData=[];
 let creditData=[];
 let cliLimits=[];
-let newsFeed=[];
 function unique(arr){return [...new Set((arr||[]).filter(Boolean))];}
 function refreshAgentClientMaps(){myAgents=unique((agentsData||[]).map(a=>a.username).concat((smsRecords||[]).map(r=>r.agent_name)));agentClients={};myAgents.forEach(a=>agentClients[a]=[]);(clientsData||[]).forEach(c=>{const ag=(agentsData||[]).find(a=>a.id===c.parent_id);if(ag){if(!agentClients[ag.username])agentClients[ag.username]=[];agentClients[ag.username].push(c.username);}});(smsRecords||[]).forEach(r=>{if(r.agent_name&&r.client_name){if(!agentClients[r.agent_name])agentClients[r.agent_name]=[];if(!agentClients[r.agent_name].includes(r.client_name))agentClients[r.agent_name].push(r.client_name);}});}
 function myClients(agent){ if(agent)return agentClients[agent]||[]; return unique(Object.values(agentClients).flat()); }
@@ -890,7 +874,7 @@ function buildAgents(){document.getElementById('page-agents').innerHTML=`
     <div class="head-actions"><button class="btn btn-teal" onclick="openAgent(-1)">+ Add Agent</button></div></div>
   <div class="table-wrap" style="padding:15px 17px;margin-top:0"><div class="table-controls">
     <div class="tc-left"><label>Show Records:</label><select id="agLen" onchange="renderAgents()"><option>10</option><option selected>25</option><option value="All">All</option></select>
-    <div class="exp-btns"><button class="btn btn-blue">Copy</button><button class="btn btn-blue">CSV</button><button class="btn btn-green">Excel</button><button class="btn btn-red">PDF</button><button class="btn btn-blue">Print</button></div></div>
+    <div class="exp-btns"><button class="btn btn-blue">Copy</button><button class="btn btn-blue">CSV</button><button class="btn btn-green">Excel</button></div></div>
     <div class="tc-right"><label>Search:</label><input type="text" id="agSearch" oninput="renderAgents()" placeholder="Search..."/></div></div></div>
   <div class="table-wrap"><div class="tscroll"><table>
     <thead><tr><th>Username</th><th>Name</th><th>WhatsApp</th><th>Email</th><th>Clients</th><th>Active</th><th>Action</th></tr></thead>
@@ -926,7 +910,7 @@ function buildClients(){document.getElementById('page-clients').innerHTML=`
   <div class="toolbar"><div class="filter-row"><select class="sel-lg" id="clAgentF" onchange="renderClients()"><option value="">All Agents</option>${myAgents.map(a=>`<option>${a}</option>`).join('')}</select><span class="muted" style="font-size:12.5px">Client ownership tracking — kaun sa client kis agent ka</span></div></div>
   <div class="table-wrap" style="padding:15px 17px;margin-top:0"><div class="table-controls">
     <div class="tc-left"><label>Show Records:</label><select id="clLen" onchange="renderClients()"><option>10</option><option selected>25</option><option value="All">All</option></select>
-    <div class="exp-btns"><button class="btn btn-blue">Copy</button><button class="btn btn-blue">CSV</button><button class="btn btn-green">Excel</button><button class="btn btn-red">PDF</button><button class="btn btn-blue">Print</button></div></div>
+    <div class="exp-btns"><button class="btn btn-blue">Copy</button><button class="btn btn-blue">CSV</button><button class="btn btn-green">Excel</button></div></div>
     <div class="tc-right"><label>Search:</label><input type="text" id="clSearch" oninput="renderClients()" placeholder="Search..."/></div></div></div>
   <div class="table-wrap"><div class="tscroll"><table>
     <thead><tr><th>Client</th><th>Owned by Agent</th><th>Manager</th><th>Numbers</th><th>SMS (Month)</th></tr></thead>
@@ -949,7 +933,7 @@ function buildSmsReport(){document.getElementById('page-smsReport').innerHTML=`
     <thead><tr><th>Date</th><th>Agent</th><th>Range</th><th>CLI</th><th>SMS (Message Body)</th></tr></thead><tbody id="srBody"></tbody></table></div>
     <div class="table-foot"><div class="info" id="srInfo"></div></div></div>`;
   renderSmsReport();}
-function eb(){return`<div class="exp-btns"><button class="btn btn-blue">Copy</button><button class="btn btn-blue">CSV</button><button class="btn btn-green">Excel</button><button class="btn btn-red">PDF</button><button class="btn btn-blue">Print</button></div>`;}
+function eb(){return`<div class="exp-btns"><button class="btn btn-blue">Copy</button><button class="btn btn-blue">CSV</button><button class="btn btn-green">Excel</button></div>`;}
 async function loadSms(){ try{ smsRecords=await API.get('/sms'); }catch(e){ smsRecords=[]; }
   // agent summary from real data
   const byAgt={};smsRecords.forEach(r=>{const a=r.agent_name||'—';byAgt[a]=(byAgt[a]||0)+1;});
@@ -1072,8 +1056,6 @@ function renderClim(){
   document.getElementById('climInfo').textContent=`${(cliLimits||[]).length} CLI limits (assigned to you — set by Admin)`;}
 
 /* ===== NEWS FEED (API) ===== */
-async function loadNews(){ try{ newsFeed=(await API.get('/news')).map(n=>({title:n.title,body:n.body,by:n.created_by||'Admin',date:(n.created_at||'').slice(0,19)})); }catch(e){ newsFeed=[]; } renderNews(); }
-function renderNews(){document.getElementById('newsFeed').innerHTML=newsFeed.map(n=>`<div class="news-item"><h4>${n.title}</h4><div class="meta">📢 ${n.by} · ${n.date}</div><p>${n.body}</p></div>`).join('')||'<div class="muted">No news yet</div>';}
 
 
 function cleanDec(v){let s=String(v??'').replace(/[$,\s]/g,'');const m=s.match(/-?\d+(?:\.\d+)?/);if(!m)return '0';s=m[0];if(!s.includes('.'))return String(BigInt(s));let[a,b]=s.split('.');b=(b||'').replace(/0+$/,'');a=String(BigInt(a||'0'));return b?`${a}.${b}`:a;}
@@ -1139,7 +1121,6 @@ async function loadManagerPageData(page){
     if(page==='test'){ await loadRateCard(); await loadSms(); return renderTest(); }
     if(page==='credit'){ renderCredit(); return loadManagerPayout(); }
     if(page==='cliLimit') return loadClim();
-    if(page==='news') return loadNews();
   }catch(e){console.warn('loadManagerPageData failed',page,e);}
 }
 
@@ -1197,7 +1178,6 @@ async function loadManagerPageData(page){
     if(page==='test'){ await loadRateCard(); return renderTest(); }
     if(page==='credit'){ renderCredit(); return loadManagerPayout(); }
     if(page==='cliLimit') return loadClim();
-    if(page==='news') return loadNews();
   }catch(e){console.warn('loadManagerPageData failed',page,e);}
 }
 
@@ -1230,7 +1210,7 @@ loadProfile();loadDashboard();
 buildSmsReport();buildSmsDetail();
 renderTest();renderCredit();
 setTimeout(async()=>{try{await Promise.allSettled([loadRateCard(),loadAgents(),loadClients()]);await Promise.allSettled([renderNumbers(),renderSmsReport()]);}catch(e){console.warn('manager critical preload failed',e)}},50);
-setTimeout(()=>{Promise.allSettled([loadManagerPayout(),loadClim(),loadNews()]);},1200);
+setTimeout(()=>{Promise.allSettled([loadManagerPayout(),loadClim()]);},1200);
 
 function toggleManagerSidebar(){document.querySelector('.appbar')?.classList.toggle('show');document.getElementById('mgrMobileOverlay')?.classList.toggle('show');}
 function closeManagerSidebar(){document.querySelector('.appbar')?.classList.remove('show');document.getElementById('mgrMobileOverlay')?.classList.remove('show');}

@@ -1,6 +1,6 @@
 /**
  * Database schema — Multi-Level SMS Panel
- * Tables: users, ranges, numbers, sms_records, payments, cli_limits, news
+ * Tables: users, ranges, numbers, sms_records, payments, cli_limits, integrations
  * Hierarchy: admin > manager > agent > client (via users.parent_id)
  */
 const db = require('./db');
@@ -134,16 +134,6 @@ function createTables() {
     created_at TEXT DEFAULT (datetime('now'))
   )`);
 
-  db.run(`CREATE TABLE IF NOT EXISTS news (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    title     TEXT NOT NULL,
-    body      TEXT NOT NULL,
-    audience  TEXT DEFAULT 'all',   -- all | manager | agent | client
-    created_by TEXT DEFAULT 'Admin',
-    active    INTEGER DEFAULT 1,
-    created_at TEXT DEFAULT (datetime('now'))
-  )`);
-
   db.run(`CREATE TABLE IF NOT EXISTS payment_config (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     cycle_type TEXT DEFAULT 'weekly',      -- weekly | biweekly | monthly | custom
@@ -176,19 +166,6 @@ function createTables() {
     done_at TEXT,
     FOREIGN KEY (user_id) REFERENCES users(id),
     FOREIGN KEY (manager_id) REFERENCES users(id)
-  )`);
-
-  db.run(`CREATE TABLE IF NOT EXISTS integration_connectors (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    connector_type TEXT NOT NULL,           -- HTTP | API | WEBHOOK | SMPP | FILE | PANEL_SYNC | MANUAL
-    direction TEXT DEFAULT 'both',          -- number_provision | sms_receiving | both
-    status TEXT DEFAULT 'disabled',         -- disabled | testing | active
-    endpoint_url TEXT DEFAULT '',
-    config_json TEXT DEFAULT '{}',
-    notes TEXT DEFAULT '',
-    created_at TEXT DEFAULT (datetime('now')),
-    updated_at TEXT DEFAULT (datetime('now'))
   )`);
 
   const pc = db.get('SELECT COUNT(*) AS c FROM payment_config');
@@ -249,60 +226,7 @@ function createTables() {
     updated_at TEXT DEFAULT (datetime('now'))
   )`);
 
-  db.run(`CREATE TABLE IF NOT EXISTS notification_rules (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    scope TEXT DEFAULT 'global',          -- global | manager | agent | client | range | cli
-    period TEXT DEFAULT 'daily',          -- daily | payment_cycle | monthly | lifetime
-    thresholds TEXT DEFAULT '100,500,1000,5000,10000',
-    notify_roles TEXT DEFAULT 'admin',    -- comma list: admin,manager,agent,client
-    active INTEGER DEFAULT 1,
-    created_at TEXT DEFAULT (datetime('now'))
-  )`);
 
-  db.run(`CREATE TABLE IF NOT EXISTS notification_events (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    rule_id INTEGER,
-    scope TEXT DEFAULT '',
-    scope_key TEXT DEFAULT '',
-    scope_name TEXT DEFAULT '',
-    period TEXT DEFAULT '',
-    period_start TEXT DEFAULT '',
-    period_end TEXT DEFAULT '',
-    threshold INTEGER DEFAULT 0,
-    count INTEGER DEFAULT 0,
-    message TEXT DEFAULT '',
-    created_at TEXT DEFAULT (datetime('now'))
-  )`);
-
-  db.run(`CREATE TABLE IF NOT EXISTS user_notifications (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    event_id INTEGER NOT NULL,
-    read_at TEXT,
-    created_at TEXT DEFAULT (datetime('now'))
-  )`);
-
-  db.run(`CREATE TABLE IF NOT EXISTS user_preferences (
-    user_id INTEGER PRIMARY KEY,
-    notification_sound INTEGER DEFAULT 1,
-    notification_popup INTEGER DEFAULT 1,
-    created_at TEXT DEFAULT (datetime('now')),
-    updated_at TEXT DEFAULT (datetime('now'))
-  )`);
-
-  const nr = db.get('SELECT COUNT(*) AS c FROM notification_rules');
-  if (!nr || nr.c === 0) {
-    const defaults = [
-      ['Global Daily Milestones','global','daily','100,500,1000,5000,10000','admin'],
-      ['Manager Daily Milestones','manager','daily','100,500,1000,5000,10000','admin,manager'],
-      ['Agent Daily Milestones','agent','daily','100,500,1000,5000,10000','admin,manager,agent'],
-      ['Client Daily Milestones','client','daily','100,500,1000,5000,10000','admin,manager,agent,client'],
-      ['Range Monthly Milestones','range','monthly','1000,5000,10000,50000,100000','admin,manager'],
-      ['CLI Daily Milestones','cli','daily','100,500,1000,5000,10000','admin,manager']
-    ];
-    defaults.forEach(r => db.run('INSERT INTO notification_rules (name,scope,period,thresholds,notify_roles,active) VALUES (?,?,?,?,?,1)', r));
-  }
 
 
   db.run(`CREATE TABLE IF NOT EXISTS carrier_settings (
@@ -312,12 +236,6 @@ function createTables() {
     http_callback_url TEXT DEFAULT '',
     api_key TEXT DEFAULT '',
     auth_token TEXT DEFAULT '',
-    smpp_host TEXT DEFAULT '',
-    smpp_port TEXT DEFAULT '',
-    smpp_system_id TEXT DEFAULT '',
-    smpp_password TEXT DEFAULT '',
-    smpp_bind_type TEXT DEFAULT 'transceiver',
-    smpp_enabled INTEGER DEFAULT 0,
     notes TEXT DEFAULT '',
     retention_days INTEGER DEFAULT 30,
     updated_at TEXT DEFAULT (datetime('now'))
@@ -325,8 +243,6 @@ function createTables() {
 
   ensureColumn('webhook_logs', 'source_ip', "TEXT DEFAULT ''");
   ensureColumn('carrier_settings', 'retention_days', 'INTEGER DEFAULT 30');
-  ensureColumn('carrier_settings', 'smpp_bind_type', "TEXT DEFAULT 'transceiver'");
-  ensureColumn('carrier_settings', 'smpp_enabled', 'INTEGER DEFAULT 0');
   ensureColumn('sms_records', 'is_test', 'INTEGER DEFAULT 0');
   ensureColumn('sms_records', 'test_batch_id', "TEXT DEFAULT ''");
   ensureColumn('sms_records', 'source', "TEXT DEFAULT 'carrier'");
@@ -343,25 +259,11 @@ function createTables() {
 
   const cs = db.get('SELECT COUNT(*) AS c FROM carrier_settings');
   if (!cs || cs.c === 0) {
-    db.run(`INSERT INTO carrier_settings (integration_status,carrier_ip,http_callback_url,notes,smpp_host,smpp_port,smpp_system_id,smpp_password,smpp_bind_type,smpp_enabled)
-            VALUES ('disabled','','/api/incoming-sms','HTTP integration ready. SMPP disabled.','','','','','disabled',0)`);
+    db.run(`INSERT INTO carrier_settings (integration_status,carrier_ip,http_callback_url,notes)
+            VALUES ('disabled','','/api/incoming-sms','HTTP integration ready')`);
   }
 
 
-  db.run(`CREATE TABLE IF NOT EXISTS qa_test_settings (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    enabled INTEGER DEFAULT 0,
-    max_batch_size INTEGER DEFAULT 100,
-    default_cli TEXT DEFAULT 'TestCLI',
-    default_message TEXT DEFAULT 'Your test verification code is {code}',
-    updated_at TEXT DEFAULT (datetime('now'))
-  )`);
-
-  const qa = db.get('SELECT COUNT(*) AS c FROM qa_test_settings');
-  if (!qa || qa.c === 0) {
-    db.run(`INSERT INTO qa_test_settings (enabled,max_batch_size,default_cli,default_message)
-            VALUES (0,100,'TestCLI','Your test verification code is {code}')`);
-  }
 
   db.run(`CREATE TABLE IF NOT EXISTS daily_limit_rules (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -373,49 +275,6 @@ function createTables() {
     active INTEGER DEFAULT 1,
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now'))
-  )`);
-
-  db.run(`CREATE TABLE IF NOT EXISTS smpp_users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT UNIQUE NOT NULL,
-    password_hash TEXT NOT NULL,
-    enabled INTEGER DEFAULT 1,
-    bind_type TEXT DEFAULT 'any', -- any | transceiver | transmitter | receiver
-    mapping TEXT DEFAULT 'destination_to_number', -- destination_to_number | source_to_number
-    allowed_ip TEXT DEFAULT '',
-    port INTEGER DEFAULT 2775,
-    notes TEXT DEFAULT '',
-    created_at TEXT DEFAULT (datetime('now')),
-    updated_at TEXT DEFAULT (datetime('now'))
-  )`);
-  db.run(`CREATE TABLE IF NOT EXISTS smpp_sessions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_id TEXT UNIQUE,
-    user_id INTEGER,
-    username TEXT DEFAULT '',
-    ip TEXT DEFAULT '',
-    port INTEGER,
-    bind_type TEXT DEFAULT '',
-    status TEXT DEFAULT 'connected',
-    connected_at TEXT,
-    last_seen TEXT,
-    disconnected_at TEXT
-  )`);
-  db.run(`CREATE TABLE IF NOT EXISTS smpp_logs (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER,
-    username TEXT DEFAULT '',
-    ip TEXT DEFAULT '',
-    port INTEGER,
-    event TEXT DEFAULT '',
-    command TEXT DEFAULT '',
-    status TEXT DEFAULT '',
-    number TEXT DEFAULT '',
-    cli TEXT DEFAULT '',
-    message TEXT DEFAULT '',
-    error TEXT DEFAULT '',
-    raw_json TEXT DEFAULT '',
-    created_at TEXT DEFAULT (datetime('now'))
   )`);
 
   db.run(`CREATE TABLE IF NOT EXISTS api_integrations (
@@ -510,11 +369,6 @@ function createTables() {
   db.run(`CREATE INDEX IF NOT EXISTS idx_limit_rules_range ON daily_limit_rules(range_id)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_limit_rules_cli ON daily_limit_rules(cli)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_limit_rules_number ON daily_limit_rules(number)`);
-  db.run(`CREATE INDEX IF NOT EXISTS idx_smpp_users_username ON smpp_users(username)`);
-  db.run(`CREATE INDEX IF NOT EXISTS idx_smpp_users_enabled_port ON smpp_users(enabled, port)`);
-  db.run(`CREATE INDEX IF NOT EXISTS idx_smpp_sessions_status ON smpp_sessions(status)`);
-  db.run(`CREATE INDEX IF NOT EXISTS idx_smpp_logs_created ON smpp_logs(created_at)`);
-  db.run(`CREATE INDEX IF NOT EXISTS idx_smpp_logs_user ON smpp_logs(user_id)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_api_integrations_enabled ON api_integrations(enabled)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_api_seen_key ON api_integration_seen(duplicate_key)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_api_logs_integration ON api_integration_logs(integration_id, created_at)`);

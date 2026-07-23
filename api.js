@@ -31,7 +31,7 @@
   // Small client-side GET cache prevents duplicate heavy API calls during warmup + page click.
   const getCache = new Map();
   function isCacheableGet(path){
-    return /^\/(sms|numbers|ranges|users\/|test-numbers|dashboard|stats\/|stats-summary\/|earnings-summary|cli-limits|news)(\?|$)/.test(String(path||''));
+    return /^\/(sms|numbers|ranges|users\/|test-numbers|dashboard|stats\/|stats-summary\/|earnings-summary|cli-limits)(\?|$)/.test(String(path||''));
   }
   function getTtl(path){
     path=String(path||'');
@@ -77,71 +77,6 @@
     if(e.key==='Escape') document.querySelectorAll('.modal-overlay.show').forEach(m=>m.classList.remove('show'));
   });
 
-  let notifState = { unread: 0, prefs: { notification_sound: 1, notification_popup: 1 }, audioReady: false };
-  function beep() {
-    try {
-      const Ctx = window.AudioContext || window.webkitAudioContext;
-      if (!Ctx) return;
-      const ctx = new Ctx();
-      const o = ctx.createOscillator();
-      const g = ctx.createGain();
-      o.type = 'sine'; o.frequency.value = 880;
-      g.gain.setValueAtTime(0.0001, ctx.currentTime);
-      g.gain.exponentialRampToValueAtTime(0.18, ctx.currentTime + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.22);
-      o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime + 0.24);
-    } catch (e) {}
-  }
-  function ensureNotifUI() {
-    if (document.getElementById('msNotifPanel')) return;
-    const css = document.createElement('style');
-    css.textContent = `
-      .ms-notif-panel{position:fixed;right:22px;top:68px;width:min(380px,calc(100vw - 28px));background:#fff;border:1px solid #dbe4f0;border-radius:18px;box-shadow:0 24px 70px rgba(15,23,42,.18);z-index:9999;display:none;overflow:hidden;color:#0f2454}
-      .ms-notif-panel.show{display:block}.ms-notif-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #e5eaf2;background:#f8fafc}.ms-notif-head b{font-size:15px}.ms-notif-actions{display:flex;gap:8px;align-items:center}.ms-notif-actions button{border:0;background:#eef4ff;color:#1d4ed8;border-radius:9px;padding:7px 9px;font-weight:700;cursor:pointer;font-size:12px}.ms-notif-list{max-height:330px;overflow:auto}.ms-notif-item{padding:13px 16px;border-bottom:1px solid #eef2f7}.ms-notif-item.unread{background:#f0f7ff}.ms-notif-item .m{font-weight:800;font-size:13px}.ms-notif-item .d{font-size:11.5px;color:#64748b;margin-top:4px}.ms-notif-foot{padding:12px 16px;background:#fbfdff;border-top:1px solid #e5eaf2;display:flex;align-items:center;justify-content:space-between;gap:10px}.ms-switch{display:flex;align-items:center;gap:8px;font-size:12.5px;color:#334155}.ms-bell-float{position:fixed;right:22px;bottom:22px;width:48px;height:48px;border:0;border-radius:50%;background:linear-gradient(135deg,#1d4ed8,#0ea5e9);color:white;box-shadow:0 12px 28px rgba(37,99,235,.24);z-index:9998;display:none}.ms-notif-count{position:absolute;top:-5px;right:-5px;background:#ef4444;color:#fff;border-radius:999px;min-width:18px;height:18px;display:none;align-items:center;justify-content:center;font-size:10px;font-weight:900}`;
-    document.head.appendChild(css);
-    const panel = document.createElement('div');
-    panel.id = 'msNotifPanel'; panel.className = 'ms-notif-panel';
-    panel.innerHTML = `<div class="ms-notif-head"><b>Notifications</b><div class="ms-notif-actions"><button id="msReadAll">Read all</button><button id="msCloseNotif">×</button></div></div><div class="ms-notif-list" id="msNotifList"><div class="ms-notif-item"><div class="d">Loading...</div></div></div><div class="ms-notif-foot"><label class="ms-switch"><input type="checkbox" id="msSoundToggle"> Sound alerts</label><button id="msRefreshNotif">Refresh</button></div>`;
-    document.body.appendChild(panel);
-    const float = document.createElement('button'); float.id='msBellFloat'; float.className='ms-bell-float'; float.innerHTML='🔔<span class="ms-notif-count" id="msNotifCount"></span>'; document.body.appendChild(float);
-    document.getElementById('msCloseNotif').onclick=()=>panel.classList.remove('show');
-    document.getElementById('msRefreshNotif').onclick=()=>loadNotifications(true);
-    document.getElementById('msReadAll').onclick=async()=>{ await req('POST','/notifications/read-all',{}); await loadNotifications(false); };
-    document.getElementById('msSoundToggle').onchange=async(e)=>{ notifState.prefs.notification_sound=e.target.checked?1:0; await req('PUT','/preferences',notifState.prefs); };
-    float.onclick=()=>toggleNotifications();
-  }
-  function findBellButton(){
-    return document.querySelector('[title="Notifications"], [title="News"], .tb-btn .badge, .tb-btn .dot')?.closest('button') || document.getElementById('msBellFloat');
-  }
-  function updateBadge(count){
-    const badge = document.querySelector('.tb-btn .badge, .tb-btn .dot') || document.getElementById('msNotifCount');
-    if (badge) { badge.style.display = count ? 'flex' : 'none'; badge.textContent = count > 99 ? '99+' : String(count); }
-    const fb=document.getElementById('msNotifCount'); if(fb){fb.style.display=count?'flex':'none';fb.textContent=count>99?'99+':String(count);}
-  }
-  async function loadNotifications(openPanel){
-    ensureNotifUI();
-    try { notifState.prefs = await req('GET','/preferences'); document.getElementById('msSoundToggle').checked = !!notifState.prefs.notification_sound; } catch(e) {}
-    const rows = await req('GET','/notifications');
-    const unread = rows.filter(r=>!r.read_at).length;
-    if (notifState.unread !== 0 && unread > notifState.unread && notifState.prefs.notification_sound) beep();
-    notifState.unread = unread; updateBadge(unread);
-    const list=document.getElementById('msNotifList');
-    list.innerHTML = rows.map(r=>`<div class="ms-notif-item ${r.read_at?'':'unread'}" onclick="API.markNotificationRead(${r.user_notification_id})"><div class="m">${r.message}</div><div class="d">${(r.created_at||'').slice(0,19)} · ${r.scope} · ${Number(r.count||0).toLocaleString()} SMS</div></div>`).join('') || '<div class="ms-notif-item"><div class="d">No notifications yet</div></div>';
-    if(openPanel) document.getElementById('msNotifPanel').classList.add('show');
-  }
-  async function toggleNotifications(){ await loadNotifications(true); }
-  async function markNotificationRead(id){ try{await req('POST','/notifications/'+id+'/read',{}); await loadNotifications(false);}catch(e){} }
-  function initNotifications(){
-    initTopbarControls();
-    if(!TOKEN()) return;
-    ensureNotifUI();
-    const bell=findBellButton();
-    if(bell){ bell.addEventListener('click', (e)=>{ e.preventDefault(); e.stopPropagation(); toggleNotifications(); }); }
-    else { document.getElementById('msBellFloat').style.display='block'; }
-    document.addEventListener('click', ()=>{ notifState.audioReady = true; }, { once:true });
-    loadNotifications(false).catch(()=>{});
-    setInterval(()=>loadNotifications(false).catch(()=>{}), 30000);
-  }
 
 
   function ensureSettingsUI(){
@@ -150,16 +85,13 @@
     panel.id='msSettingsPanel'; panel.className='ms-notif-panel'; panel.style.top='68px';
     panel.innerHTML=`<div class="ms-notif-head"><b>Panel Settings</b><div class="ms-notif-actions"><button id="msCloseSettings">×</button></div></div>
       <div class="ms-notif-list" style="padding:14px 16px">
-        <label class="ms-switch" style="justify-content:space-between;margin-bottom:12px"><span>Notification sound</span><input type="checkbox" id="msSetSound"></label>
-        <label class="ms-switch" style="justify-content:space-between;margin-bottom:12px"><span>Popup notifications</span><input type="checkbox" id="msSetPopup"></label>
         <label class="ms-switch" style="justify-content:space-between"><span>Dark mode</span><input type="checkbox" id="msSetDark"></label>
       </div>`;
     document.body.appendChild(panel);
     document.getElementById('msCloseSettings').onclick=()=>panel.classList.remove('show');
-    document.getElementById('msSetSound').onchange=async(e)=>{notifState.prefs.notification_sound=e.target.checked?1:0;await req('PUT','/preferences',notifState.prefs);const t=document.getElementById('msSoundToggle');if(t)t.checked=e.target.checked;};
-    document.getElementById('msSetPopup').onchange=async(e)=>{notifState.prefs.notification_popup=e.target.checked?1:0;await req('PUT','/preferences',notifState.prefs);};
     document.getElementById('msSetDark').onchange=(e)=>setDarkMode(e.target.checked);
   }
+
   function setDarkMode(on){
     document.body.classList.toggle('ms-dark-mode', !!on);
     localStorage.setItem('ms_dark_mode', on?'1':'0');
@@ -191,13 +123,11 @@
     document.head.appendChild(st);
   }
   async function openSettings(){
-    ensureNotifUI(); ensureSettingsUI();
-    try{notifState.prefs=await req('GET','/preferences');}catch(e){}
-    document.getElementById('msSetSound').checked=!!notifState.prefs.notification_sound;
-    document.getElementById('msSetPopup').checked=!!notifState.prefs.notification_popup;
+    ensureSettingsUI();
     document.getElementById('msSetDark').checked=localStorage.getItem('ms_dark_mode')==='1';
     document.getElementById('msSettingsPanel').classList.add('show');
   }
+
 
   function enhancePageSizeOptions(root=document){
     // Same dropdown everywhere, as requested: 25 / 50 / 100 / 500 / 1000 / 5000 / All.
@@ -450,7 +380,7 @@
       return downloadText(title+'.xls', html, 'application/vnd.ms-excel;charset=utf-8');
     }
     const w=window.open('','_blank');
-    if(!w){ alert('Popup blocked. Please allow popups for print/PDF.'); return; }
+    if(!w){ alert('Popup blocked. Please allow popups.'); return; }
     const safeTitle=title.replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
     w.document.write('<!doctype html><html><head><title>'+safeTitle+'</title><style>body{font-family:Arial,sans-serif;padding:20px;color:#111}h2{margin:0 0 14px}table{border-collapse:collapse;width:100%;font-size:12px}th,td{border:1px solid #ccc;padding:7px;text-align:left;vertical-align:top}th{background:#f1f5f9}</style></head><body><h2>'+safeTitle+'</h2>'+table.outerHTML+'</body></html>');
     w.document.close(); w.focus(); setTimeout(()=>w.print(),300);
@@ -477,7 +407,15 @@
     if(label.includes('print')) return 'print';
     return '';
   }
+  function removePdfPrintButtons(root=document){
+    const scope = root && root.querySelectorAll ? root : document;
+    scope.querySelectorAll('.exp-btns button').forEach(btn=>{
+      const label=(btn.textContent||'').trim().toLowerCase();
+      if(label==='pdf' || label==='print') btn.remove();
+    });
+  }
   function bindExportButtons(){
+    removePdfPrintButtons(document);
     document.querySelectorAll('.exp-btns button').forEach(btn=>{
       if(btn.dataset.msExportBound) return;
       btn.dataset.msExportBound='1';
@@ -631,16 +569,14 @@
     put: async (p, b) => { clearGetCache(); return req('PUT', p, b); },
     del: async (p) => { clearGetCache(); return req('DELETE', p); },
     logout: async () => { try{ await req('POST','/logout',{}); }catch(e){} clearAuthStorage(); location.href = '/login'; },
-    initNotifications,
-    markNotificationRead,
     openSettings,
     openProfileMenu,
     paginateRows,
   };
   function initLengthSelectObserver(){
     enhancePageSizeOptions(document);
-    const mo=new MutationObserver(muts=>{ clearTimeout(window.__msLenOptTimer); window.__msLenOptTimer=setTimeout(()=>muts.forEach(m=>m.addedNodes.forEach(n=>{ if(n.nodeType===1) enhancePageSizeOptions(n); })),120); });
+    const mo=new MutationObserver(muts=>{ clearTimeout(window.__msLenOptTimer); window.__msLenOptTimer=setTimeout(()=>muts.forEach(m=>m.addedNodes.forEach(n=>{ if(n.nodeType===1){ enhancePageSizeOptions(n); removePdfPrintButtons(n); } })),120); });
     mo.observe(document.body,{childList:true,subtree:true});
   }
-  document.addEventListener('DOMContentLoaded', ()=>{ initExportButtons(); initActionFeedback(); initPanelHistory(); initIdleLogout(); initNotifications(); initRoutePersistence(); initTimeLocalization(); initLengthSelectObserver(); });
+  document.addEventListener('DOMContentLoaded', ()=>{ initExportButtons(); initActionFeedback(); initPanelHistory(); initIdleLogout(); initTopbarControls(); initRoutePersistence(); initTimeLocalization(); initLengthSelectObserver(); });
 })();

@@ -14,7 +14,6 @@ const { createTables } = require('./schema');
 const { seed } = require('./seed');
 const { sign, authRequired, requireRole, descendantIds } = require('./auth');
 const backup = require('./backup');
-const smppServer = require('./smppServer');
 
 const app = express();
 app.set('trust proxy', true);
@@ -220,73 +219,6 @@ function addFailedSms(payload, number='', cli='', message='', error=''){
   try{ db.run('INSERT INTO failed_sms_queue (number,cli,message,raw_payload,error) VALUES (?,?,?,?,?)',
     [String(number||''),String(cli||''),String(message||''),safeJson(payload),String(error||'')]); }
   catch(e){ console.warn('failed sms queue failed', e.message); }
-}
-function ensurePrefs(userId){
-  let p=db.get('SELECT * FROM user_preferences WHERE user_id=?',[userId]);
-  if(!p){ db.run('INSERT INTO user_preferences (user_id,notification_sound,notification_popup) VALUES (?,?,?)',[userId,1,1]); p=db.get('SELECT * FROM user_preferences WHERE user_id=?',[userId]); }
-  return p;
-}
-function periodBoundsForRule(period){
-  const now=new Date(); const d0=new Date(now); d0.setHours(0,0,0,0);
-  if(period==='monthly') return {start:dateOnly(new Date(now.getFullYear(),now.getMonth(),1)), end:dateOnly(new Date(now.getFullYear(),now.getMonth()+1,0))};
-  if(period==='payment_cycle'){ const c=getPaymentConfig(); const b=cycleBounds(c,0); return {start:b.start,end:b.end}; }
-  if(period==='lifetime') return {start:'1970-01-01', end:'2999-12-31'};
-  return {start:dateOnly(d0), end:dateOnly(d0)};
-}
-function countForNotification(scope, key, bounds){
-  let where='date(received_at) BETWEEN date(?) AND date(?)', params=[bounds.start,bounds.end];
-  if(scope==='manager'){ where+=' AND manager_id=?'; params.push(+key); }
-  else if(scope==='agent'){ where+=' AND agent_id=?'; params.push(+key); }
-  else if(scope==='client'){ where+=' AND client_id=?'; params.push(+key); }
-  else if(scope==='range'){ where+=' AND range_id=?'; params.push(+key); }
-  else if(scope==='cli'){ where+=' AND cli=?'; params.push(String(key)); }
-  return db.get(`SELECT COUNT(*) c FROM sms_records WHERE ${where}`, params)?.c || 0;
-}
-function notificationRecipients(notifyRoles, chain){
-  const roles=String(notifyRoles||'admin').split(',').map(x=>x.trim()).filter(Boolean);
-  const ids=new Set();
-  if(roles.includes('admin')) db.all("SELECT id FROM users WHERE role='admin' AND active=1").forEach(u=>ids.add(u.id));
-  if(roles.includes('manager') && chain.manager_id) ids.add(chain.manager_id);
-  if(roles.includes('agent') && chain.agent_id) ids.add(chain.agent_id);
-  if(roles.includes('client') && chain.client_id) ids.add(chain.client_id);
-  return [...ids];
-}
-function createNotificationEvent(rule, scopeKey, scopeName, threshold, count, bounds, chain){
-  const exists=db.get(`SELECT id FROM notification_events WHERE rule_id=? AND scope_key=? AND period_start=? AND period_end=? AND threshold=?`,
-    [rule.id,String(scopeKey),bounds.start,bounds.end,threshold]);
-  if(exists) return;
-  const msg=`${scopeName} reached ${threshold.toLocaleString()} SMS (${rule.period})`;
-  db.run(`INSERT INTO notification_events (rule_id,scope,scope_key,scope_name,period,period_start,period_end,threshold,count,message) VALUES (?,?,?,?,?,?,?,?,?,?)`,
-    [rule.id,rule.scope,String(scopeKey),scopeName,rule.period,bounds.start,bounds.end,threshold,count,msg]);
-  const ev=db.get('SELECT id FROM notification_events ORDER BY id DESC LIMIT 1');
-  if(!ev) return;
-  notificationRecipients(rule.notify_roles, chain).forEach(uid=>db.run('INSERT INTO user_notifications (user_id,event_id) VALUES (?,?)',[uid,ev.id]));
-}
-function checkSmsMilestoneNotifications(smsRow){
-  try{
-    const rules=db.all('SELECT * FROM notification_rules WHERE active=1');
-    const rangeName=db.get('SELECT name FROM ranges WHERE id=?',[smsRow.range_id])?.name || ('Range #'+smsRow.range_id);
-    const managerName=smsRow.manager_id?db.get('SELECT username FROM users WHERE id=?',[smsRow.manager_id])?.username:'';
-    const agentName=smsRow.agent_id?db.get('SELECT username FROM users WHERE id=?',[smsRow.agent_id])?.username:'';
-    const clientName=smsRow.client_id?db.get('SELECT username FROM users WHERE id=?',[smsRow.client_id])?.username:'';
-    const candidates={
-      global:[['global','System']],
-      manager: smsRow.manager_id?[[smsRow.manager_id,'Manager '+managerName]]:[],
-      agent: smsRow.agent_id?[[smsRow.agent_id,'Agent '+agentName]]:[],
-      client: smsRow.client_id?[[smsRow.client_id,'Client '+clientName]]:[],
-      range: smsRow.range_id?[[smsRow.range_id,'Range '+rangeName]]:[],
-      cli: smsRow.cli?[[smsRow.cli,'CLI '+smsRow.cli]]:[]
-    };
-    for(const rule of rules){
-      if(rule.scope==='number') continue; // number-wise notifications intentionally disabled
-      const list=candidates[rule.scope]||[]; const bounds=periodBoundsForRule(rule.period||'daily');
-      const thresholds=String(rule.thresholds||'').split(',').map(x=>parseInt(x.trim())).filter(n=>n>0).sort((a,b)=>a-b);
-      for(const [key,name] of list){
-        const count=countForNotification(rule.scope,key,bounds);
-        thresholds.forEach(th=>{ if(count>=th) createNotificationEvent(rule,key,name,th,count,bounds,smsRow); });
-      }
-    }
-  }catch(e){ console.warn('notification check failed', e.message); }
 }
 
 /* ============ AUTH ============ */
@@ -500,6 +432,120 @@ function normalizeRangeImportRow(row) {
     memo: get('Memo','memo','notes')
   };
 }
+
+function isPhoneLikeLine(v) {
+  const s = String(v || '').trim();
+  if (!s) return false;
+  const d = s.replace(/[^0-9]/g, '');
+  return d.length >= 5 && d.length >= Math.max(5, Math.floor(s.length * 0.65));
+}
+function normalizeTestPhone(v) { return String(v || '').trim().replace(/[^0-9+]/g, '').replace(/^\+/, ''); }
+function parseRangeTestNumberBlocks(text) {
+  const groups = [];
+  let current = null;
+  const pushRange = (name) => {
+    const clean = String(name || '').trim().replace(/\s+/g, ' ');
+    if (!clean) return;
+    current = { range_name: clean, test_numbers: [] };
+    groups.push(current);
+  };
+  const tokens = [];
+  String(text || '').split(/\r?\n/).forEach(line => {
+    const raw = String(line || '').trim();
+    if (!raw) return;
+    // CSV/TSV rows: read cells left-to-right. Normal TXT lines are one token.
+    const cells = raw.includes('\t') || raw.includes(',') || raw.includes(';')
+      ? raw.split(/[\t,;]+/).map(x => x.trim()).filter(Boolean)
+      : [raw];
+    tokens.push(...cells);
+  });
+  for (const token of tokens) {
+    if (isPhoneLikeLine(token)) {
+      const n = normalizeTestPhone(token);
+      if (!current) pushRange('Imported Range');
+      if (n && !current.test_numbers.includes(n)) current.test_numbers.push(n);
+    } else {
+      pushRange(token);
+    }
+  }
+  return groups.filter(g => g.range_name && g.test_numbers.length);
+}
+function sheetRowsToText(wb, XLSX) {
+  const lines = [];
+  for (const sheetName of wb.SheetNames || []) {
+    const ws = wb.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: '' });
+    rows.forEach(row => {
+      (row || []).forEach(cell => { const v = String(cell || '').trim(); if (v) lines.push(v); });
+    });
+  }
+  return lines.join('\n');
+}
+function upsertRangeWithTestNumbers(rangeName, testNumbers, defaults = {}) {
+  const name = String(rangeName || '').trim().replace(/\s+/g, ' ');
+  if (!name) return { skipped: true };
+  let row = db.get('SELECT id FROM ranges WHERE lower(name)=lower(?) LIMIT 1', [name]);
+  let inserted = false, restored = false;
+  if (!row) {
+    const ins = db.runNoSave(`INSERT INTO ranges (name,prefix,test_number,currency,rate_1_1,rate_7_1,rate_7_7,rate_30_45,memo)
+      VALUES (?,?,?,?,?,?,?,?,?)`, [name, defaults.prefix || '', '', defaults.currency || 'USD', defaults.rate_1_1 || 'NA', defaults.rate_7_1 || 'NA', defaults.rate_7_7 || 'NA', defaults.rate_30_45 || 'NA', defaults.memo || '']);
+    row = { id: ins.lastInsertRowid };
+    inserted = true;
+  } else {
+    const old = db.get("SELECT COALESCE(deleted_at,'') AS deleted_at FROM ranges WHERE id=?", [row.id]);
+    if (old && old.deleted_at) { db.runNoSave("UPDATE ranges SET deleted_at='' WHERE id=?", [row.id]); restored = true; }
+  }
+  const existing = db.all('SELECT test_number FROM range_test_numbers WHERE range_id=?', [row.id]).map(x => String(x.test_number));
+  const seen = new Set(existing.map(normalizeTestPhone));
+  let added = 0;
+  for (const raw of testNumbers || []) {
+    const n = normalizeTestPhone(raw);
+    if (!n || seen.has(n)) continue;
+    db.runNoSave('INSERT INTO range_test_numbers (range_id,test_number,active) VALUES (?,?,1)', [row.id, n]);
+    seen.add(n); added++;
+  }
+  const finalNums = db.all('SELECT test_number FROM range_test_numbers WHERE range_id=? AND active=1 ORDER BY id ASC', [row.id]).map(x => x.test_number);
+  db.runNoSave('UPDATE ranges SET test_number=? WHERE id=?', [finalNums.join(', '), row.id]);
+  return { id: row.id, name, inserted, restored, added_test_numbers: added, total_test_numbers: finalNums.length };
+}
+app.post('/api/ranges/import-test-bulk', authRequired, requireRole('admin'), upload.single('file'), (req, res) => {
+  let text = '';
+  try {
+    if (req.file && req.file.buffer) {
+      const fileName = String(req.file.originalname || '').toLowerCase();
+      if (/\.xlsx?$/.test(fileName)) {
+        const XLSX = require('xlsx');
+        const wb = XLSX.read(req.file.buffer, { type: 'buffer' });
+        text = sheetRowsToText(wb, XLSX);
+      } else {
+        text = req.file.buffer.toString('utf8');
+      }
+    } else if (req.body && (req.body.text || req.body.content)) {
+      text = String(req.body.text || req.body.content || '');
+    }
+    const groups = parseRangeTestNumberBlocks(text);
+    if (!groups.length) return res.status(400).json({ error: 'No range/test-number blocks found. First line should be range name, followed by test numbers.' });
+    const details = [];
+    let inserted = 0, restored = 0, added_test_numbers = 0;
+    db.execNoSave('BEGIN');
+    try {
+      for (const g of groups) {
+        const r = upsertRangeWithTestNumbers(g.range_name, g.test_numbers, { currency: req.body?.currency || 'USD' });
+        if (r.inserted) inserted++;
+        if (r.restored) restored++;
+        added_test_numbers += r.added_test_numbers || 0;
+        details.push(r);
+      }
+      db.execNoSave('COMMIT'); db.save();
+    } catch(e) { try { db.execNoSave('ROLLBACK'); } catch(_){} throw e; }
+    clearApiReadCache();
+    logAction(req, 'import_ranges_with_test_numbers', 'ranges', { total_ranges: groups.length, inserted, restored, added_test_numbers });
+    res.json({ ok: true, total_ranges: groups.length, inserted, restored, added_test_numbers, details });
+  } catch (e) {
+    res.status(500).json({ error: e.message || 'Import failed' });
+  }
+});
+
 app.post('/api/ranges/import', authRequired, requireRole('admin'), (req,res)=>{
   const rows = Array.isArray(req.body?.ranges) ? req.body.ranges : [];
   const updateExisting = req.body?.update_existing !== false;
@@ -1574,25 +1620,6 @@ app.delete('/api/limit-management/:id', authRequired, requireRole('admin'), (req
 });
 
 /* ============ NEWS ============ */
-app.get('/api/news', authRequired, (req, res) => {
-  if (req.user.role === 'admin') return res.json(db.all('SELECT * FROM news ORDER BY id DESC'));
-  const rows = db.all(
-    `SELECT * FROM news WHERE active=1 AND (audience='all' OR audience=?) ORDER BY id DESC`,
-    [req.user.role]);
-  res.json(rows);
-});
-app.post('/api/news', authRequired, requireRole('admin'), (req, res) => {
-  const b = req.body || {};
-  if (!b.title || !b.body) return res.status(400).json({ error: 'title & body required' });
-  db.run('INSERT INTO news (title,body,audience,created_by) VALUES (?,?,?,?)',
-    [b.title, b.body, b.audience || 'all', 'Admin']);
-  res.json({ ok: true });
-});
-app.delete('/api/news/:id', authRequired, requireRole('admin'), (req, res) => {
-  db.run('DELETE FROM news WHERE id=?', [+req.params.id]);
-  res.json({ ok: true });
-});
-
 
 
 /* ============ PAYMENT CONFIG / EARNINGS / WITHDRAWALS ============ */
@@ -1730,30 +1757,6 @@ app.post('/api/withdrawals/:id/status', authRequired, requireRole('admin'), (req
   res.json({ ok:true });
 });
 
-/* ============ INTEGRATION CONNECTORS ============ */
-app.get('/api/integration-connectors', authRequired, (req,res)=>{
-  res.json(db.all('SELECT * FROM integration_connectors ORDER BY id DESC'));
-});
-app.post('/api/integration-connectors', authRequired, requireRole('admin'), (req,res)=>{
-  const b=req.body||{};
-  if(!b.name || !b.connector_type) return res.status(400).json({ error:'name and connector_type required' });
-  db.run(`INSERT INTO integration_connectors (name,connector_type,direction,status,endpoint_url,config_json,notes) VALUES (?,?,?,?,?,?,?)`,
-    [b.name,b.connector_type,b.direction||'both',b.status||'disabled',b.endpoint_url||'',b.config_json||'{}',b.notes||'']);
-  logAction(req,'create_integration_connector','integrations',b.name);
-  res.json({ ok:true });
-});
-app.put('/api/integration-connectors/:id', authRequired, requireRole('admin'), (req,res)=>{
-  const b=req.body||{};
-  db.run(`UPDATE integration_connectors SET name=?,connector_type=?,direction=?,status=?,endpoint_url=?,config_json=?,notes=?,updated_at=datetime('now') WHERE id=?`,
-    [b.name||'',b.connector_type||'API',b.direction||'both',b.status||'disabled',b.endpoint_url||'',b.config_json||'{}',b.notes||'',+req.params.id]);
-  logAction(req,'update_integration_connector','integrations',{id:+req.params.id});
-  res.json({ ok:true });
-});
-app.delete('/api/integration-connectors/:id', authRequired, requireRole('admin'), (req,res)=>{
-  db.run('DELETE FROM integration_connectors WHERE id=?',[+req.params.id]);
-  logAction(req,'delete_integration_connector','integrations',{id:+req.params.id});
-  res.json({ ok:true });
-});
 
 
 /* ============ CARRIER INTEGRATION SETTINGS ============ */
@@ -1825,19 +1828,17 @@ function carrierRuntimeStatus(){
 app.get('/api/carrier-settings', authRequired, requireRole('admin'), (req,res)=>{
   if (!requireCarrierLock(req, res)) return;
   const c=getCarrierSettings();
-  // Runtime mode is HTTP only. SMPP fields may exist in old DBs, but are not used or enabled.
-  res.json({ ...c, smpp_host:'', smpp_port:'', smpp_system_id:'', smpp_password:'', smpp_bind_type:'disabled', smpp_enabled:0, ...carrierRuntimeStatus(), integration_mode: 'HTTP', generated_callback_url: publicCallbackUrl(req), endpoint_path:'/api/incoming-sms' });
+  res.json({ ...c, ...carrierRuntimeStatus(), integration_mode: 'HTTP', generated_callback_url: publicCallbackUrl(req), endpoint_path:'/api/incoming-sms' });
 });
 app.put('/api/carrier-settings', authRequired, requireRole('admin'), (req,res)=>{
   if (!requireCarrierLock(req, res)) return;
   const b=req.body||{};
   const c=getCarrierSettings();
-  // Force SMPP disabled at settings level too. No SMPP connect/reconnect loop exists in runtime.
-  db.run(`UPDATE carrier_settings SET integration_status=?,carrier_ip=?,http_callback_url=?,api_key=?,auth_token=?,smpp_host='',smpp_port='',smpp_system_id='',smpp_password='',smpp_bind_type='disabled',smpp_enabled=0,notes=?,retention_days=?,updated_at=datetime('now') WHERE id=?`,
+  db.run(`UPDATE carrier_settings SET integration_status=?,carrier_ip=?,http_callback_url=?,api_key=?,auth_token=?,notes=?,retention_days=?,updated_at=datetime('now') WHERE id=?`,
     [b.integration_status==='enabled'?'enabled':'disabled', b.carrier_ip||'', b.http_callback_url||'/api/incoming-sms', b.api_key||'', b.auth_token||'', b.notes||'', parseInt(b.retention_days||30), c.id]);
   cleanupWebhookLogs(b.retention_days||30);
   logAction(req,'update_carrier_settings','carrier_integration',{carrier_ip:b.carrier_ip,status:b.integration_status,mode:'HTTP_ONLY'});
-  res.json({ ok:true, settings:{...getCarrierSettings(), smpp_host:'', smpp_port:'', smpp_system_id:'', smpp_password:'', smpp_bind_type:'disabled', smpp_enabled:0, ...carrierRuntimeStatus()}, generated_callback_url: publicCallbackUrl(req) });
+  res.json({ ok:true, settings:{...getCarrierSettings(), ...carrierRuntimeStatus()}, generated_callback_url: publicCallbackUrl(req) });
 });
 
 
@@ -1865,74 +1866,7 @@ app.delete('/api/carrier-webhook-logs', authRequired, requireRole('admin'), (req
   res.json({ok:true,deleted:count});
 });
 
-/* ============ SMPP SERVER (incoming SMPP channel) ============ */
-function smppPublicUser(row){
-  if(!row) return row;
-  const {password_hash, ...rest}=row;
-  return rest;
-}
-function randomPassword(len=14){ return crypto.randomBytes(Math.ceil(len*0.75)).toString('base64').replace(/[^A-Za-z0-9]/g,'').slice(0,len) || Math.random().toString(36).slice(2,2+len); }
-function normalizeSmppBind(v){ v=String(v||'any').toLowerCase(); return ['any','transceiver','transmitter','receiver'].includes(v)?v:'any'; }
-function normalizeSmppMapping(v){ v=String(v||'destination_to_number').toLowerCase(); return ['destination_to_number','source_to_number'].includes(v)?v:'destination_to_number'; }
-function restartSmppServerSafe(){ try { return smppServer.restart({db, processIncomingSmsPayload, logger: console}); } catch(e){ console.warn('[SMPP_SERVER] restart failed:', e.message); return {ok:false,error:e.message}; } }
-app.get('/api/smpp-server/status', authRequired, requireRole('admin'), (req,res)=>{
-  res.json({...smppServer.status(), users: db.get('SELECT COUNT(*) c FROM smpp_users')?.c||0});
-});
-app.get('/api/smpp-server/users', authRequired, requireRole('admin'), (req,res)=>{
-  const rows=db.all(`SELECT u.*, (SELECT COUNT(*) FROM smpp_sessions s WHERE s.user_id=u.id AND s.status='connected') AS active_sessions FROM smpp_users u ORDER BY u.id DESC`);
-  res.json(rows.map(smppPublicUser));
-});
-app.post('/api/smpp-server/users', authRequired, requireRole('admin'), (req,res)=>{
-  const b=req.body||{};
-  const username=String(b.username||'').trim() || ('smpp_' + crypto.randomBytes(4).toString('hex'));
-  const password=String(b.password||'') || randomPassword(14);
-  if(db.get('SELECT id FROM smpp_users WHERE username=?',[username])) return res.status(409).json({error:'SMPP username already exists'});
-  const port=Math.max(1, Math.min(65535, parseInt(b.port||2775,10)));
-  db.run(`INSERT INTO smpp_users (username,password_hash,enabled,bind_type,mapping,allowed_ip,port,notes) VALUES (?,?,?,?,?,?,?,?)`,
-    [username,bcrypt.hashSync(password,10),b.enabled===false?0:1,normalizeSmppBind(b.bind_type),normalizeSmppMapping(b.mapping),String(b.allowed_ip||''),port,String(b.notes||'')]);
-  logAction(req,'create_smpp_user','smpp_server',{username,port});
-  const restart=restartSmppServerSafe();
-  const user=smppPublicUser(db.get('SELECT * FROM smpp_users WHERE username=?',[username]));
-  res.json({ok:true,user,password,restart});
-});
-app.put('/api/smpp-server/users/:id', authRequired, requireRole('admin'), (req,res)=>{
-  const id=+req.params.id; const b=req.body||{};
-  const existing=db.get('SELECT * FROM smpp_users WHERE id=?',[id]); if(!existing) return res.status(404).json({error:'SMPP user not found'});
-  const username=String(b.username||existing.username).trim();
-  const other=db.get('SELECT id FROM smpp_users WHERE username=? AND id<>?',[username,id]); if(other) return res.status(409).json({error:'SMPP username already exists'});
-  const port=Math.max(1, Math.min(65535, parseInt(b.port||existing.port||2775,10)));
-  db.run(`UPDATE smpp_users SET username=?,enabled=?,bind_type=?,mapping=?,allowed_ip=?,port=?,notes=?,updated_at=datetime('now') WHERE id=?`,
-    [username,b.enabled?1:0,normalizeSmppBind(b.bind_type),normalizeSmppMapping(b.mapping),String(b.allowed_ip||''),port,String(b.notes||''),id]);
-  logAction(req,'update_smpp_user','smpp_server',{id,username,port});
-  const restart=restartSmppServerSafe();
-  res.json({ok:true,user:smppPublicUser(db.get('SELECT * FROM smpp_users WHERE id=?',[id])),restart});
-});
-app.post('/api/smpp-server/users/:id/password', authRequired, requireRole('admin'), (req,res)=>{
-  const id=+req.params.id; const u=db.get('SELECT * FROM smpp_users WHERE id=?',[id]); if(!u) return res.status(404).json({error:'SMPP user not found'});
-  const password=String((req.body||{}).password||'') || randomPassword(14);
-  db.run('UPDATE smpp_users SET password_hash=?,updated_at=datetime(\'now\') WHERE id=?',[bcrypt.hashSync(password,10),id]);
-  logAction(req,'change_smpp_password','smpp_server',{id,username:u.username});
-  res.json({ok:true,password});
-});
-app.delete('/api/smpp-server/users/:id', authRequired, requireRole('admin'), (req,res)=>{
-  const id=+req.params.id;
-  db.run('DELETE FROM smpp_users WHERE id=?',[id]);
-  logAction(req,'delete_smpp_user','smpp_server',{id});
-  const restart=restartSmppServerSafe();
-  res.json({ok:true,restart});
-});
-app.get('/api/smpp-server/sessions', authRequired, requireRole('admin'), (req,res)=>{
-  res.json(db.all('SELECT * FROM smpp_sessions ORDER BY id DESC LIMIT 500'));
-});
-app.get('/api/smpp-server/logs', authRequired, requireRole('admin'), (req,res)=>{
-  const limit=Math.min(1000,parseInt(req.query.limit||500,10));
-  res.json(db.all(`SELECT * FROM smpp_logs ORDER BY id DESC LIMIT ${limit}`));
-});
-app.post('/api/smpp-server/restart', authRequired, requireRole('admin'), (req,res)=>{
-  const restart=restartSmppServerSafe();
-  logAction(req,'restart_smpp_server','smpp_server',restart);
-  res.json(restart);
-});
+
 
 /* ============ LOGS / FAILED QUEUE ============ */
 app.get('/api/logs/activity', authRequired, requireRole('admin'), (req,res)=>{
@@ -1960,7 +1894,6 @@ app.post('/api/failed-sms/:id/retry', authRequired, requireRole('admin'), (req,r
   db.run(`INSERT INTO sms_records (number_id,number,range_id,cli,sender_type,message,otp_code,client_id,agent_id,manager_id,payout_rate,payout_amount) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
     [n.id,n.number,n.range_id,f.cli||'',retrySenderType,f.message||'',retryOtpCode,n.client_id,n.agent_id,n.manager_id,retryRate,retryRate]);
   const smsRow={number_id:n.id,number:n.number,range_id:n.range_id,cli:f.cli||'',sender_type:retrySenderType,message:f.message||'',otp_code:retryOtpCode,client_id:n.client_id,agent_id:n.agent_id,manager_id:n.manager_id};
-  checkSmsMilestoneNotifications(smsRow);
   db.run(`UPDATE failed_sms_queue SET status='Retried',retry_count=retry_count+1,updated_at=datetime('now') WHERE id=?`,[id]);
   logAction(req,'retry_failed_sms','failed_sms_queue',{id,number:n.number});
   res.json({ ok:true });
@@ -1971,111 +1904,9 @@ app.delete('/api/failed-sms/:id', authRequired, requireRole('admin'), (req,res)=
   res.json({ ok:true });
 });
 
-/* ============ NOTIFICATION RULES / EVENTS / PREFERENCES ============ */
-app.get('/api/notification-rules', authRequired, requireRole('admin'), (req,res)=>{
-  res.json(db.all('SELECT * FROM notification_rules WHERE scope<>\'number\' ORDER BY id DESC'));
-});
-app.post('/api/notification-rules', authRequired, requireRole('admin'), (req,res)=>{
-  const b=req.body||{};
-  if(!b.name) return res.status(400).json({ error:'Rule name required' });
-  if(b.scope==='number') return res.status(400).json({ error:'Number-wise notifications disabled' });
-  db.run('INSERT INTO notification_rules (name,scope,period,thresholds,notify_roles,active) VALUES (?,?,?,?,?,?)',
-    [b.name,b.scope||'global',b.period||'daily',b.thresholds||'100,500,1000,5000,10000',b.notify_roles||'admin',b.active===false?0:1]);
-  logAction(req,'create_notification_rule','notifications',b.name);
-  res.json({ ok:true });
-});
-app.put('/api/notification-rules/:id', authRequired, requireRole('admin'), (req,res)=>{
-  const b=req.body||{};
-  if(b.scope==='number') return res.status(400).json({ error:'Number-wise notifications disabled' });
-  db.run('UPDATE notification_rules SET name=?,scope=?,period=?,thresholds=?,notify_roles=?,active=? WHERE id=?',
-    [b.name||'',b.scope||'global',b.period||'daily',b.thresholds||'',b.notify_roles||'admin',b.active?1:0,+req.params.id]);
-  logAction(req,'update_notification_rule','notifications',{id:+req.params.id});
-  res.json({ ok:true });
-});
-app.delete('/api/notification-rules/:id', authRequired, requireRole('admin'), (req,res)=>{
-  db.run('DELETE FROM notification_rules WHERE id=?',[+req.params.id]);
-  logAction(req,'delete_notification_rule','notifications',{id:+req.params.id});
-  res.json({ ok:true });
-});
-app.get('/api/notifications', authRequired, (req,res)=>{
-  const rows=db.all(`SELECT un.id AS user_notification_id, un.read_at, ne.*
-    FROM user_notifications un JOIN notification_events ne ON ne.id=un.event_id
-    WHERE un.user_id=? ORDER BY un.id DESC LIMIT 100`, [req.user.id]);
-  res.json(rows);
-});
-app.get('/api/notifications/unread-count', authRequired, (req,res)=>{
-  const c=db.get('SELECT COUNT(*) c FROM user_notifications WHERE user_id=? AND read_at IS NULL',[req.user.id])?.c||0;
-  res.json({ count:c });
-});
-app.post('/api/notifications/:id/read', authRequired, (req,res)=>{
-  db.run(`UPDATE user_notifications SET read_at=datetime('now') WHERE id=? AND user_id=?`,[+req.params.id,req.user.id]);
-  res.json({ ok:true });
-});
-app.post('/api/notifications/read-all', authRequired, (req,res)=>{
-  db.run(`UPDATE user_notifications SET read_at=datetime('now') WHERE user_id=? AND read_at IS NULL`,[req.user.id]);
-  res.json({ ok:true });
-});
-app.get('/api/preferences', authRequired, (req,res)=>res.json(ensurePrefs(req.user.id)));
-app.put('/api/preferences', authRequired, (req,res)=>{
-  ensurePrefs(req.user.id);
-  const b=req.body||{};
-  db.run(`UPDATE user_preferences SET notification_sound=?,notification_popup=?,updated_at=datetime('now') WHERE user_id=?`,
-    [b.notification_sound?1:0,b.notification_popup?1:0,req.user.id]);
-  res.json(ensurePrefs(req.user.id));
-});
 
 
-/* ============ QA TEST SMS GENERATOR ============ */
-function getQaSettings(){
-  let row=db.get('SELECT * FROM qa_test_settings ORDER BY id ASC LIMIT 1');
-  if(!row){db.run(`INSERT INTO qa_test_settings (enabled,max_batch_size,default_cli,default_message) VALUES (0,100,'TestCLI','Your test verification code is {code}')`); row=db.get('SELECT * FROM qa_test_settings ORDER BY id ASC LIMIT 1');}
-  return row;
-}
-function makeBatchId(){ return 'TEST-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).slice(2,8).toUpperCase(); }
-function randomCode(){ return String(100000 + Math.floor(Math.random()*900000)); }
-app.get('/api/test-generator/settings', authRequired, requireRole('admin'), (req,res)=>{
-  res.json(getQaSettings());
-});
-app.put('/api/test-generator/settings', authRequired, requireRole('admin'), (req,res)=>{
-  const b=req.body||{}; const cur=getQaSettings();
-  db.run(`UPDATE qa_test_settings SET enabled=?, max_batch_size=?, default_cli=?, default_message=?, updated_at=datetime('now') WHERE id=?`,
-    [b.enabled?1:0, Math.max(1, Math.min(1000, parseInt(b.max_batch_size||100))), b.default_cli||'TestCLI', b.default_message||'Your test verification code is {code}', cur.id]);
-  logAction(req,'update_test_generator_settings','test_generator',{enabled:!!b.enabled});
-  res.json({ok:true, settings:getQaSettings()});
-});
-app.post('/api/test-generator/generate', authRequired, requireRole('admin'), (req,res)=>{
-  const settings=getQaSettings();
-  if(!settings.enabled) return res.status(403).json({error:'Test SMS Generator is disabled'});
-  const b=req.body||{};
-  const qty=Math.max(1, Math.min(parseInt(b.quantity||1), parseInt(settings.max_batch_size||100)));
-  let numbers=[];
-  if(b.number){ numbers=[String(b.number).trim()]; }
-  else if(Array.isArray(b.numbers) && b.numbers.length){ numbers=b.numbers.map(x=>String(x).trim()).filter(Boolean); }
-  else {
-    numbers=db.all('SELECT number FROM numbers WHERE client_id IS NOT NULL ORDER BY id DESC LIMIT ?', [qty]).map(x=>x.number);
-  }
-  if(!numbers.length) return res.status(400).json({error:'No target numbers selected/found. Allocate at least one number to a client first.'});
-  const batchId=makeBatchId();
-  const cli=b.cli||settings.default_cli||'TestCLI';
-  let ok=0, failed=0, results=[];
-  for(let i=0;i<qty;i++){
-    const target=numbers[i % numbers.length];
-    const code=randomCode();
-    const template=(b.message||settings.default_message||'Your test verification code is {code}');
-    const msg=template.replaceAll('{code}',code).replaceAll('{number}',target).replaceAll('{index}',String(i+1));
-    const result=processIncomingSmsPayload(req,{number:target,cli,message:msg,test:true,test_batch_id:batchId},'TEST_GENERATOR',{isTest:1,testBatchId:batchId,source:'test_generator'});
-    if(result.status===200) ok++; else failed++;
-    results.push({number:target,status:result.status,body:result.body});
-  }
-  logAction(req,'generate_test_sms','test_generator',{batchId,ok,failed,quantity:qty});
-  res.json({ok:true,batch_id:batchId,generated:ok,failed,results});
-});
-app.post('/api/test-generator/clear', authRequired, requireRole('admin'), (req,res)=>{
-  const count=db.get('SELECT COUNT(*) c FROM sms_records WHERE is_test=1')?.c||0;
-  db.run('DELETE FROM sms_records WHERE is_test=1');
-  logAction(req,'clear_test_sms','test_generator',{count});
-  res.json({ok:true,deleted:count});
-});
+
 
 /* ============ SMS WEBHOOK (incoming SMS from carrier/provider) ============ */
 // Carrier/provider hits this endpoint. It supports our generic JSON and common provider field names.
@@ -2231,7 +2062,6 @@ function processIncomingSmsPayload(req, payload, sourceIp='', opts={}) {
   const smsRow = { number_id:n.id, number:n.number, range_id:n.range_id, cli:cli||'', sender_type:senderType, message:message||'', otp_code:otpCode, client_id:n.client_id, agent_id:n.agent_id, manager_id:n.manager_id, is_test: opts.isTest?1:0 };
   logWebhook('success', b, number, n.number, cli, message, '', sourceIp);
   console.log('[INCOMING_SMS] saved', { id: saved ? saved.id : null, number: n.number, cli: cli || '', sender_type: senderType, otp_detected: !!otpCode, source: opts.source || 'carrier', manager_id: n.manager_id || null, agent_id: n.agent_id || null, client_id: n.client_id || null });
-  checkSmsMilestoneNotifications(smsRow);
   return { status: 200, body: { ok: true, id: saved ? saved.id : null, received_at: saved ? saved.received_at : null, matched_number: n.number, sender_type: senderType, otp_detected: !!otpCode } };
 }
 
@@ -2589,7 +2419,6 @@ const PORT = process.env.PORT || 4000;
   createTables();
   seed();
   if (backup && backup.startAutomaticBackups) backup.startAutomaticBackups(db, console);
-  try { smppServer.start({db, processIncomingSmsPayload, logger: console}); } catch(e) { console.warn('[SMPP_SERVER] startup failed:', e.message); }
   try { startApiIntegrationPoller(); console.log('• API Integration poller enabled: every 5 seconds'); } catch(e) { console.warn('[API_INTEGRATION] poller startup failed:', e.message); }
   app.listen(PORT, () => console.log(`\n✅ Mufasa SMS backend running: http://localhost:${PORT}\n`));
 })();
