@@ -617,6 +617,7 @@
       <div class="filter-row">
         <select class="sel-lg" id="baRange"><option value="">Select Range</option></select>
         <select class="sel-lg" id="baAgent"><option value="">Select Agent</option></select>
+        <select class="sel-lg" id="baPayterm"><option value="weekly">Weekly</option><option value="daily">Daily</option><option value="monthly_30x45">Monthly (30x45)</option></select>
         <input type="number" style="width:130px" placeholder="Qty" id="baQty"/>
         <button class="btn btn-teal" onclick="doBulk()">Allocate to Agent</button>
       </div>
@@ -687,7 +688,7 @@
   <div class="modal-head"><h3>Allocate Selected Numbers</h3><button class="modal-close" onclick="closeModal('allocAllModal')">×</button></div>
   <div class="modal-body">
     <div class="form-group"><label>Select Agent <span class="req">*</span></label><select id="aaAgent"><option value="">Please Select</option></select></div>
-    <div class="form-group"><label>Payterm</label><select id="aaPayterm"><option value="">Please Select</option><option>Weekly</option><option>Weekly7</option><option>Monthly</option></select></div>
+    <div class="form-group"><label>Payterm</label><select id="aaPayterm"><option value="weekly">Weekly</option><option value="daily">Daily</option><option value="monthly_30x45">Monthly (30x45)</option></select></div>
     <div class="form-group" style="display:none"><label>Payout ($) Locked</label><input type="number" id="aaPayout" step="0.001" value="0" placeholder="0" disabled/></div>
     <div class="hint" id="aaCount"></div>
   </div>
@@ -703,7 +704,7 @@
     <div class="form-group"><label>Select Agents <span class="req">*</span></label><div id="smAgents" style="max-height:130px;overflow-y:auto;background:var(--row);border:1px solid var(--border2);border-radius:9px;padding:10px"></div></div>
     <div class="form-grid">
       <div class="form-group"><label>Numbers per Range <span class="req">*</span></label><input type="number" id="smQty" placeholder="e.g. 20"/></div>
-      <div class="form-group"><label>Payterm</label><select id="smPayterm"><option>Weekly</option><option>Weekly7</option><option>Monthly</option></select></div>
+      <div class="form-group"><label>Payterm</label><select id="smPayterm"><option value="weekly">Weekly</option><option value="daily">Daily</option><option value="monthly_30x45">Monthly (30x45)</option></select></div>
     </div>
   </div>
   <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal('smartModal')">Cancel</button><button class="btn btn-teal" onclick="runSmartDivide()">Distribute</button></div>
@@ -716,14 +717,14 @@
     <div class="form-group"><label>Username <span class="req">*</span></label><input type="text" id="aU" placeholder="Enter username"/></div>
     <div class="form-group"><label>Password <span class="req">*</span></label><input type="password" id="aP" placeholder="Enter password"/></div>
     <div class="form-group"><label>Full Name</label><input type="text" id="aN" placeholder="Optional"/></div>
-    <div class="form-group"><label>WhatsApp Number</label><input type="text" id="aW" placeholder="Optional"/></div>
+    <div class="form-group"><label>WhatsApp Number</label><input type="text" id="aW" placeholder="Optional"/></div><div class="form-group"><label>Agent Payment Type</label><select id="aPaymentType"><option value="weekly">Weekly</option><option value="daily">Daily</option><option value="monthly_30x45">Monthly (30x45)</option></select></div>
     <div class="form-grid"><div class="form-group"><label>Email</label><input type="email" id="aE" placeholder="Optional"/></div><div class="form-group"><label>Skype</label><input type="text" id="aS" placeholder="Optional"/></div></div>
     <div class="form-group"><label class="switch"><input type="checkbox" id="aA" checked/> Account Active</label></div>
   </div>
   <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal('agentModal')">Cancel</button><button class="btn btn-teal" onclick="saveAgent()">Save</button></div>
 </div></div>
 
-<script src="/api.js?v=20260723-payment-v2-clean"></script>
+<script src="/api.js?v=20260725-payment-fixes"></script>
 <script>
 if(window.API){ API.guard('manager'); }
 /* ===== NAV ===== */
@@ -821,7 +822,7 @@ async function unallocSel(){const ids=selIds();if(!ids.length){alert('Select num
 async function openAllocAll(){const ids=selIds();if(!ids.length){alert('Please select numbers first (checkbox).');return;}
   if(!agentsData.length)agentsData=await API.get('/users/agent');
   document.getElementById('aaAgent').innerHTML='<option value="">Please Select</option>'+agentsData.map(a=>`<option value="${a.id}">${a.username}</option>`).join('');
-  document.getElementById('aaPayterm').value='';document.getElementById('aaPayout').value='0';
+  document.getElementById('aaPayterm').value='weekly';document.getElementById('aaPayout').value='0';
   document.getElementById('aaCount').innerHTML=`<b>${ids.length}</b> numbers selected — Agent ko allocate honge.`;
   document.getElementById('allocAllModal').classList.add('show');}
 async function confirmAllocAll(){const ids=selIds();const a=document.getElementById('aaAgent').value,pt=document.getElementById('aaPayterm').value,po=document.getElementById('aaPayout').value;if(!a){alert('Select an agent.');return;}
@@ -831,9 +832,9 @@ async function openSmart(){const ranges=await API.get('/ranges');if(!agentsData.
   document.getElementById('smRanges').innerHTML=ranges.map(r=>`<label style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:13px;cursor:pointer"><input type="checkbox" class="smR" value="${r.id}" style="width:auto"/> ${r.name}</label>`).join('');
   document.getElementById('smAgents').innerHTML=agentsData.map(a=>`<label style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:13px;cursor:pointer"><input type="checkbox" class="smA" value="${a.id}" style="width:auto"/> ${a.username}</label>`).join('');
   document.getElementById('smQty').value='';document.getElementById('smartModal').classList.add('show');}
-async function runSmartDivide(){const range_ids=[...document.querySelectorAll('.smR:checked')].map(c=>+c.value);const target_ids=[...document.querySelectorAll('.smA:checked')].map(c=>+c.value);const qty=parseInt(document.getElementById('smQty').value);
+async function runSmartDivide(){const range_ids=[...document.querySelectorAll('.smR:checked')].map(c=>+c.value);const target_ids=[...document.querySelectorAll('.smA:checked')].map(c=>+c.value);const qty=parseInt(document.getElementById('smQty').value);const payterm=document.getElementById('smPayterm')?.value||'weekly';
   if(!range_ids.length){alert('Select range.');return;}if(!target_ids.length){alert('Select an agent.');return;}if(!qty||qty<=0){alert('Enter quantity.');return;}
-  try{const r=await API.post('/numbers/smart-divide',{range_ids,target_ids,qty});closeModal('smartModal');alert(`✅ Smart divide complete!\nTotal: ${r.total}`);loadNumbers();}catch(e){alert('❌ '+e.message);}}
+  try{const r=await API.post('/numbers/smart-divide',{range_ids,target_ids,qty,payterm});closeModal('smartModal');alert(`✅ Smart divide complete!\nTotal: ${r.total}`);loadNumbers();}catch(e){alert('❌ '+e.message);}}
 
 /* ===== BULK ALLOC ===== */
 function renderBulk(){const len=25;
@@ -875,10 +876,10 @@ function renderAgents(){const len=document.getElementById('agLen').value,q=(docu
 let agId=-1;
 function findAgent(id){return (agentsData||[]).find(x=>x.id===id);}
 function openAgent(id){agId=id;document.getElementById('agentModalTitle').textContent=id<0?'Add Agent':'Edit Agent';
-  const r=id<0?{username:'',name:'',email:'',whatsapp:'',skype:'',active:1}:findAgent(id)||{};aU.value=r.username||'';aP.value='';aN.value=r.name||'';aE.value=r.email||'';aW.value=r.whatsapp||'';aS.value=r.skype||'';aA.checked=!!r.active;aU.disabled=id>=0;
+  const r=id<0?{username:'',name:'',email:'',whatsapp:'',skype:'',active:1}:findAgent(id)||{};aU.value=r.username||'';aP.value='';aN.value=r.name||'';aE.value=r.email||'';aW.value=r.whatsapp||'';if(document.getElementById('aPaymentType'))aPaymentType.value=r.payment_type||'weekly';aS.value=r.skype||'';aA.checked=!!r.active;aU.disabled=id>=0;
   document.getElementById('agentModal').classList.add('show');}
 async function saveAgent(){if(!aU.value.trim()){alert('Username is required.');return;}if(agId<0&&!aP.value){alert('Password is required.');return;}
-  const body={username:aU.value.trim(),password:aP.value,role:'agent',name:aN.value.trim(),email:aE.value.trim(),whatsapp:aW.value.trim(),skype:aS.value.trim(),active:aA.checked};
+  const body={username:aU.value.trim(),password:aP.value,role:'agent',name:aN.value.trim(),email:aE.value.trim(),whatsapp:aW.value.trim(),skype:aS.value.trim(),active:aA.checked,payment_type:(document.getElementById('aPaymentType')?.value||'weekly')};
   try{ if(agId<0) await API.post('/users',body); else await API.put('/users/'+agId,body); closeModal('agentModal'); loadAgents(); }catch(e){ alert('❌ '+e.message); }}
 async function delAgent(id){if(confirm('Delete this agent?')){try{await API.del('/users/'+id);loadAgents();}catch(e){alert('❌ '+e.message);}}}
 function viewAgent(id){const r=findAgent(id)||{};alert(`👤 Agent\n\nUsername: ${r.username}\nName: ${r.name||'—'}\nWhatsApp: ${r.whatsapp||'—'}\nEmail: ${r.email||'—'}\nActive: ${r.active?'Yes':'No'}`);}
@@ -1050,14 +1051,25 @@ async function loadNumbers(){ try{ numData=(await API.get('/numbers')).map(r=>({
 async function loadAgents(){ try{ agentsData=await API.get('/users/agent'); }catch(e){ agentsData=[]; } refreshAgentClientMaps(); fillSel('numAgent',myAgents);fillSel('bulkAgent',myAgents);fillSel('baAgent',myAgents); renderAgents(); if(document.getElementById('clBody')) renderClients(); if(document.getElementById('sdAgent')){fillSel('sdAgent',myAgents);document.getElementById('sdAgent').children[0].textContent='Filter Agent';} }
 async function loadClients(){ try{ clientsData=await API.get('/users/client'); }catch(e){ clientsData=[]; } refreshAgentClientMaps(); if(document.getElementById('clBody')) {buildClients();} }
 async function loadSms(){ try{ smsRecords=await API.get('/sms'); }catch(e){ smsRecords=[]; } cdr=(smsRecords||[]).map(smsToCdr); recentTests=(smsRecords||[]).slice(0,50).map(r=>({date:(r.received_at||'').slice(0,19),range:r.range_name||'—',num:r.number||'',cli:r.cli||'',msg:r.message||''})); refreshAgentClientMaps(); const b=document.getElementById('agSumBody');if(b){const byAgt={};smsRecords.forEach(r=>{const a=r.agent_name||'—';byAgt[a]=(byAgt[a]||0)+1;});b.innerHTML=Object.keys(byAgt).map(a=>`<tr><td><span class="tag tag-agt">${a}</span></td><td><span class="tag tag-cli">${(agentClients[a]||[]).length}</span></td><td class="cell-money">${byAgt[a]}</td><td class="cell-money" style="color:#6ee7b7">$ ${sumPay((smsRecords||[]).filter(r=>r.agent_name===a))}</td></tr>`).join('')||`<tr><td colspan="4" class="muted" style="text-align:center;padding:16px">No records found</td></tr>`;} if(document.getElementById('srBody'))renderSmsReport(); if(document.getElementById('sdBody'))renderSmsDetail(); ['client','agent'].forEach(k=>{if(document.getElementById(k+'Body')){buildEntTot(k);renderEntity(k);}}); ['range','number'].forEach(k=>{if(document.getElementById(k+'Body')){buildDrillTot(k);renderDrill(k);}}); renderTest(); }
-function baRow(i){const q=parseInt(document.getElementById('bq'+i).value),a=document.getElementById('ba'+i).value;if(!q||!a){alert('Select agent and quantity.');return;}const row=baData[i],ag=(agentsData||[]).find(x=>x.username===a);if(!row||!ag)return;API.post('/numbers/smart-divide',{range_ids:[row.id],target_ids:[ag.id],qty:q}).then(res=>{alert(`✅ ${res.total||0} numbers allocated.`);loadNumbers();}).catch(e=>alert('❌ '+e.message));}
+function baRow(i){const q=parseInt(document.getElementById('bq'+i).value),a=document.getElementById('ba'+i).value;if(!q||!a){alert('Select agent and quantity.');return;}const row=baData[i],ag=(agentsData||[]).find(x=>x.username===a);if(!row||!ag)return;API.post('/numbers/smart-divide',{range_ids:[row.id],target_ids:[ag.id],qty:q,payterm:(document.getElementById('baPayterm')?.value||'weekly')}).then(res=>{alert(`✅ ${res.total||0} numbers allocated.`);loadNumbers();}).catch(e=>alert('❌ '+e.message));}
 function baUn(i){const q=parseInt(document.getElementById('bu'+i).value),row=baData[i];if(!q||!row){alert('Enter quantity.');return;}const ids=(numData||[]).filter(n=>n.range===row.range&&n.agent).slice(0,q).map(n=>n.id);if(!ids.length){alert('Allocated numbers were not found.');return;}API.post('/numbers/unallocate',{ids}).then(()=>{alert(`✅ ${ids.length} numbers unallocated.`);loadNumbers();}).catch(e=>alert('❌ '+e.message));}
-function doBulk(){const r=document.getElementById('baRange').value,a=document.getElementById('baAgent').value,q=parseInt(document.getElementById('baQty').value);if(!r||!a||!q){alert('Select range, agent and quantity.');return;}const row=(rateCard||[]).find(x=>x.range===r),ag=(agentsData||[]).find(x=>x.username===a);if(!row||!ag)return;API.post('/numbers/smart-divide',{range_ids:[row.id],target_ids:[ag.id],qty:q}).then(res=>{alert(`✅ ${res.total||0} numbers allocated.`);document.getElementById('baQty').value='';loadNumbers();}).catch(e=>alert('❌ '+e.message));}
+function doBulk(){const r=document.getElementById('baRange').value,a=document.getElementById('baAgent').value,q=parseInt(document.getElementById('baQty').value);if(!r||!a||!q){alert('Select range, agent and quantity.');return;}const row=(rateCard||[]).find(x=>x.range===r),ag=(agentsData||[]).find(x=>x.username===a);if(!row||!ag)return;API.post('/numbers/smart-divide',{range_ids:[row.id],target_ids:[ag.id],qty:q,payterm:(document.getElementById('baPayterm')?.value||'weekly')}).then(res=>{alert(`✅ ${res.total||0} numbers allocated.`);document.getElementById('baQty').value='';loadNumbers();}).catch(e=>alert('❌ '+e.message));}
 
 /* ===== AGENT PAYMENT VIEW (read-only) ===== */
 function balFor(row,type){const b=(row.balances||[]).find(x=>x.payment_type===type)||{};return b.available_balance||'0'}
+function balCents(v){return Math.round((parseFloat(String(v||'0'))||0)*100)}
 async function loadManagerPayments(){
-  try{const rows=await API.get('/payment-v2/manager/agents');const b=document.getElementById('mgrPayBody');if(!b)return;b.innerHTML=(rows||[]).map(r=>`<tr><td><span class="tag tag-agt">${r.agent_name}</span></td><td class="cell-money">$ ${balFor(r,'daily')}</td><td class="cell-money">$ ${balFor(r,'weekly')}</td><td class="cell-money">$ ${balFor(r,'monthly_30x45')}</td><td><span class="tag tag-blue">${r.payment_status||'No Request'}</span></td></tr>`).join('')||`<tr><td colspan="5" class="muted" style="text-align:center;padding:20px">No agent payment data</td></tr>`;mgrPayInfo.textContent=`${(rows||[]).length} agent(s)`;}catch(e){console.warn(e);alert('❌ '+e.message)}
+  try{
+    const raw=await API.get('/payment-v2/manager/agents');
+    const rows=(raw||[]).filter(r=>['daily','weekly','monthly_30x45'].some(t=>balCents(balFor(r,t))>0) || r.payment_status!=='No Request');
+    const show={daily:rows.some(r=>balCents(balFor(r,'daily'))>0),weekly:rows.some(r=>balCents(balFor(r,'weekly'))>0),monthly_30x45:rows.some(r=>balCents(balFor(r,'monthly_30x45'))>0)};
+    const table=document.querySelector('#page-credit table');
+    if(table){table.querySelector('thead').innerHTML='<tr><th>Agent Name</th>'+(show.daily?'<th>Daily Balance</th>':'')+(show.weekly?'<th>Weekly Balance</th>':'')+(show.monthly_30x45?'<th>Monthly Balance</th>':'')+'<th>Payment Status</th></tr>';}
+    const b=document.getElementById('mgrPayBody');if(!b)return;
+    const colspan=2+(show.daily?1:0)+(show.weekly?1:0)+(show.monthly_30x45?1:0);
+    b.innerHTML=rows.map(r=>`<tr><td><span class="tag tag-agt">${r.agent_name}</span></td>${show.daily?`<td class="cell-money">${balCents(balFor(r,'daily'))>0?'$ '+balFor(r,'daily'):'—'}</td>`:''}${show.weekly?`<td class="cell-money">${balCents(balFor(r,'weekly'))>0?'$ '+balFor(r,'weekly'):'—'}</td>`:''}${show.monthly_30x45?`<td class="cell-money">${balCents(balFor(r,'monthly_30x45'))>0?'$ '+balFor(r,'monthly_30x45'):'—'}</td>`:''}<td><span class="tag tag-blue">${r.payment_status||'No Request'}</span></td></tr>`).join('')||`<tr><td colspan="${colspan}" class="muted" style="text-align:center;padding:20px">No payment earnings yet</td></tr>`;
+    mgrPayInfo.textContent=`${rows.length} agent(s) with payment activity`;
+  }catch(e){console.warn(e);alert('❌ '+e.message)}
 }
 
 

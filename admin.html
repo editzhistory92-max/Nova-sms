@@ -732,7 +732,7 @@
     <div class="form-group"><label>Select Managers <span class="req">*</span></label><div id="smClients" style="max-height:130px;overflow-y:auto;background:var(--row);border:1px solid var(--border2);border-radius:9px;padding:10px"></div></div>
     <div class="form-grid">
       <div class="form-group"><label>Numbers per Range <span class="req">*</span></label><input type="number" id="smQty" placeholder="e.g. 20"/></div>
-      <div class="form-group"><label>Payterm</label><select id="smPayterm"><option>Weekly</option><option>Weekly7</option><option>Monthly</option></select></div>
+      <div class="form-group"><label>Payterm</label><select id="smPayterm"><option value="weekly">Weekly</option><option value="daily">Daily</option><option value="monthly_30x45">Monthly (30x45)</option></select></div>
     </div>
     <div class="hint" id="smPreview"></div>
   </div>
@@ -744,7 +744,7 @@
   <div class="modal-head"><h3>Allocate Selected Numbers</h3><button class="modal-close" onclick="closeModal('allocAllModal')">×</button></div>
   <div class="modal-body">
     <div class="form-group"><label>Select Manager / Agent <span class="req">*</span></label><select id="aaClient"><option value="">Please Select</option></select></div>
-    <div class="form-group"><label>Payterm</label><select id="aaPayterm"><option value="">Please Select</option><option>Weekly</option><option>Weekly7</option><option>Monthly</option><option>Daily</option></select></div>
+    <div class="form-group"><label>Payterm</label><select id="aaPayterm"><option value="weekly">Weekly</option><option value="daily">Daily</option><option value="monthly_30x45">Monthly (30x45)</option></select></div>
     <div class="form-group" style="display:none"><label>Payout ($) Locked</label><input type="number" id="aaPayout" step="0.001" value="0" placeholder="0" disabled/></div>
     <div class="hint" id="aaCount"></div>
   </div>
@@ -752,7 +752,7 @@
 </div></div>
 
 
-<script src="/api.js?v=20260723-payment-v2-clean"></script>
+<script src="/api.js?v=20260725-payment-fixes"></script>
 <script>
 /* auth guard — admin only */
 if(window.API){ API.guard('admin'); }
@@ -1030,7 +1030,7 @@ async function openAllocAll(){const ids=getSelectedIds();if(!ids.length){alert('
   const managerOpts=(usersData.manager||[]).map(m=>`<option value="${m.id}">Manager: ${m.username}</option>`).join('');
   const agentOpts=(usersData.agent||[]).map(a=>`<option value="${a.id}">Agent: ${a.username}</option>`).join('');
   const sel=document.getElementById('aaClient'); sel.innerHTML='<option value="">Please Select</option>'+managerOpts+agentOpts;
-  document.getElementById('aaPayterm').value='';document.getElementById('aaPayout').value='0';
+  document.getElementById('aaPayterm').value='weekly';document.getElementById('aaPayout').value='0';
   document.getElementById('aaCount').innerHTML=`<b>${ids.length}</b> numbers selected — Manager ya direct Agent ko allocate honge.`;
   document.getElementById('allocAllModal').classList.add('show');}
 async function confirmAllocAll(){const ids=getSelectedIds();const target=document.getElementById('aaClient').value,pt=document.getElementById('aaPayterm').value,po=document.getElementById('aaPayout').value;

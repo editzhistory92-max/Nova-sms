@@ -287,6 +287,7 @@ function createTables() {
   ensureColumn('sms_records', 'source', "TEXT DEFAULT 'carrier'");
   ensureColumn('sms_records', 'sender_type', "TEXT DEFAULT ''");
   ensureColumn('sms_records', 'otp_code', "TEXT DEFAULT ''");
+  ensureColumn('users', 'payment_type', "TEXT DEFAULT 'weekly'");
   ensureColumn('sms_records', 'payment_type', "TEXT DEFAULT ''");
   ensureColumn('ranges', 'payment_type', "TEXT DEFAULT 'weekly'");
   ensureColumn('numbers', 'import_batch_id', "TEXT DEFAULT ''");
