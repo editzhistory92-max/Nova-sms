@@ -752,7 +752,7 @@
 </div></div>
 
 
-<script src="/api.js?v=20260725-api-poller-cpu-fix"></script>
+<script src="/api.js?v=20260725-http-only-no-api-poller"></script>
 <script>
 /* auth guard — admin only */
 if(window.API){ API.guard('admin'); }
@@ -1735,16 +1735,6 @@ function exportCarrierLogsCsv(){
 }
 
 /* =============== API INTEGRATION =============== */
-let apiIntegrations=[];
-function resetApiIntegrationForm(){['apiIntId','apiIntName','apiIntUrl','apiIntToken'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});apiIntAuth.value='query_token';apiIntEnabled.value='1';apiIntTokenParam.value='token';apiIntTokenHeader.value='Authorization';apiIntInterval.value='5';apiIntDt1.value='dt1';apiIntDt2.value='dt2';apiIntRecordsParam.value='records';apiIntRecordsLimit.value='100';}
-async function loadApiIntegrations(){try{apiIntegrations=await API.get('/api-integrations');renderApiIntegrations();}catch(e){apiIntegrations=[];renderApiIntegrations();}}
-function renderApiIntegrations(){const b=document.getElementById('apiIntBody');if(!b)return;b.innerHTML=(apiIntegrations||[]).map(x=>`<tr><td><b>${x.name}</b></td><td class="mono" style="max-width:320px;overflow:hidden;text-overflow:ellipsis">${x.base_url}</td><td>${x.auth_type}</td><td>${x.token_masked||'—'}</td><td>${x.poll_interval_sec||5}s</td><td>${x.enabled?'<span class="tag tag-green">Enabled</span>':'<span class="tag tag-gray">Disabled</span>'}</td><td>${(x.last_success_at||'').slice(0,19)||'—'}</td><td class="msg-body">${x.last_error||''}</td><td style="white-space:nowrap"><button class="btn btn-blue btn-sm" onclick="editApiIntegration(${x.id})">Edit</button> <button class="btn btn-green btn-sm" onclick="fetchApiIntegrationNow(${x.id})">Fetch Now</button> <button class="btn btn-red btn-sm" onclick="deleteApiIntegration(${x.id})">Delete</button></td></tr>`).join('')||`<tr><td colspan="9" class="muted" style="text-align:center;padding:20px">No API connectors configured</td></tr>`;apiIntInfo.textContent=`${(apiIntegrations||[]).length} API connectors`;}
-function editApiIntegration(id){const x=(apiIntegrations||[]).find(r=>r.id===id);if(!x)return;apiIntId.value=x.id;apiIntName.value=x.name||'';apiIntUrl.value=x.base_url||'';apiIntAuth.value=x.auth_type||'query_token';apiIntEnabled.value=x.enabled?'1':'0';apiIntToken.value='';apiIntToken.placeholder=x.token_masked?'Leave blank to keep '+x.token_masked:'Token / API Key';apiIntTokenParam.value=x.token_param||'token';apiIntTokenHeader.value=x.token_header||'Authorization';apiIntInterval.value=x.poll_interval_sec||5;apiIntDt1.value=x.dt1_param||'dt1';apiIntDt2.value=x.dt2_param||'dt2';apiIntRecordsParam.value=x.records_param||'records';apiIntRecordsLimit.value=x.records_limit||100;window.scrollTo({top:0,behavior:'smooth'});}
-async function saveApiIntegration(){const body={name:apiIntName.value.trim(),base_url:apiIntUrl.value.trim(),enabled:apiIntEnabled.value==='1',auth_type:apiIntAuth.value,token:apiIntToken.value,token_param:apiIntTokenParam.value.trim()||'token',token_header:apiIntTokenHeader.value.trim()||'Authorization',poll_interval_sec:+(apiIntInterval.value||5),dt1_param:apiIntDt1.value.trim()||'dt1',dt2_param:apiIntDt2.value.trim()||'dt2',records_param:apiIntRecordsParam.value.trim()||'records',records_limit:+(apiIntRecordsLimit.value||100)};if(!body.name||!body.base_url){alert('Name and URL required');return;}try{if(apiIntId.value)await API.put('/api-integrations/'+apiIntId.value,body);else await API.post('/api-integrations',body);resetApiIntegrationForm();loadApiIntegrations();alert('✅ API connector saved');}catch(e){alert('❌ '+e.message)}}
-async function fetchApiIntegrationNow(id){try{const r=await API.post('/api-integrations/'+id+'/fetch',{});alert(`✅ Fetch done\nTotal: ${r.total||0}\nSaved: ${r.success||0}\nFailed: ${r.failed||0}\nDuplicate: ${r.duplicate||0}`);loadApiIntegrations();loadApiIntegrationLogs();}catch(e){alert('❌ '+e.message)}}
-async function deleteApiIntegration(id){if(!confirm('Delete this API connector?'))return;try{await API.del('/api-integrations/'+id);loadApiIntegrations();}catch(e){alert('❌ '+e.message)}}
-async function loadApiIntegrationLogs(){try{const rows=await API.get('/api-integration-logs?limit=500');const b=document.getElementById('apiIntLogBody');if(!b)return;b.innerHTML=(rows||[]).map(r=>`<tr><td>${(r.created_at||r.request_time||'').slice(0,19)}</td><td>${r.integration_name||'—'}</td><td>${r.status==='success'?'<span class="tag tag-green">Success</span>':(r.status==='duplicate'?'<span class="tag tag-amber">Duplicate</span>':'<span class="tag tag-red">Failed</span>')}</td><td>${r.reason||''}</td><td class="mono">${r.number||''}</td><td>${r.cli||''}</td><td class="mono">${r.provider_message_id||''}</td><td class="msg-body">${(r.message||'').slice(0,120)}</td></tr>`).join('')||`<tr><td colspan="8" class="muted" style="text-align:center;padding:20px">No API logs</td></tr>`;}catch(e){console.warn(e)}}
-
 /* =============== DATABASE BACKUPS =============== */
 let backupRows=[];
 function formatBytes(bytes){bytes=Number(bytes||0);if(bytes<1024)return bytes+' B';if(bytes<1024*1024)return (bytes/1024).toFixed(1)+' KB';return (bytes/1024/1024).toFixed(2)+' MB';}
@@ -2022,7 +2012,6 @@ async function loadAdminPageData(page){
     if(page==='cliLimit'){ await ensureAdminSms(); fillSelect('climCli',cliPool,false); await ensureAdminManagers(); fillSelect('climMgr',(usersData.manager||[]).map(m=>m.username),false); return loadCliLimits(); }
     if(page==='limitManagement'){ await ensureAdminRates(); return loadLimitManagement(); }
     if(page==='carrierIntegration') return loadCarrierSettings();
-    if(page==='apiIntegration'){ await loadApiIntegrations(); return loadApiIntegrationLogs(); }
     if(page==='systemLogs') return loadSystemLogs();
     if(page==='backupManagement') return loadBackups();
   }catch(e){console.warn('loadAdminPageData failed',page,e);}

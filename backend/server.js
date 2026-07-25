@@ -2324,6 +2324,9 @@ async function pollApiIntegrations(){
 }
 function startApiIntegrationPoller(){ if(apiPollTimer) return; apiPollTimer=setInterval(()=>pollApiIntegrations().catch(()=>{}),5000); if(apiPollTimer.unref) apiPollTimer.unref(); }
 
+app.use('/api/api-integrations', authRequired, requireRole('admin'), (req,res)=>res.status(410).json({error:'API Integration module removed. HTTP incoming integration remains active.'}));
+app.use('/api/api-integration-logs', authRequired, requireRole('admin'), (req,res)=>res.status(410).json({error:'API Integration module removed. HTTP incoming integration remains active.'}));
+// API Integration module removed from UI/runtime; old route definitions below are shadowed by the 410 handlers above.
 app.get('/api/api-integrations', authRequired, requireRole('admin'), (req,res)=>{
   res.json(db.all('SELECT * FROM api_integrations ORDER BY id DESC').map(publicApiIntegration));
 });
@@ -2510,7 +2513,11 @@ const PORT = process.env.PORT || 4000;
   createTables();
   seed();
   if (backup && backup.startAutomaticBackups) backup.startAutomaticBackups(db, console);
-  try { backfillPaymentLedger(); } catch(e) { console.warn('[PAYMENT_V2] backfill failed:', e.message); }
-  try { startApiIntegrationPoller(); console.log('• API Integration poller enabled: every 5 seconds'); } catch(e) { console.warn('[API_INTEGRATION] poller startup failed:', e.message); }
+  if (String(process.env.PAYMENT_LEDGER_BACKFILL_ON_STARTUP || 'false').toLowerCase() === 'true') {
+    try { backfillPaymentLedger(); } catch(e) { console.warn('[PAYMENT_V2] backfill failed:', e.message); }
+  } else {
+    console.log('• Payment ledger startup backfill disabled (new OTPs are recorded normally)');
+  }
+  console.log('• API Integration poller disabled (HTTP incoming only)');
   app.listen(PORT, () => console.log(`\n✅ Mufasa SMS backend running: http://localhost:${PORT}\n`));
 })();
