@@ -14,6 +14,8 @@ const DB_FILE = process.env.DB_FILE
   || (process.env.DATA_DIR ? path.join(process.env.DATA_DIR, 'data.sqlite') : null)
   || path.join(__dirname, 'data.sqlite');
 let SQL, db;
+let batchDepth = 0;
+let batchDirty = false;
 
 // initialize (async once at startup)
 async function init() {
@@ -35,6 +37,16 @@ function save() {
   const data = db.export();
   fs.mkdirSync(path.dirname(DB_FILE), { recursive: true });
   fs.writeFileSync(DB_FILE, Buffer.from(data));
+  batchDirty = false;
+}
+function autoSave() {
+  if (batchDepth > 0) { batchDirty = true; return; }
+  save();
+}
+function beginBatch() { batchDepth++; }
+function endBatch() {
+  if (batchDepth > 0) batchDepth--;
+  if (batchDepth === 0 && batchDirty) save();
 }
 
 // run a statement (INSERT/UPDATE/DELETE/DDL) with params
@@ -43,7 +55,7 @@ function run(sql, params = []) {
   stmt.bind(params);
   stmt.step();
   stmt.free();
-  save();
+  autoSave();
   // return lastInsertRowid
   const r = db.exec('SELECT last_insert_rowid() AS id');
   return { lastInsertRowid: r[0] ? r[0].values[0][0] : null };
@@ -92,7 +104,7 @@ function replaceWithFile(filePath) {
 
 function exec(sql) {
   db.exec(sql);
-  save();
+  autoSave();
 }
 function execNoSave(sql) {
   db.exec(sql);
@@ -110,4 +122,4 @@ function vacuum() {
   catch (e) { console.warn('VACUUM failed:', e.message); return false; }
 }
 
-module.exports = { init, run, runNoSave, exec, execNoSave, get, all, save, vacuum, exportBuffer, getDbFile, replaceWithFile };
+module.exports = { init, run, runNoSave, exec, execNoSave, get, all, save, beginBatch, endBatch, vacuum, exportBuffer, getDbFile, replaceWithFile };

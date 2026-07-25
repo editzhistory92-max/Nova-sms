@@ -386,6 +386,18 @@
     w.document.write('<!doctype html><html><head><title>'+safeTitle+'</title><style>body{font-family:Arial,sans-serif;padding:20px;color:#111}h2{margin:0 0 14px}table{border-collapse:collapse;width:100%;font-size:12px}th,td{border:1px solid #ccc;padding:7px;text-align:left;vertical-align:top}th{background:#f1f5f9}</style></head><body><h2>'+safeTitle+'</h2>'+table.outerHTML+'</body></html>');
     w.document.close(); w.focus(); setTimeout(()=>w.print(),300);
   }
+  async function waitNumberJob(jobId, initial={}){
+    showToast('Background job started');
+    let lastProgress=-1;
+    for(;;){
+      await new Promise(r=>setTimeout(r,600));
+      const job=await req('GET','/number-jobs/'+encodeURIComponent(jobId));
+      const p=Number(job.progress||0);
+      if(p!==lastProgress && (p===100 || p%10===0)){ showToast('Processing: '+p+'%'); lastProgress=p; }
+      if(job.status==='done') { showToast('Completed'); return {ok:true,total:job.total||job.processed||0,report:job.report||[],job_id:jobId,job}; }
+      if(job.status==='failed') throw new Error(job.error||'Background job failed');
+    }
+  }
   function showToast(text){
     const old=document.querySelector('.ms-toast'); if(old) old.remove();
     const t=document.createElement('div'); t.className='ms-toast'; t.textContent=text; document.body.appendChild(t);
@@ -566,13 +578,14 @@
     ukToday: () => ukDateString(new Date()),
     ukTimestamp: formatLocalFromDb,
     get: (p) => cachedGet(p),
-    post: async (p, b) => { clearGetCache(); return req('POST', p, b); },
+    post: async (p, b) => { clearGetCache(); const data=await req('POST', p, b); if(data && data.background && data.job_id) return waitNumberJob(data.job_id, data); return data; },
     put: async (p, b) => { clearGetCache(); return req('PUT', p, b); },
     del: async (p) => { clearGetCache(); return req('DELETE', p); },
     logout: async () => { try{ await req('POST','/logout',{}); }catch(e){} clearAuthStorage(); location.href = '/login'; },
     openSettings,
     openProfileMenu,
     paginateRows,
+    waitNumberJob,
   };
   function initLengthSelectObserver(){
     enhancePageSizeOptions(document);

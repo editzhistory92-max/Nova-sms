@@ -815,7 +815,7 @@ Pakistan Jazz
           <div class="stat-card dash-metric d-pink"><div class="stat-info"><p>Database File</p><h3 id="bkDbFile">—</h3><span>Active database path</span></div><div class="dash-go">●</div></div>
         </div>
         <div class="card" style="margin-bottom:16px">
-          <div class="card-head"><div><h3>Railway Volume Settings</h3><div class="sub">Use <b>DB_FILE=/data/data.sqlite</b> and <b>BACKUP_DIR=/data/backups</b> on Railway. Create a Railway Volume mounted at <b>/data</b>.</div></div></div>
+          <div class="card-head"><div><h3>VPS Backup Settings</h3><div class="sub">Current VPS setup stores automatic backups outside the app folder. Recommended: <b>BACKUP_DIR=/root/mufasa-sms-backups</b>.</div></div></div>
           <div class="hint">Automatic backups run every <b>BACKUP_INTERVAL_HOURS</b> hours and old backups are removed after <b>BACKUP_RETENTION_DAYS</b> days.</div>
         </div>
         <div class="table-wrap"><div class="tscroll"><table>
@@ -946,7 +946,7 @@ Pakistan Jazz
 </div></div>
 
 
-<script src="/api.js?v=20260725-payment-fixes"></script>
+<script src="/api.js?v=20260725-perf-bg-jobs"></script>
 <script>
 /* auth guard — management uses admin credentials */
 if(window.API){ API.guard('admin'); }

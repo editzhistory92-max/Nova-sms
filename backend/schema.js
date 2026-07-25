@@ -400,6 +400,9 @@ function createTables() {
   db.run(`CREATE INDEX IF NOT EXISTS idx_numbers_import_source ON numbers(import_source)`);
 
   db.run(`CREATE INDEX IF NOT EXISTS idx_numbers_number ON numbers(number)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_numbers_clean_phone ON numbers(REPLACE(REPLACE(REPLACE(REPLACE(number,'+',''),' ',''),'-',''),'_',''))`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_range_test_numbers_range_clean_phone ON range_test_numbers(range_id, REPLACE(REPLACE(REPLACE(REPLACE(test_number,'+',''),' ',''),'-',''),'_',''))`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_range_test_numbers_number ON range_test_numbers(test_number)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_numbers_range ON numbers(range_id)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_numbers_manager ON numbers(manager_id)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_numbers_agent ON numbers(agent_id)`);

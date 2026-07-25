@@ -24,13 +24,24 @@ app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 app.use(express.text({ type: ['text/plain', 'text/*', 'application/xml', 'application/octet-stream'], limit: '2mb' }));
 const upload = multer();
 const importJobs = new Map();
+const numberJobs = new Map();
 
 
 // Short in-memory GET cache: removes duplicate heavy queries during rapid UI navigation.
 // Any non-GET /api request clears this cache, so changes/incoming SMS are visible immediately after writes.
 const apiReadCache = new Map();
 function clearApiReadCache(){ try { apiReadCache.clear(); } catch (_) {} }
-app.use('/api', (req, res, next) => { if (req.method !== 'GET') clearApiReadCache(); next(); });
+app.use('/api', (req, res, next) => {
+  if (req.method !== 'GET') {
+    clearApiReadCache();
+    try { db.beginBatch && db.beginBatch(); } catch (_) {}
+    let ended = false;
+    const end = () => { if (ended) return; ended = true; try { db.endBatch && db.endBatch(); } catch (e) { console.warn('[DB_BATCH] save failed:', e.message); } };
+    res.on('finish', end);
+    res.on('close', end);
+  }
+  next();
+});
 function cachedJson(req, res, ttlMs, producer) {
   if (String(req.query._nocache || '') === '1') return res.json(producer());
   const uid = req.user ? `${req.user.id}:${req.user.role}` : 'anon';
@@ -377,7 +388,7 @@ function paymentCycleInfo(type, earnedAt){
 }
 function walletValid(v){ return /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(String(v||'').trim()); }
 function agentManagerId(agentId){ return db.get("SELECT parent_id FROM users WHERE id=? AND role='agent'",[agentId])?.parent_id || null; }
-function recordPaymentLedgerForSms(smsId){
+function recordPaymentLedgerForSms(smsId, persist=true){
   const srow=db.get(`SELECT s.id,s.agent_id,s.manager_id,s.range_id,s.payout_amount,s.received_at,COALESCE(NULLIF(s.payment_type,''), r.payment_type) AS payment_type FROM sms_records s LEFT JOIN ranges r ON r.id=s.range_id WHERE s.id=?`,[smsId]);
   if(!srow || !srow.agent_id || cents(srow.payout_amount)<=0) return;
   if(db.get('SELECT id FROM payment_ledger WHERE sms_record_id=?',[smsId])) return;
@@ -385,11 +396,12 @@ function recordPaymentLedgerForSms(smsId){
   db.runNoSave(`INSERT INTO payment_ledger (sms_record_id,agent_id,manager_id,range_id,payment_type,amount,earned_at,cycle_key,eligible_at,status)
     VALUES (?,?,?,?,?,?,?,?,?,'open')`, [srow.id,srow.agent_id,srow.manager_id||agentManagerId(srow.agent_id),srow.range_id,type,normalizeDecimalString(srow.payout_amount)||'0',srow.received_at,cyc.cycle_key,cyc.eligible_at]);
   db.runNoSave('UPDATE sms_records SET payment_type=? WHERE id=?',[type,smsId]);
-  db.save();
+  if(persist) db.save();
 }
 function backfillPaymentLedger(){
   const rows=db.all(`SELECT s.id FROM sms_records s LEFT JOIN payment_ledger l ON l.sms_record_id=s.id WHERE l.id IS NULL AND COALESCE(s.is_test,0)=0 AND s.agent_id IS NOT NULL AND CAST(COALESCE(NULLIF(s.payout_amount,''),'0') AS REAL)>0 ORDER BY s.id ASC LIMIT 5000`);
-  rows.forEach(r=>{ try{recordPaymentLedgerForSms(r.id)}catch(e){} });
+  rows.forEach(r=>{ try{recordPaymentLedgerForSms(r.id, false)}catch(e){} });
+  if(rows.length) db.save();
   if(rows.length) console.log('• Payment ledger backfilled:', rows.length);
 }
 function paymentOpenBalance(agentId,type,eligibleOnly=true){
@@ -468,7 +480,8 @@ app.post('/api/ranges/bulk-create', authRequired, requireRole('admin'), (req, re
   let inserted = 0, restored = 0, skipped = 0;
   const created = [], existing = [];
   try {
-    db.execNoSave('BEGIN');
+    // No long transaction here: job yields between chunks so other API calls remain responsive.
+    // Changes are persisted once at the end with db.save().
     for (const name of names) {
       const old = db.get("SELECT id, COALESCE(deleted_at,'') AS deleted_at FROM ranges WHERE lower(name)=lower(?) LIMIT 1", [name]);
       if (old) {
@@ -612,7 +625,7 @@ app.post('/api/ranges/import-test-bulk', authRequired, requireRole('admin'), upl
     if (!groups.length) return res.status(400).json({ error: 'No range/test-number blocks found. First line should be range name, followed by test numbers.' });
     const details = [];
     let inserted = 0, restored = 0, added_test_numbers = 0;
-    db.execNoSave('BEGIN');
+    // Process in chunks without a long transaction so other requests can run between chunks.
     try {
       for (const g of groups) {
         const r = upsertRangeWithTestNumbers(g.range_name, g.test_numbers, { currency: req.body?.currency || 'USD', payment_type: req.body?.payment_type || 'weekly' });
@@ -1096,7 +1109,8 @@ function deleteNumbersFromRows(rows, req, action, details = {}, deleteSms = fals
     throw e;
   }
 
-  const vacuum = db.vacuum();
+  // Do not VACUUM after every delete; it rewrites the whole DB and makes small delete/range actions feel frozen.
+  const vacuum = false;
   logAction(req, action, 'numbers', { ...details, count, linkedSms: smsCount, deleteSms: !!deleteSms });
   return { deleted: count, deleted_sms: deleteSms ? smsCount : 0, preserved_sms: deleteSms ? 0 : smsCount, vacuum };
 }
@@ -1210,61 +1224,111 @@ app.post('/api/numbers/unallocate-by-range', authRequired, (req, res) => {
   res.json({ ok:true, count: rows.length });
 });
 
-// smart divide: multi-range + multi-target, split UNALLOCATED evenly
-app.post('/api/numbers/smart-divide', authRequired, (req, res) => {
-  const { range_ids, target_ids, qty, payterm } = req.body || {};
-  if (!Array.isArray(range_ids) || !range_ids.length || !Array.isArray(target_ids) || !target_ids.length || !qty)
-    return res.status(400).json({ error: 'range_ids[], target_ids[], qty required' });
 
-  const wantRole = { admin: 'manager', manager: 'agent', agent: 'client' }[req.user.role];
-  const smart_divide_payment_type = normalizePaymentType(payterm || 'weekly');
-  // validate targets are children
-  for (const tid of target_ids) {
-    const t = db.get('SELECT * FROM users WHERE id=?', [tid]);
-    if (!t || t.role !== wantRole || t.parent_id !== req.user.id)
-      return res.status(403).json({ error: 'Invalid target(s)' });
-    if(wantRole==='agent') { try{ db.run('UPDATE users SET payment_type=? WHERE id=?',[smart_divide_payment_type,tid]); }catch(e){} }
-  }
+function makeNumberJobId(){ return 'NUMJOB-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).slice(2,8).toUpperCase(); }
+function setJob(job, patch){ Object.assign(job, patch, { updated_at: new Date().toISOString() }); return job; }
+function sleepImmediate(){ return new Promise(resolve => setImmediate(resolve)); }
+function chunkIds(ids, size=1000){ const out=[]; for(let i=0;i<ids.length;i+=size) out.push(ids.slice(i,i+size)); return out; }
+function auditJobAction(user, action, module, details={}){
+  try{ db.run('INSERT INTO audit_logs (user_id,username,role,action,module,details,ip) VALUES (?,?,?,?,?,?,?)', [user.id||null,user.username||'',user.role||'',action,module,safeJson(details),'background-job']); }catch(e){}
+}
+async function performSmartDivideJob(job){
+  const { user, range_ids, target_ids, qty, payterm } = job;
+  const wantRole = { admin: 'manager', manager: 'agent', agent: 'client' }[user.role];
   const col = { manager: 'manager_id', agent: 'agent_id', client: 'client_id' }[wantRole];
-  // "unallocated at this level" = the ownership column is null AND belongs to caller upstream
   let ownerCond = '1=1', ownerParams = [];
-  if (req.user.role === 'manager') { ownerCond = 'manager_id=?'; ownerParams = [req.user.id]; }
-  else if (req.user.role === 'agent') { ownerCond = 'agent_id=?'; ownerParams = [req.user.id]; }
-
-  let total = 0; const report = [];
-  for (const rid of range_ids) {
-    const pool = db.all(
-      `SELECT id FROM numbers WHERE range_id=? AND ${col} IS NULL AND ${ownerCond} LIMIT ?`,
-      [rid, ...ownerParams, qty]
-    );
-    const take = pool.length;
-    const perBase = Math.floor(take / target_ids.length);
-    let rem = take % target_ids.length, ptr = 0;
-    const split = target_ids.map(t => { const c = perBase + (rem > 0 ? 1 : 0); if (rem > 0) rem--; return { t, c }; });
-    for (const s of split) {
-      for (let k = 0; k < s.c; k++) {
-        const nid = pool[ptr++].id;
-        // set ownership + parent chain
-        if (wantRole === 'client') {
-          const agt = db.get('SELECT parent_id FROM users WHERE id=?', [s.t]);
-          const mgr = agt ? db.get('SELECT parent_id FROM users WHERE id=?', [agt.parent_id]) : null;
-          db.run('UPDATE numbers SET client_id=?, agent_id=?, manager_id=? WHERE id=?',
-            [s.t, agt ? agt.parent_id : null, mgr ? mgr.parent_id : null, nid]);
-        } else if (wantRole === 'agent') {
-          const mgr = db.get('SELECT parent_id FROM users WHERE id=?', [s.t]);
-          db.run("UPDATE numbers SET agent_id=?, manager_id=?, client_id=NULL, payout='0', rate='', payterm=? WHERE id=?", [s.t, mgr ? mgr.parent_id : null, smart_divide_payment_type, nid]);
-        } else {
-          db.run("UPDATE numbers SET manager_id=?, agent_id=NULL, client_id=NULL, payout='0', rate='' WHERE id=?", [s.t, nid]);
+  if (user.role === 'manager') { ownerCond = 'manager_id=?'; ownerParams = [user.id]; }
+  else if (user.role === 'agent') { ownerCond = 'agent_id=?'; ownerParams = [user.id]; }
+  const smartType = normalizePaymentType(payterm || 'weekly');
+  setJob(job,{status:'processing',started_at:new Date().toISOString(),progress:0,processed:0,total:0,message:'Selecting numbers'});
+  try{
+    if(wantRole==='agent') target_ids.forEach(tid=>db.runNoSave('UPDATE users SET payment_type=? WHERE id=?',[smartType,tid]));
+    const report=[]; let total=0; let planned=0;
+    // First pass counts selected IDs and keeps pools in memory; avoids DB save per number.
+    const rangePools=[];
+    for(const rid of range_ids){
+      const pool=db.all(`SELECT id FROM numbers WHERE range_id=? AND ${col} IS NULL AND ${ownerCond} LIMIT ?`, [rid, ...ownerParams, qty]).map(r=>r.id);
+      rangePools.push({rid,pool}); planned += pool.length;
+    }
+    setJob(job,{total:planned,message:'Updating allocations'});
+    // Process in chunks without a long transaction so other requests can run between chunks.
+    for(const {rid,pool} of rangePools){
+      const take=pool.length;
+      const perBase=Math.floor(take/target_ids.length); let rem=take%target_ids.length, ptr=0;
+      const split=target_ids.map(t=>{const c=perBase+(rem>0?1:0); if(rem>0)rem--; return {t,c};});
+      for(const sp of split){
+        const ids=pool.slice(ptr, ptr+sp.c); ptr += sp.c;
+        for(const part of chunkIds(ids, 1000)){
+          if(!part.length) continue;
+          const ph=part.map(()=>'?').join(',');
+          if(wantRole==='client'){
+            const agt=db.get('SELECT parent_id FROM users WHERE id=?',[sp.t]);
+            const mgr=agt?db.get('SELECT parent_id FROM users WHERE id=?',[agt.parent_id]):null;
+            db.runNoSave(`UPDATE numbers SET client_id=?, agent_id=?, manager_id=? WHERE id IN (${ph})`, [sp.t, agt?agt.parent_id:null, mgr?mgr.parent_id:null, ...part]);
+          } else if(wantRole==='agent'){
+            const mgr=db.get('SELECT parent_id FROM users WHERE id=?',[sp.t]);
+            db.runNoSave(`UPDATE numbers SET agent_id=?, manager_id=?, client_id=NULL, payout='0', rate='', payterm=? WHERE id IN (${ph})`, [sp.t, mgr?mgr.parent_id:null, smartType, ...part]);
+          } else {
+            db.runNoSave(`UPDATE numbers SET manager_id=?, agent_id=NULL, client_id=NULL, payout='0', rate='' WHERE id IN (${ph})`, [sp.t, ...part]);
+          }
+          total += part.length;
+          setJob(job,{processed:total,progress:planned?Math.floor(total/planned*100):100});
+          await sleepImmediate();
         }
       }
+      const rname=db.get('SELECT name FROM ranges WHERE id=?',[rid]);
+      report.push({range:rname?rname.name:rid,taken:take,split});
     }
-    total += take;
-    const rname = db.get('SELECT name FROM ranges WHERE id=?', [rid]);
-    report.push({ range: rname ? rname.name : rid, taken: take, split });
+    db.save(); clearApiReadCache();
+    auditJobAction(user,'smart_divide_numbers_background','numbers',{total,report,payterm:smartType});
+    setJob(job,{status:'done',progress:100,total,processed:total,report,completed_at:new Date().toISOString(),message:'Completed'});
+  }catch(e){
+    setJob(job,{status:'failed',error:e.message||String(e),completed_at:new Date().toISOString(),message:'Failed'});
   }
-  logAction(req,'smart_divide_numbers','numbers',{total,report});
-  res.json({ ok: true, total, report });
+}
+function validateSmartDivideTargets(user,wantRole,target_ids){
+  for (const tid of target_ids) {
+    const t = db.get('SELECT * FROM users WHERE id=?', [tid]);
+    if (!t || t.role !== wantRole || (user.role !== 'admin' && t.parent_id !== user.id)) return false;
+    if (user.role==='admin' && wantRole==='manager') continue;
+    if (user.role==='admin' && wantRole==='agent') continue;
+  }
+  return true;
+}
+app.get('/api/number-jobs/:jobId', authRequired, (req,res)=>{
+  const job=numberJobs.get(req.params.jobId);
+  if(!job) return res.status(404).json({error:'Number job not found'});
+  if(job.user.id!==req.user.id && req.user.role!=='admin') return res.status(403).json({error:'Not allowed'});
+  const {user, ...safe}=job;
+  res.json(safe);
 });
+
+// smart divide: multi-range + multi-target, split UNALLOCATED evenly
+app.post('/api/numbers/smart-divide', authRequired, async (req, res) => {
+  const { range_ids, target_ids, qty, payterm, background } = req.body || {};
+  if (!Array.isArray(range_ids) || !range_ids.length || !Array.isArray(target_ids) || !target_ids.length || !qty)
+    return res.status(400).json({ error: 'range_ids[], target_ids[], qty required' });
+  const cleanRangeIds=range_ids.map(x=>parseInt(x,10)).filter(x=>x>0);
+  const cleanTargetIds=target_ids.map(x=>parseInt(x,10)).filter(x=>x>0);
+  const cleanQty=Math.max(1, Math.min(parseInt(qty,10)||0, NUMBER_PAGE_MAX));
+  const wantRole = { admin: 'manager', manager: 'agent', agent: 'client' }[req.user.role];
+  if(!wantRole) return res.status(403).json({error:'Not allowed'});
+  if(!validateSmartDivideTargets(req.user,wantRole,cleanTargetIds)) return res.status(403).json({ error: 'Invalid target(s)' });
+  const estimated=cleanRangeIds.length*cleanQty;
+  const shouldBackground = background !== false && estimated >= 1000;
+  const job={job_id:makeNumberJobId(),type:'smart_divide',status:'queued',progress:0,processed:0,total:estimated,user:{id:req.user.id,username:req.user.username,role:req.user.role},range_ids:cleanRangeIds,target_ids:cleanTargetIds,qty:cleanQty,payterm:normalizePaymentType(payterm||'weekly'),created_at:new Date().toISOString(),updated_at:new Date().toISOString()};
+  numberJobs.set(job.job_id, job);
+  setImmediate(()=>performSmartDivideJob(job));
+  if(shouldBackground){
+    const {user,...safe}=job;
+    return res.json({ok:true,background:true,job_id:job.job_id,job:safe,message:'Number allocation started in background'});
+  }
+  // Small jobs: wait for completion but still yield internally so event loop stays responsive.
+  while(['queued','processing'].includes(job.status)) await new Promise(r=>setTimeout(r,50));
+  if(job.status==='failed') return res.status(500).json({ok:false,error:job.error||'Job failed',job_id:job.job_id});
+  res.json({ok:true,total:job.total||0,report:job.report||[],job_id:job.job_id});
+});
+
 
 /* ============ SMS RECORDS / CDR STATS ============ */
 function buildSmsPagedQuery(user, q = {}) {
@@ -1452,11 +1516,12 @@ function numberScopeWhere(user, alias = '') {
   if (user.role === 'client') return { where: `${p}client_id=?`, params: [user.id] };
   return { where: '1=1', params: [] };
 }
-app.get('/api/dashboard', authRequired, (req, res) => {
+app.get('/api/dashboard', authRequired, (req, res) => cachedJson(req, res, 2500, () => {
   const u = req.user;
   const smsScope = smsScopeWhere(u);
   const numScope = numberScopeWhere(u);
   const dExpr = ukDateExpr('received_at');
+  const sDExpr = ukDateExpr('s.received_at');
   const dtExpr = ukDateTimeExpr('received_at');
   const normalSms = 'COALESCE(is_test,0)=0';
   const today = db.get(`SELECT COUNT(*) c FROM sms_records WHERE ${smsScope.where} AND ${normalSms} AND ${dExpr}=${ukDateNowSql()}`, smsScope.params)?.c || 0;
@@ -1479,26 +1544,23 @@ app.get('/api/dashboard', authRequired, (req, res) => {
   } else if (u.role === 'agent') {
     clients = db.get(`SELECT COUNT(*) c FROM users WHERE role='client' AND parent_id=?`, [u.id])?.c || 0;
   }
-  const rows7 = smsRowsForScope(u, `${ukDateExpr('s.received_at')} >= ${ukDateNowSql('-6 days')}`);
-  const rowsMonth = smsRowsForScope(u, `strftime('%Y-%m',${ukDateTimeExpr('s.received_at')})=strftime('%Y-%m',datetime('now','${ukSqlModifier()}'))`);
+  const payout7 = normalizeDecimalString(db.get(`SELECT COALESCE(SUM(CAST(COALESCE(NULLIF(payout_amount,''),'0') AS REAL)),0) p FROM sms_records WHERE ${smsScope.where} AND ${normalSms} AND ${dExpr} >= ${ukDateNowSql('-6 days')}`, smsScope.params)?.p || '0') || '0';
+  const payoutMonth = normalizeDecimalString(db.get(`SELECT COALESCE(SUM(CAST(COALESCE(NULLIF(payout_amount,''),'0') AS REAL)),0) p FROM sms_records WHERE ${smsScope.where} AND ${normalSms} AND strftime('%Y-%m',${dtExpr})=strftime('%Y-%m',datetime('now','${ukSqlModifier()}'))`, smsScope.params)?.p || '0') || '0';
   const daily7 = [];
   for (let i = 6; i >= 0; i--) {
-    const r = db.get(`SELECT ${ukDateNowSql('-'+i+' days')} d, COUNT(*) c FROM sms_records WHERE ${smsScope.where} AND ${normalSms} AND ${ukDateExpr('received_at')}=${ukDateNowSql('-'+i+' days')}`, smsScope.params);
+    const r = db.get(`SELECT ${ukDateNowSql('-'+i+' days')} d, COUNT(*) c FROM sms_records WHERE ${smsScope.where} AND ${normalSms} AND ${dExpr}=${ukDateNowSql('-'+i+' days')}`, smsScope.params);
     daily7.push({ date: r?.d || '', count: r?.c || 0 });
   }
-  const recent = smsRowsForScope(u).slice(0,5).map(r=>({received_at:r.received_at,number:r.number,cli:r.cli,message:r.message,range_name:r.range_name,payout_rate:r.payout_rate}));
-  res.json({
-    sms_today: today,
-    sms_yesterday: yesterday,
-    sms_7d: d7,
-    sms_month: month,
-    payout_7d: sumPayout(rows7),
-    payout_month: sumPayout(rowsMonth),
-    managers, agents, clients, numbers,
-    daily7,
-    recent
-  });
-});
+  const recentRows = db.all(`SELECT s.*, r.name AS range_name, r.rate_1_1, r.rate_7_1, r.rate_7_7, r.rate_30_45, n.rate AS number_rate, n.payout AS number_payout, n.payterm AS payterm, r.payment_type AS payment_type
+    FROM sms_records s
+    LEFT JOIN numbers n ON n.id=s.number_id
+    LEFT JOIN ranges r ON r.id=s.range_id
+    WHERE ${smsScopeWhere(u,'s').where} AND COALESCE(s.is_test,0)=0
+    ORDER BY s.received_at DESC, s.id DESC LIMIT 5`, smsScopeWhere(u,'s').params);
+  const recent = attachSmsPayoutFields(recentRows).map(r=>({received_at:r.received_at,number:r.number,cli:r.cli,message:r.message,range_name:r.range_name,payout_rate:r.payout_rate}));
+  return { sms_today: today, sms_yesterday: yesterday, sms_7d: d7, sms_month: month, payout_7d: payout7, payout_month: payoutMonth, managers, agents, clients, numbers, daily7, recent };
+}));
+
 
 /* ============ NUMBER IMPORT (Admin only, background/batched) ============ */
 function makeImportJobId(){return 'IMPORT-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).slice(2,8).toUpperCase();}
