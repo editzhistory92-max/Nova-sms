@@ -113,17 +113,6 @@ function createTables() {
     received_at TEXT DEFAULT (datetime('now'))
   )`);
 
-  db.run(`CREATE TABLE IF NOT EXISTS payments (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id    INTEGER NOT NULL,     -- kis user ka payment
-    period     TEXT DEFAULT '',
-    weekly     REAL DEFAULT 0,
-    monthly    REAL DEFAULT 0,
-    status     TEXT DEFAULT 'Pending',  -- Paid | Pending
-    created_at TEXT DEFAULT (datetime('now')),
-    FOREIGN KEY (user_id) REFERENCES users(id)
-  )`);
-
   db.run(`CREATE TABLE IF NOT EXISTS cli_limits (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     cli        TEXT NOT NULL,
@@ -134,46 +123,96 @@ function createTables() {
     created_at TEXT DEFAULT (datetime('now'))
   )`);
 
-  db.run(`CREATE TABLE IF NOT EXISTS payment_config (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    cycle_type TEXT DEFAULT 'weekly',      -- weekly | biweekly | monthly | custom
-    start_day INTEGER DEFAULT 1,           -- 0=Sunday, 1=Monday...
-    end_day INTEGER DEFAULT 0,
-    release_day INTEGER DEFAULT 1,
-    custom_start TEXT DEFAULT '',
-    custom_end TEXT DEFAULT '',
-    custom_release TEXT DEFAULT '',
-    timezone TEXT DEFAULT 'UTC',
+
+
+
+
+  db.run(`CREATE TABLE IF NOT EXISTS payment_v2_settings (
+    payment_type TEXT PRIMARY KEY,
+    label TEXT DEFAULT '',
+    min_withdrawal TEXT DEFAULT '0',
+    active INTEGER DEFAULT 1,
+    sort_order INTEGER DEFAULT 0,
+    updated_at TEXT DEFAULT (datetime('now'))
+  )`);
+  const payTypes = [
+    ['daily','Daily','0',1,1],
+    ['weekly','Weekly','0',1,2],
+    ['monthly_30x45','Monthly (30x45)','0',1,3]
+  ];
+  payTypes.forEach(r => {
+    const ex = db.get('SELECT payment_type FROM payment_v2_settings WHERE payment_type=?', [r[0]]);
+    if (!ex) db.run('INSERT INTO payment_v2_settings (payment_type,label,min_withdrawal,active,sort_order) VALUES (?,?,?,?,?)', r);
+  });
+
+  db.run(`CREATE TABLE IF NOT EXISTS agent_wallets (
+    agent_id INTEGER PRIMARY KEY,
+    wallet_address TEXT DEFAULT '',
+    network TEXT DEFAULT 'USDT_TRC20',
     updated_at TEXT DEFAULT (datetime('now'))
   )`);
 
-  db.run(`CREATE TABLE IF NOT EXISTS withdrawal_requests (
+  db.run(`CREATE TABLE IF NOT EXISTS payment_ledger (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    user_role TEXT DEFAULT '',
+    sms_record_id INTEGER UNIQUE,
+    agent_id INTEGER NOT NULL,
     manager_id INTEGER,
-    amount REAL NOT NULL,
-    wallet_address TEXT NOT NULL,
-    payment_method TEXT DEFAULT 'Binance',
-    status TEXT DEFAULT 'Pending',          -- Pending | Forwarded | Approved | Rejected | Done
-    manager_note TEXT DEFAULT '',
-    admin_note TEXT DEFAULT '',
-    screenshot_url TEXT DEFAULT '',
-    created_at TEXT DEFAULT (datetime('now')),
-    forwarded_at TEXT,
-    approved_at TEXT,
-    rejected_at TEXT,
-    done_at TEXT,
-    FOREIGN KEY (user_id) REFERENCES users(id),
-    FOREIGN KEY (manager_id) REFERENCES users(id)
+    range_id INTEGER,
+    payment_type TEXT NOT NULL,
+    amount TEXT DEFAULT '0',
+    earned_at TEXT DEFAULT '',
+    cycle_key TEXT DEFAULT '',
+    eligible_at TEXT DEFAULT '',
+    status TEXT DEFAULT 'open', -- open | requested | paid | rejected
+    request_id INTEGER,
+    created_at TEXT DEFAULT (datetime('now'))
   )`);
 
-  const pc = db.get('SELECT COUNT(*) AS c FROM payment_config');
-  if (!pc || pc.c === 0) {
-    db.run(`INSERT INTO payment_config (cycle_type,start_day,end_day,release_day,timezone)
-            VALUES ('weekly',1,0,1,'UTC')`);
-  }
+  db.run(`CREATE TABLE IF NOT EXISTS payment_requests_v2 (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    agent_id INTEGER NOT NULL,
+    manager_id INTEGER,
+    payment_type TEXT NOT NULL,
+    amount TEXT DEFAULT '0',
+    wallet_address TEXT NOT NULL,
+    status TEXT DEFAULT 'Pending', -- Pending | Paid | Rejected
+    requested_at TEXT DEFAULT (datetime('now')),
+    paid_at TEXT,
+    rejected_at TEXT,
+    processed_by INTEGER,
+    txid TEXT DEFAULT '',
+    screenshot_url TEXT DEFAULT '',
+    admin_notes TEXT DEFAULT '',
+    reject_reason TEXT DEFAULT '',
+    created_at TEXT DEFAULT (datetime('now'))
+  )`);
 
+  db.run(`CREATE TABLE IF NOT EXISTS payment_audit_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    actor_id INTEGER,
+    actor_name TEXT DEFAULT '',
+    actor_role TEXT DEFAULT '',
+    action TEXT NOT NULL,
+    request_id INTEGER,
+    agent_id INTEGER,
+    manager_id INTEGER,
+    payment_type TEXT DEFAULT '',
+    amount TEXT DEFAULT '',
+    wallet_address TEXT DEFAULT '',
+    status TEXT DEFAULT '',
+    details TEXT DEFAULT '',
+    created_at TEXT DEFAULT (datetime('now'))
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS payment_notifications_v2 (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    agent_id INTEGER NOT NULL,
+    request_id INTEGER,
+    event TEXT DEFAULT '',
+    message TEXT DEFAULT '',
+    read_at TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+  )`);
 
   db.run(`CREATE TABLE IF NOT EXISTS audit_logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -248,6 +287,8 @@ function createTables() {
   ensureColumn('sms_records', 'source', "TEXT DEFAULT 'carrier'");
   ensureColumn('sms_records', 'sender_type', "TEXT DEFAULT ''");
   ensureColumn('sms_records', 'otp_code', "TEXT DEFAULT ''");
+  ensureColumn('sms_records', 'payment_type', "TEXT DEFAULT ''");
+  ensureColumn('ranges', 'payment_type', "TEXT DEFAULT 'weekly'");
   ensureColumn('numbers', 'import_batch_id', "TEXT DEFAULT ''");
   ensureColumn('numbers', 'import_source', "TEXT DEFAULT ''");
   ensureColumn('numbers', 'imported_by', 'INTEGER');
@@ -373,6 +414,11 @@ function createTables() {
   db.run(`CREATE INDEX IF NOT EXISTS idx_api_seen_key ON api_integration_seen(duplicate_key)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_api_logs_integration ON api_integration_logs(integration_id, created_at)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_api_logs_status ON api_integration_logs(status)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_payment_ledger_agent_type_status ON payment_ledger(agent_id, payment_type, status)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_payment_ledger_eligible ON payment_ledger(payment_type, eligible_at, status)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_payment_requests_agent_type_status ON payment_requests_v2(agent_id, payment_type, status)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_payment_requests_status ON payment_requests_v2(status, requested_at)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_payment_notifications_agent ON payment_notifications_v2(agent_id, read_at, created_at)`);
 
 }
 

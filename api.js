@@ -269,11 +269,12 @@
   }
   function basePathForRole(role=ROLE()){
     if(location.pathname.startsWith('/management')) return '/management';
+    if(location.pathname.startsWith('/payment')) return '/payment';
     return {admin:'/admin',manager:'/manager',agent:'/agent',client:'/client',test:'/test'}[role] || '/login';
   }
   function defaultPageForCurrentPanel(){ return location.pathname.startsWith('/management') ? 'rates' : 'dashboard'; }
   function pageUrl(page){ return basePathForRole() + '/' + encodeURIComponent(page || defaultPageForCurrentPanel()); }
-  function panelKeyForStorage(){ return location.pathname.startsWith('/management') ? 'management' : (ROLE()||''); }
+  function panelKeyForStorage(){ if(location.pathname.startsWith('/management')) return 'management'; if(location.pathname.startsWith('/payment')) return 'payment'; return (ROLE()||''); }
   function pageFromUrl(){
     const base=basePathForRole();
     const path=location.pathname.replace(/\/+$/,'');

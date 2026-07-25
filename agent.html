@@ -597,26 +597,18 @@
 
       <!-- PAYMENT SECTION -->
             <section class="page" id="page-payment">
-        <div class="page-head"><div><h2>Payment Section</h2><div class="breadcrumb"><b>Payments</b> › Earnings & Withdrawal</div></div></div>
+        <div class="page-head"><div><h2>Payment Section</h2><div class="breadcrumb"><b>Payments</b> › Wallet & Requests</div></div></div>
         <div class="stats-grid">
-          <div class="stat-card dash-metric d-blue"><div class="stat-info"><p>This Payment Cycle</p><h3 id="agtEarnThis">$0.00</h3><span id="agtCycleText">Current cycle</span></div><div class="dash-go">$</div></div>
-          <div class="stat-card dash-metric d-pink"><div class="stat-info"><p>Last Payment Cycle</p><h3 id="agtEarnLast">$0.00</h3><span>Previous cycle</span></div><div class="dash-go">$</div></div>
-          <div class="stat-card dash-metric d-green"><div class="stat-info"><p>This Month</p><h3 id="agtEarnMonth">$0.00</h3><span>Monthly earnings</span></div><div class="dash-go">$</div></div>
-          <div class="stat-card dash-metric d-orange"><div class="stat-info"><p>Lifetime Earnings</p><h3 id="agtEarnLife">$0.00</h3><span>All time</span></div><div class="dash-go">$</div></div>
+          <div class="stat-card dash-metric d-blue"><div class="stat-info"><p>Daily Balance</p><h3 id="agtDailyBal">$0</h3><span id="agtDailyMin">Minimum: $0</span></div><div class="dash-go">D</div></div>
+          <div class="stat-card dash-metric d-green"><div class="stat-info"><p>Weekly Balance</p><h3 id="agtWeeklyBal">$0</h3><span id="agtWeeklyMin">Minimum: $0</span></div><div class="dash-go">W</div></div>
+          <div class="stat-card dash-metric d-orange"><div class="stat-info"><p>Monthly Balance</p><h3 id="agtMonthlyBal">$0</h3><span id="agtMonthlyMin">Minimum: $0</span></div><div class="dash-go">M</div></div>
         </div>
         <div class="grid2">
-          <div class="card">
-            <div class="card-head"><div><h3>Submit Withdrawal Request</h3><div class="sub">Request will be reviewed by Manager and forwarded to Admin.</div></div></div>
-            <div class="form-grid"><div class="form-group"><label>Amount ($)</label><input type="number" id="agtWAmount" step="0.01" placeholder="0.00"/></div><div class="form-group"><label>Payment Method</label><select id="agtWMethod"><option>Binance</option><option>USDT TRC20</option><option>Bank</option></select></div></div>
-            <div class="form-group"><label>Binance Wallet Address</label><input id="agtWWallet" placeholder="Paste Binance wallet address"/></div>
-            <div class="hint"><b>Wallet Guide:</b> Binance → Wallet → Deposit → network/copy the address. Wallet address will be locked with the request.</div>
-            <button class="btn btn-blue" style="margin-top:12px" onclick="submitAgentWithdrawal()">Submit Request</button>
-          </div>
-          <div class="card"><div class="card-head"><div><h3>Workflow</h3><div class="sub">Pending → Manager Forward → Admin Approval → Done</div></div></div><div class="hint">Amount and wallet cannot be edited during approval.</div></div>
+          <div class="card"><div class="card-head"><div><h3>USDT (TRC20) Wallet</h3><div class="sub">Save your Binance USDT TRC20 deposit address.</div></div><button class="btn btn-blue btn-sm" onclick="openWalletHelp()">Help</button></div><div class="form-group"><label>Wallet Address</label><input id="agtWallet" placeholder="Txxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"></div><div class="hint">Warning: Using the wrong network or wallet address is the user's responsibility.</div><button class="btn btn-blue" style="margin-top:12px" onclick="saveAgentWallet()">Save Wallet</button></div>
+          <div class="card"><div class="card-head"><div><h3>Request Payment</h3><div class="sub">Only eligible balances can be requested.</div></div></div><div id="agtRequestButtons" class="row"></div><div id="agtPayNotifications" class="hint" style="margin-top:12px"></div></div>
         </div>
-        <div class="table-wrap" style="padding:15px 17px;margin-top:16px"><div class="table-controls"><div class="tc-left"><label>My Withdrawal Requests</label></div><div class="tc-right"><button class="btn btn-blue" onclick="loadAgentPayout()">Refresh</button></div></div></div>
-        <div class="table-wrap"><div class="tscroll"><table>
-          <thead><tr><th>ID</th><th>Amount</th><th>Method</th><th>Wallet</th><th>Status</th><th>Admin Note</th><th>Screenshot</th></tr></thead><tbody id="agtWBody"></tbody></table></div><div class="table-foot"><div class="info" id="agtWInfo"></div></div></div>
+        <div class="table-wrap" style="padding:15px 17px;margin-top:16px"><div class="table-controls"><div class="tc-left"><label>Payment History</label></div><div class="tc-right"><button class="btn btn-blue" onclick="loadAgentPayment()">Refresh</button></div></div></div>
+        <div class="table-wrap"><div class="tscroll"><table><thead><tr><th>ID</th><th>Type</th><th>Amount</th><th>Wallet</th><th>Status</th><th>Requested</th><th>TXID</th><th>Proof</th></tr></thead><tbody id="agtPayBody"></tbody></table></div><div class="table-foot"><div class="info" id="agtPayInfo"></div></div></div>
       </section>
     </div>
   </div>
@@ -664,7 +656,9 @@
   <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal('clientModal')">Cancel</button><button class="btn btn-blue" onclick="saveClient()">Save</button></div>
 </div></div>
 
-<script src="/api.js?v=20260722-full-cleanup-test-range-import"></script>
+
+<div class="modal-overlay" id="walletHelpModal"><div class="modal" style="max-width:720px"><div class="modal-head"><h3>How to copy Binance USDT (TRC20) wallet</h3><button class="modal-close" onclick="closeModal('walletHelpModal')">×</button></div><div class="modal-body"><div class="hint" style="margin-bottom:12px"><b>Warning:</b> Using the wrong network or wallet address is the user's responsibility.</div><div class="card"><b>Step 1</b><div class="hint">Open Binance → Wallet → Spot/Funding → Deposit.</div><div style="border:1px solid #ddd6fe;border-radius:12px;padding:12px;margin-top:8px;background:#faf5ff">Example Screenshot: Deposit → Select USDT</div></div><div class="card"><b>Step 2</b><div class="hint">Choose coin: USDT. Choose network: TRC20 / Tron.</div><div style="border:1px solid #ddd6fe;border-radius:12px;padding:12px;margin-top:8px;background:#faf5ff">Example Screenshot: Network TRC20 selected</div></div><div class="card"><b>Step 3</b><div class="hint">Copy the address starting with T and paste it here.</div><div style="border:1px solid #ddd6fe;border-radius:12px;padding:12px;margin-top:8px;background:#faf5ff">Example: Txxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</div></div></div></div></div>
+<script src="/api.js?v=20260723-payment-v2-clean"></script>
 <script>
 if(window.API){ API.guard('agent'); }
 /* NAV */
@@ -698,7 +692,6 @@ let cdr=[];
 let smsRecords=[];
 let testNumbers=[];
 let recentTests=[];
-let payData=[];
 function unique(arr){return [...new Set((arr||[]).filter(Boolean))];}
 function refreshClients(){myClients=unique((clientsData||[]).map(c=>c.username).concat((smsRecords||[]).map(r=>r.client_name)));}
 function smsToCdr(r){return {client:r.client_name||'—',range:r.range_name||'—',number:r.number||'',sms:1,pay:cleanDec(r.payout_amount||r.payout_rate||0),payout_rate:cleanDec(r.payout_rate||0),cli:r.cli||'',msg:r.message||'',date:(r.received_at||'').slice(0,19)};}
@@ -907,12 +900,6 @@ async function renderTest(){const rf=document.getElementById('testRange').value,
 }
 
 /* PAYMENT */
-function renderPay(){const len=document.getElementById('payLen').value,q=(document.getElementById('paySearch').value||'').toLowerCase();
-  let rows=payData.filter(r=>[r.wk,r.period].join(' ').toLowerCase().includes(q));const pag=API.paginateRows('agtPay',rows,len,'payInfo',renderPay);const t=pag.total;rows=pag.rows;
-  document.getElementById('payBody').innerHTML=rows.map(r=>`<tr><td><b>${r.wk}</b></td><td class="muted">${r.period}</td><td>${r.sms.toLocaleString()}</td><td>${r.rate}</td><td class="cell-money" style="color:#86efac">$ ${r.earn}</td>
-    <td>${r.st==='Paid'?'<span class="tag tag-green">Paid</span>':'<span class="tag tag-amber">Pending</span>'}</td></tr>`).join('');
-  document.getElementById('payInfo').textContent=`Showing ${rows.length} of ${t} weeks`;}
-
 /* NEWS (API) */
 
 
@@ -939,18 +926,23 @@ function baRow(i){const q=parseInt(document.getElementById('bq'+i).value),c=docu
 function baUn(i){const q=parseInt(document.getElementById('bu'+i).value),row=baData[i];if(!q||!row){alert('Enter quantity.');return;}const ids=(numData||[]).filter(n=>n.range===row.range&&n.client).slice(0,q).map(n=>n.id);if(!ids.length){alert('Allocated numbers were not found.');return;}API.post('/numbers/unallocate',{ids}).then(()=>{alert(`✅ ${ids.length} numbers unallocated.`);loadNumbers();}).catch(e=>alert('❌ '+e.message));}
 function doBulk(){const r=document.getElementById('baRange').value,c=document.getElementById('baClient').value,q=parseInt(document.getElementById('baQty').value);if(!r||!c||!q){alert('Range, Select client and quantity.');return;}const row=(rateCard||[]).find(x=>x.range===r),cl=(clientsData||[]).find(x=>x.username===c);if(!row||!cl)return;API.post('/numbers/smart-divide',{range_ids:[row.id],target_ids:[cl.id],qty:q}).then(res=>{alert(`✅ ${res.total||0} numbers allocated.`);document.getElementById('baQty').value='';loadNumbers();}).catch(e=>alert('❌ '+e.message));}
 
-/* CREDIT / WITHDRAWAL WORKFLOW */
-function payFmt(v){return '$'+cleanDec(v)}
-function wStatus(st){const cls={Pending:'tag-amber',Forwarded:'tag-blue',Approved:'tag-green',Rejected:'tag-red',Done:'tag-green'}[st]||'tag-gray';return `<span class="tag ${cls}">${st}</span>`;}
-async function loadAgentPayout(){
-  try{const e=await API.get('/earnings-summary');if(document.getElementById('agtEarnThis')){agtEarnThis.textContent=payFmt(e.cards.this_payment_cycle);agtEarnLast.textContent=payFmt(e.cards.last_payment_cycle);agtEarnMonth.textContent=payFmt(e.cards.this_month);agtEarnLife.textContent=payFmt(e.cards.lifetime);agtCycleText.textContent=`${e.current_cycle.start} → ${e.current_cycle.end}`;}}catch(e){}
-  try{const rows=await API.get('/withdrawals');const b=document.getElementById('agtWBody');if(!b)return;b.innerHTML=rows.map(r=>`<tr><td>#${r.id}</td><td class="cell-money">${payFmt(r.amount)}</td><td>${r.payment_method}</td><td class="mono">${r.wallet_address}</td><td>${wStatus(r.status)}</td><td>${r.admin_note||'—'}</td><td>${r.screenshot_url?`<a href="${r.screenshot_url}" target="_blank">View</a>`:'—'}</td></tr>`).join('')||`<tr><td colspan="7" class="muted" style="text-align:center;padding:20px">No withdrawal requests found</td></tr>`;agtWInfo.textContent=`${rows.length} requests`; }catch(e){console.warn(e)}
+/* PAYMENT V2 */
+function openWalletHelp(){document.getElementById('walletHelpModal').classList.add('show')}
+function payBal(b,type){return (b||[]).find(x=>x.payment_type===type)||{available_balance:'0',minimum:'0',can_request:false,label:type}}
+async function loadAgentPayment(){
+  const data=await API.get('/payment-v2/agent/summary');
+  if(document.getElementById('agtWallet')) agtWallet.value=data.wallet?.wallet_address||'';
+  const d=payBal(data.balances,'daily'), w=payBal(data.balances,'weekly'), m=payBal(data.balances,'monthly_30x45');
+  agtDailyBal.textContent='$'+d.available_balance;agtDailyMin.textContent='Minimum: $'+d.minimum;
+  agtWeeklyBal.textContent='$'+w.available_balance;agtWeeklyMin.textContent='Minimum: $'+w.minimum;
+  agtMonthlyBal.textContent='$'+m.available_balance;agtMonthlyMin.textContent='Minimum: $'+m.minimum;
+  agtRequestButtons.innerHTML=[d,w,m].map(x=>`<button class="btn ${x.can_request?'btn-green':'btn-ghost'}" ${x.can_request?'':'disabled'} onclick="requestPayment('${x.payment_type}')">Request ${x.label}</button>`).join(' ');
+  const rows=await API.get('/payment-v2/agent/requests');
+  agtPayBody.innerHTML=rows.map(r=>`<tr><td>#${r.id}</td><td>${r.payment_type}</td><td class="cell-money">$${r.amount}</td><td class="mono">${r.wallet_address}</td><td>${r.status}</td><td>${(r.requested_at||'').slice(0,19)}</td><td>${r.txid||'—'}</td><td>${r.screenshot_url?`<a href="${r.screenshot_url}" target="_blank">View</a>`:'—'}</td></tr>`).join('')||`<tr><td colspan="8" class="muted" style="text-align:center;padding:20px">No payment history</td></tr>`;agtPayInfo.textContent=`${rows.length} request(s)`;
+  const notes=await API.get('/payment-v2/agent/notifications').catch(()=>[]);agtPayNotifications.innerHTML=(notes||[]).slice(0,3).map(n=>`<div>• ${(n.created_at||'').slice(0,19)} — ${n.message}</div>`).join('')||'No payment notifications';
 }
-async function submitAgentWithdrawal(){
-  const amount=Number(document.getElementById('agtWAmount').value||0), wallet=document.getElementById('agtWWallet').value.trim(), method=document.getElementById('agtWMethod').value;
-  if(!amount||amount<=0){alert('Enter a valid amount');return;} if(!wallet){alert('Wallet address required');return;}
-  try{await API.post('/withdrawals',{amount,wallet_address:wallet,payment_method:method});agtWAmount.value='';agtWWallet.value='';alert('✅ Withdrawal request submit ho gayi');loadAgentPayout();}catch(e){alert('❌ '+e.message)}
-}
+async function saveAgentWallet(){try{await API.put('/payment-v2/agent/wallet',{wallet_address:agtWallet.value.trim()});alert('✅ Wallet saved');loadAgentPayment();}catch(e){alert('❌ '+e.message)}}
+async function requestPayment(type){if(!confirm('Submit '+type+' payment request?'))return;try{await API.post('/payment-v2/agent/request',{payment_type:type});alert('✅ Payment request submitted');loadAgentPayment();}catch(e){alert('❌ '+e.message)}}
 
 
 async function loadAgentPageData(page){
@@ -965,7 +957,7 @@ async function loadAgentPageData(page){
     if(page==='clientStats'){ if(!document.getElementById('csBody')) buildClientStats(); return loadSms(); }
     if(['rangeStats','numberStats'].includes(page)){ const k=page.replace('Stats',''); if(!document.getElementById(k+'Body')) buildDrill(k); return loadSms(); }
     if(page==='test'){ await loadRateCard(); await loadSms(); return renderTest(); }
-    if(page==='payment'){ renderPay(); return loadAgentPayout(); }
+    if(page==='payment') return loadAgentPayment();
   }catch(e){console.warn('loadAgentPageData failed',page,e);}
 }
 
@@ -1014,7 +1006,7 @@ async function loadAgentPageData(page){
     if(page==='clientStats'){ if(!document.getElementById('csBody')) buildClientStats(); return renderClientStats(); }
     if(['rangeStats','numberStats'].includes(page)){ const k=page.replace('Stats',''); if(!document.getElementById(k+'Body')) buildDrill(k); return renderDrill(k); }
     if(page==='test'){ await loadRateCard(); return renderTest(); }
-    if(page==='payment'){ renderPay(); return loadAgentPayout(); }
+    if(page==='payment') return loadAgentPayment();
   }catch(e){console.warn('loadAgentPageData failed',page,e);}
 }
 
@@ -1045,9 +1037,9 @@ async function renderDrill(kind){
 /* FAST PRIORITY INIT */
 loadProfile();loadDashboard();
 buildSmsReport();buildSmsDetail();
-renderTest();renderPay();
+renderTest();
 setTimeout(async()=>{try{await Promise.allSettled([loadRateCard(),loadClients()]);await Promise.allSettled([renderNumbers(),renderSmsReport()]);}catch(e){console.warn('agent critical preload failed',e)}},50);
-setTimeout(()=>{Promise.allSettled([loadAgentPayout()]);},1200);
+
 </script>
 
 </body>

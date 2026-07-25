@@ -511,7 +511,7 @@
             <div id="rangeFileInfo" class="hint" style="margin-top:12px"></div>
             <button class="btn btn-purple" style="margin-top:12px;width:100%" onclick="doImport('rangeFile')">Import Ranges</button>
             <button class="btn btn-ghost" style="margin-top:8px;width:100%" onclick="downloadRangeTemplate()">Download Sample Template</button>
-            <div class="hint" style="margin-top:10px;color:#5c6a86">Template columns: Range, Prefix, Test Number, Currency, 1/1, 7/1, 7/7, 30/45, Memo. Excel files should be saved/exported as CSV.</div>
+            <div class="hint" style="margin-top:10px;color:#5c6a86">Template columns: Range, Prefix, Test Number, Currency, Payment Type, 1/1, 7/1, 7/7, 30/45, Memo. Excel files should be saved/exported as CSV.</div>
           </div>
         </div>
 
@@ -579,7 +579,7 @@ Bangladesh
 Canada
 Egypt
 Nigeria"></textarea><div class="hint">Default rates will be NA. You can edit payout/currency later from the table below.</div></div>
-            <div class="form-group"><label>Default Currency</label><select id="bulkRangeCurrency"><option value="USD">USD</option><option value="EUR">EUR</option><option value="PKR">PKR</option></select><button class="btn btn-purple" style="width:100%;margin-top:10px" onclick="bulkCreateRanges()">Create All</button></div>
+            <div><div class="form-group"><label>Default Currency</label><select id="bulkRangeCurrency"><option value="USD">USD</option><option value="EUR">EUR</option><option value="PKR">PKR</option></select></div><div class="form-group"><label>Payment Type</label><select id="bulkRangePaymentType"><option value="daily">Daily</option><option value="weekly" selected>Weekly</option><option value="monthly_30x45">Monthly (30x45)</option></select></div><button class="btn btn-purple" style="width:100%;margin-top:10px" onclick="bulkCreateRanges()">Create All</button></div>
           </div>
         </div>
         <div class="card" style="margin-bottom:16px">
@@ -593,7 +593,7 @@ Nigeria"></textarea><div class="hint">Default rates will be NA. You can edit pay
               <input type="file" id="rangeTestBulkFile" accept=".txt,.csv,.xls,.xlsx" style="display:none" onchange="handleFile('rangeTestBulkFile','rangeTestBulkInfo')" />
               <div id="rangeTestBulkInfo" class="hint" style="margin-top:12px"></div>
             </div>
-            <div class="form-group"><label>Default Currency</label><select id="rangeTestBulkCurrency"><option value="USD">USD</option><option value="EUR">EUR</option><option value="PKR">PKR</option></select><button class="btn btn-purple" style="width:100%;margin-top:10px" onclick="importRangeTestBulkFile()">Create + Import Test Numbers</button></div>
+            <div><div class="form-group"><label>Default Currency</label><select id="rangeTestBulkCurrency"><option value="USD">USD</option><option value="EUR">EUR</option><option value="PKR">PKR</option></select></div><div class="form-group"><label>Payment Type</label><select id="rangeTestBulkPaymentType"><option value="daily">Daily</option><option value="weekly" selected>Weekly</option><option value="monthly_30x45">Monthly (30x45)</option></select></div><button class="btn btn-purple" style="width:100%;margin-top:10px" onclick="importRangeTestBulkFile()">Create + Import Test Numbers</button></div>
           </div>
           <pre style="background:#f8fafc;border:1px solid var(--border);border-radius:12px;padding:12px;margin-top:12px;color:#0f2454;white-space:pre-wrap">Nigeria MTN
 08031234567
@@ -613,7 +613,7 @@ Pakistan Jazz
           </div>
         </div>
         <div class="table-wrap"><div class="tscroll"><table>
-          <thead><tr><th>Range</th><th>Prefix</th><th>Test Number</th><th>Currency</th><th>1/1</th><th>7/1</th><th>7/7</th><th>30/45</th><th>Memo</th><th>Action</th></tr></thead>
+          <thead><tr><th>Range</th><th>Prefix</th><th>Test Number</th><th>Currency</th><th>Payment Type</th><th>1/1</th><th>7/1</th><th>7/7</th><th>30/45</th><th>Memo</th><th>Action</th></tr></thead>
           <tbody id="ratesBody"></tbody>
         </table></div>
           <div class="table-foot"><div class="info" id="ratesInfo"></div><div class="pagination"><button>‹</button><button class="active">1</button><button>2</button><button>3</button><button>›</button></div></div>
@@ -651,42 +651,6 @@ Pakistan Jazz
       <section class="page" id="page-numberStats"></section>
 
       <!-- ========== PAYMENTS ========== -->
-            <section class="page" id="page-payments">
-        <div class="page-head"><div><h2>Credit / Payout Management</h2><div class="breadcrumb"><b>System</b> › Credit / Payouts</div></div></div>
-        <div class="stats-grid">
-          <div class="stat-card dash-metric d-blue"><div class="stat-info"><p>This Payment Cycle</p><h3 id="admEarnThis">$0.00</h3><span id="admCycleText">Current cycle</span></div><div class="dash-go">$</div></div>
-          <div class="stat-card dash-metric d-pink"><div class="stat-info"><p>Last Payment Cycle</p><h3 id="admEarnLast">$0.00</h3><span>Previous cycle</span></div><div class="dash-go">$</div></div>
-          <div class="stat-card dash-metric d-green"><div class="stat-info"><p>This Month</p><h3 id="admEarnMonth">$0.00</h3><span>Monthly earnings</span></div><div class="dash-go">$</div></div>
-          <div class="stat-card dash-metric d-orange"><div class="stat-info"><p>Lifetime Earnings</p><h3 id="admEarnLife">$0.00</h3><span>All time</span></div><div class="dash-go">$</div></div>
-        </div>
-        <div class="card" style="margin-bottom:16px">
-          <div class="card-head"><div><h3>Withdrawal Requests</h3><div class="sub">Manager/Agent requests — Admin approval workflow</div></div><button class="btn btn-blue" onclick="loadAdminPayout()">Refresh</button></div>
-          <div class="table-wrap"><div class="tscroll"><table>
-            <thead><tr><th>ID</th><th>User</th><th>Role</th><th>Amount</th><th>Method</th><th>Wallet</th><th>Status</th><th>Screenshot URL</th><th>Action</th></tr></thead>
-            <tbody id="admWBody"></tbody>
-          </table></div><div class="table-foot"><div class="info" id="admWInfo"></div></div></div>
-        </div>
-      </section>
-
-
-      <section class="page" id="page-paymentConfig">
-        <div class="page-head"><div><h2>Payment Configuration</h2><div class="breadcrumb"><b>System</b> › Payment Cycle</div></div></div>
-        <div class="card">
-          <div class="card-head"><div><h3>Configure Dynamic Payment Cycle</h3><div class="sub">Set weekly, bi-weekly, monthly or custom cycles. Dashboard and earnings use this configuration.</div></div></div>
-          <div class="form-grid" style="grid-template-columns:repeat(3,1fr);gap:14px">
-            <div class="form-group"><label>Cycle Type</label><select id="pcType"><option value="weekly">Weekly</option><option value="biweekly">Bi-weekly</option><option value="monthly">Monthly</option><option value="custom">Custom</option></select></div>
-            <div class="form-group"><label>Cycle Start Day</label><select id="pcStartDay"><option value="1">Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option><option value="0">Sunday</option></select></div>
-            <div class="form-group"><label>Payment Release Day</label><select id="pcReleaseDay"><option value="1">Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option><option value="0">Sunday</option></select></div>
-          </div>
-          <div class="form-grid" style="grid-template-columns:repeat(3,1fr);gap:14px">
-            <div class="form-group"><label>Custom Start Date</label><input type="date" id="pcCustomStart" /></div>
-            <div class="form-group"><label>Custom End Date</label><input type="date" id="pcCustomEnd" /></div>
-            <div class="form-group"><label>Custom Release Date</label><input type="date" id="pcCustomRelease" /></div>
-          </div>
-          <div class="hint" id="pcInfo" style="margin-bottom:12px"></div>
-          <button class="btn btn-purple" onclick="savePaymentConfig()">Save Payment Configuration</button>
-        </div>
-      </section>
 
       <section class="page" id="page-carrierIntegration">
         <div class="page-head"><div><h2>Carrier Integration</h2><div class="breadcrumb"><b>System Master</b> › Carrier HTTP Settings</div></div></div>
@@ -941,7 +905,7 @@ Pakistan Jazz
   <div class="modal-body">
     <div class="form-group"><label>Range Name <span class="req">*</span></label><input type="text" id="rName" placeholder="e.g. Palestine Jawwal GO02" /></div>
     <div class="form-grid"><div class="form-group"><label>Prefix</label><input type="text" id="rPrefix" placeholder="Optional" /></div><div class="form-group"><label>Test Numbers (separate from SMS Numbers)</label><textarea id="rTest" placeholder="Enter 2-3 test numbers, comma or new line separated" style="width:100%;min-height:70px;border:1px solid var(--border2);border-radius:9px;padding:10px"></textarea><div class="hint">These numbers are for the Test Panel only and should not be imported as SMS Numbers.</div></div></div>
-    <div class="form-group"><label>Currency</label><select id="rCur"><option>USD</option><option>EUR</option><option>PKR</option></select></div>
+    <div class="form-grid"><div class="form-group"><label>Currency</label><select id="rCur"><option>USD</option><option>EUR</option><option>PKR</option></select></div><div class="form-group"><label>Payment Type</label><select id="rPaymentType"><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly_30x45">Monthly (30x45)</option></select></div></div>
     <div class="form-grid">
       <div class="form-group"><label>Rate 1/1</label><input type="text" id="r1" placeholder="0.013 or NA" /></div>
       <div class="form-group"><label>Rate 7/1</label><input type="text" id="r2" placeholder="0.013 or NA" /></div>
@@ -982,7 +946,7 @@ Pakistan Jazz
 </div></div>
 
 
-<script src="/api.js?v=20260722-full-cleanup-test-range-import"></script>
+<script src="/api.js?v=20260723-payment-v2-clean"></script>
 <script>
 /* auth guard — management uses admin credentials */
 if(window.API){ API.guard('admin'); }
@@ -1100,13 +1064,14 @@ fillSelect('allocManager',managers.map(m=>m+' (Manager)'));
 
 /* =============== RATES (API-backed) =============== */
 function fmtRate(v){return v==='NA'||v===''?'<span class="muted">NA</span>':'<span class="cell-money">$ '+v+'</span>';}
+function paymentTypeText(v){return ({daily:'Daily',weekly:'Weekly',monthly_30x45:'Monthly (30x45)'})[v||'weekly']||'Weekly';}
 async function loadRates(){ try{ ratesData = await API.get('/ranges'); }catch(e){ ratesData=[]; } renderRates(); }
 function renderRates(){
   const len=document.getElementById('rateLen').value,q=(document.getElementById('rateSearch').value||'').toLowerCase();
   let rows=(ratesData||[]).filter(r=>(r.name||'').toLowerCase().includes(q)||(r.test_number||'').includes(q));
   const pag=API.paginateRows('adminRates',rows,len,'ratesInfo',renderRates);const total=pag.total;rows=pag.rows;
   document.getElementById('ratesBody').innerHTML=rows.map(r=>`<tr>
-    <td><b>${r.name}</b></td><td class="muted">${r.prefix||'—'}</td><td>${r.test_number||'—'}</td><td><span class="tag tag-green">${r.currency}</span></td>
+    <td><b>${r.name}</b></td><td class="muted">${r.prefix||'—'}</td><td>${r.test_number||'—'}</td><td><span class="tag tag-green">${r.currency}</span></td><td><span class="tag tag-blue">${paymentTypeText(r.payment_type)}</span></td>
     <td>${fmtRate(r.rate_1_1)}</td><td>${fmtRate(r.rate_7_1)}</td><td>${fmtRate(r.rate_7_7)}</td><td>${fmtRate(r.rate_30_45)}</td><td class="muted">${r.memo||'—'}</td>
     <td style="white-space:nowrap"><button class="btn btn-amber btn-sm" onclick="openRateModal(${r.id})">Set Rate</button>
     <button class="icon-btn btn-red" onclick="delRate(${r.id})"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button></td></tr>`).join('');
@@ -1114,11 +1079,11 @@ function renderRates(){
 }
 let editRateId=-1;
 function openRateModal(id){editRateId=id;document.getElementById('rateModalTitle').textContent=id<0?'Add Range':'Set Range Rate';
-  const r=id<0?{name:'',prefix:'',test_number:'',currency:'USD',rate_1_1:'',rate_7_1:'',rate_7_7:'',rate_30_45:'',memo:''}:(ratesData.find(x=>x.id===id)||{});
-  rName.value=r.name||'';rPrefix.value=r.prefix||'';rTest.value=r.test_numbers||r.test_number||'';rCur.value=r.currency||'USD';r1.value=r.rate_1_1||'';r2.value=r.rate_7_1||'';r3.value=r.rate_7_7||'';r4.value=r.rate_30_45||'';rMemo.value=r.memo||'';
+  const r=id<0?{name:'',prefix:'',test_number:'',currency:'USD',payment_type:'weekly',rate_1_1:'',rate_7_1:'',rate_7_7:'',rate_30_45:'',memo:''}:(ratesData.find(x=>x.id===id)||{});
+  rName.value=r.name||'';rPrefix.value=r.prefix||'';rTest.value=r.test_numbers||r.test_number||'';rCur.value=r.currency||'USD';if(document.getElementById('rPaymentType'))rPaymentType.value=r.payment_type||'weekly';r1.value=r.rate_1_1||'';r2.value=r.rate_7_1||'';r3.value=r.rate_7_7||'';r4.value=r.rate_30_45||'';rMemo.value=r.memo||'';
   document.getElementById('rateModal').classList.add('show');}
 async function saveRate(){if(!rName.value.trim()){alert('Range name is required.');return;}
-  const body={name:rName.value.trim(),prefix:rPrefix.value.trim(),test_number:rTest.value.trim(),test_numbers:rTest.value.trim(),currency:rCur.value,rate_1_1:r1.value.trim()||'NA',rate_7_1:r2.value.trim()||'NA',rate_7_7:r3.value.trim()||'NA',rate_30_45:r4.value.trim()||'NA',memo:rMemo.value.trim()};
+  const body={name:rName.value.trim(),prefix:rPrefix.value.trim(),test_number:rTest.value.trim(),test_numbers:rTest.value.trim(),currency:rCur.value,rate_1_1:r1.value.trim()||'NA',rate_7_1:r2.value.trim()||'NA',rate_7_7:r3.value.trim()||'NA',rate_30_45:r4.value.trim()||'NA',memo:rMemo.value.trim(),payment_type:(document.getElementById('rPaymentType')?.value||'weekly')};
   try{ if(editRateId<0) await API.post('/ranges',body); else await API.put('/ranges/'+editRateId,body); closeModal('rateModal'); loadRates(); }catch(e){ alert('❌ '+e.message); }
 }
 async function importRangeTestBulkFile(){
@@ -1127,6 +1092,7 @@ async function importRangeTestBulkFile(){
   const fd=new FormData();
   fd.append('file',file);
   fd.append('currency',document.getElementById('rangeTestBulkCurrency')?.value||'USD');
+  fd.append('payment_type',document.getElementById('rangeTestBulkPaymentType')?.value||'weekly');
   try{
     const token=sessionStorage.getItem('ms_token');
     const res=await fetch('/api/ranges/import-test-bulk',{method:'POST',headers:{Authorization:'Bearer '+token},body:fd});
@@ -1146,11 +1112,12 @@ Test numbers added: ${data.added_test_numbers||0}`);
 async function bulkCreateRanges(){
   const text=(document.getElementById('bulkRangeNames')?.value||'').trim();
   const currency=document.getElementById('bulkRangeCurrency')?.value||'USD';
+  const payment_type=document.getElementById('bulkRangePaymentType')?.value||'weekly';
   if(!text){alert('Enter range names first.');return;}
   const names=text.split(/[\r\n,;]+/).map(x=>x.trim()).filter(Boolean);
   if(!names.length){alert('Enter valid range names.');return;}
   try{
-    const r=await API.post('/ranges/bulk-create',{names,currency});
+    const r=await API.post('/ranges/bulk-create',{names,currency,payment_type});
     alert(`✅ Bulk range creation complete.
 Inserted: ${r.inserted||0}
 Restored: ${r.restored||0}
@@ -1331,7 +1298,7 @@ function parseTableText(text){
   return lines.slice(1).map(line=>{const vals=line.split(delim);const o={};headers.forEach((h,i)=>o[h]=String(vals[i]||'').trim());return o;});
 }
 function downloadRangeTemplate(){
-  const csv='Range,Prefix,Test Number,Currency,1/1,7/1,7/7,30/45,Memo\nNigeria MS 01,,,USD,NA,0.01,NA,0.01,\nMTN Nigeria,,,USD,NA,0.01,NA,0.01,';
+  const csv='Range,Prefix,Test Number,Currency,Payment Type,1/1,7/1,7/7,30/45,Memo\nNigeria MS 01,,,USD,weekly,NA,0.01,NA,0.01,\nMTN Nigeria,,,USD,daily,NA,0.01,NA,0.01,';
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='ranges-import-template.csv';a.click();URL.revokeObjectURL(a.href);
 }
 async function doImport(inputId){const f=document.getElementById(inputId).files[0];
@@ -1707,15 +1674,6 @@ function renderDrillStats(kind){
 }
 
 /* =============== PAYMENTS (API-backed) =============== */
-let payData=[];
-async function loadPayments(){ try{ payData=await API.get('/payments'); }catch(e){ payData=[]; } renderPayments(); }
-function renderPayments(){const len=document.getElementById('payLen').value,q=(document.getElementById('paySearch').value||'').toLowerCase();
-  let rows=(payData||[]).filter(r=>(r.username||'').toLowerCase().includes(q));const pag=API.paginateRows('adminPayments',rows,len,'payInfo',renderPayments);const total=pag.total;rows=pag.rows;
-  document.getElementById('payBody').innerHTML=rows.map(r=>`<tr><td><b>${r.username}</b></td><td class="muted">${r.period}</td><td class="cell-money">${money(r.weekly||0)}</td><td class="cell-money">${money(r.monthly||0)}</td>
-    <td>${r.status==='Paid'?'<span class="tag tag-green">Paid</span>':'<span class="tag tag-amber">Pending</span>'}</td>
-    <td><button class="btn btn-green btn-sm" onclick="alert('Payout processed for ${r.username} .')">Pay</button> <button class="btn btn-ghost btn-sm" onclick="alert('View credit note for ${r.username}')">View</button></td></tr>`).join('')||`<tr><td colspan="6" class="muted" style="text-align:center;padding:24px">No payment records found</td></tr>`;
-  document.getElementById('payInfo').textContent=`Showing ${rows.length} of ${total} records`;}
-
 /* =============== SMS TEST PANEL (CLI masking) =============== */
 function maskCLI(cli){ if(!cli) return ''; if(cli.length<=2) return cli; return cli.slice(0,2)+'x'.repeat(cli.length-2); }
 function normPhone(v){return String(v||'').replace(/[^0-9]/g,'');}
@@ -1905,33 +1863,6 @@ async function loadSmsRecords(){
 /* =============== CREDIT / PAYOUT + CONFIG + INTEGRATION =============== */
 function payFmt(v){return '$'+cleanDec(v)}
 function statusTag(st){const cls={Pending:'tag-amber',Forwarded:'tag-blue',Approved:'tag-green',Rejected:'tag-red',Done:'tag-green'}[st]||'tag-gray';return `<span class="tag ${cls}">${st}</span>`;}
-async function loadAdminPayout(){
-  try{const e=await API.get('/earnings-summary');
-    if(document.getElementById('admEarnThis')){
-      admEarnThis.textContent=payFmt(e.cards.this_payment_cycle);admEarnLast.textContent=payFmt(e.cards.last_payment_cycle);admEarnMonth.textContent=payFmt(e.cards.this_month);admEarnLife.textContent=payFmt(e.cards.lifetime);
-      admCycleText.textContent=`${e.current_cycle.start} → ${e.current_cycle.end} · Release: ${e.current_cycle.release}`;
-    }}catch(err){}
-  try{const rows=await API.get('/withdrawals');
-    const body=document.getElementById('admWBody'); if(!body)return;
-    body.innerHTML=rows.map(r=>`<tr><td>#${r.id}</td><td><b>${r.username}</b></td><td>${r.role}</td><td class="cell-money">${payFmt(r.amount)}</td><td>${r.payment_method}</td><td class="mono">${r.wallet_address}</td><td>${statusTag(r.status)}</td><td><input id="shot${r.id}" placeholder="optional screenshot URL" value="${r.screenshot_url||''}" style="min-width:180px"/></td><td style="white-space:nowrap">${r.status==='Forwarded'?`<button class="btn btn-green btn-sm" onclick="adminWithdrawalAction(${r.id},'Approved')">Approve</button> <button class="btn btn-red btn-sm" onclick="adminWithdrawalAction(${r.id},'Rejected')">Reject</button>`:''} ${r.status==='Approved'?`<button class="btn btn-blue btn-sm" onclick="adminWithdrawalAction(${r.id},'Done')">Done</button>`:''}</td></tr>`).join('')||`<tr><td colspan="9" class="muted" style="text-align:center;padding:20px">No withdrawal requests found</td></tr>`;
-    document.getElementById('admWInfo').textContent=`${rows.length} withdrawal requests`;
-  }catch(e){console.warn(e)}
-}
-async function adminWithdrawalAction(id,status){
-  const screenshot=document.getElementById('shot'+id)?.value||'';
-  const note=prompt(status+' note (optional):','')||'';
-  try{await API.post('/withdrawals/'+id+'/status',{status,admin_note:note,screenshot_url:screenshot});loadAdminPayout();}catch(e){alert('❌ '+e.message)}
-}
-async function loadPaymentConfig(){
-  try{const r=await API.get('/payment-config');const c=r;
-    if(!document.getElementById('pcType'))return;
-    pcType.value=c.cycle_type||'weekly';pcStartDay.value=String(c.start_day??1);pcReleaseDay.value=String(c.release_day??1);pcCustomStart.value=c.custom_start||'';pcCustomEnd.value=c.custom_end||'';pcCustomRelease.value=c.custom_release||'';
-    pcInfo.textContent=`Current: ${r.current_cycle.start} → ${r.current_cycle.end}, release: ${r.current_cycle.release}. Last: ${r.last_cycle.start} → ${r.last_cycle.end}`;
-  }catch(e){console.warn(e)}
-}
-async function savePaymentConfig(){
-  try{await API.put('/payment-config',{cycle_type:pcType.value,start_day:+pcStartDay.value,release_day:+pcReleaseDay.value,custom_start:pcCustomStart.value,custom_end:pcCustomEnd.value,custom_release:pcCustomRelease.value});alert('✅ Payment configuration saved');loadPaymentConfig();loadAdminPayout();}catch(e){alert('❌ '+e.message)}
-}
 /* =============== NOTIFICATION RULES + SYSTEM LOGS =============== */
 function miniEsc(v){return String(v??'').replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));}
 function showLogTab(t){
@@ -2352,8 +2283,6 @@ async function loadAdminPageData(page){
     if(page==='import'){ await ensureAdminRates(); await loadImportBatches(); return refreshNumberDbTools(); }
     if(page==='cliLimit'){ await ensureAdminSms(); fillSelect('climCli',cliPool,false); await ensureAdminManagers(); fillSelect('climMgr',(usersData.manager||[]).map(m=>m.username),false); return loadCliLimits(); }
     if(page==='limitManagement'){ await ensureAdminRates(); return loadLimitManagement(); }
-    if(page==='payments'){ await loadPayments(); return loadAdminPayout(); }
-    if(page==='paymentConfig') return loadPaymentConfig();
     if(page==='carrierIntegration') return loadCarrierSettings();
     if(page==='apiIntegration'){ await loadApiIntegrations(); return loadApiIntegrationLogs(); }
     if(page==='systemLogs') return loadSystemLogs();

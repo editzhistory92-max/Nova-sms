@@ -466,10 +466,6 @@
         <div class="sub-item" data-page="rangeStats"><span class="dot"></span> Range Stats</div>
         <div class="sub-item" data-page="numberStats"><span class="dot"></span> Number Stats</div>
       </div>
-
-      <div class="sb-section">Payments</div>
-      <div class="nav-item" data-page="payments"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg><span>Credit / Payouts</span></div>
-      <div class="nav-item" data-page="paymentConfig"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span>Payment Configuration</span></div>
     </nav>
   </aside>
   <div class="overlay" id="overlay" onclick="closeSidebar()"></div>
@@ -626,42 +622,6 @@
       <section class="page" id="page-numberStats"></section>
 
       <!-- ========== PAYMENTS ========== -->
-            <section class="page" id="page-payments">
-        <div class="page-head"><div><h2>Credit / Payout Management</h2><div class="breadcrumb"><b>System</b> › Credit / Payouts</div></div></div>
-        <div class="stats-grid">
-          <div class="stat-card dash-metric d-blue"><div class="stat-info"><p>This Payment Cycle</p><h3 id="admEarnThis">$0.00</h3><span id="admCycleText">Current cycle</span></div><div class="dash-go">$</div></div>
-          <div class="stat-card dash-metric d-pink"><div class="stat-info"><p>Last Payment Cycle</p><h3 id="admEarnLast">$0.00</h3><span>Previous cycle</span></div><div class="dash-go">$</div></div>
-          <div class="stat-card dash-metric d-green"><div class="stat-info"><p>This Month</p><h3 id="admEarnMonth">$0.00</h3><span>Monthly earnings</span></div><div class="dash-go">$</div></div>
-          <div class="stat-card dash-metric d-orange"><div class="stat-info"><p>Lifetime Earnings</p><h3 id="admEarnLife">$0.00</h3><span>All time</span></div><div class="dash-go">$</div></div>
-        </div>
-        <div class="card" style="margin-bottom:16px">
-          <div class="card-head"><div><h3>Withdrawal Requests</h3><div class="sub">Manager/Agent requests — Admin approval workflow</div></div><button class="btn btn-blue" onclick="loadAdminPayout()">Refresh</button></div>
-          <div class="table-wrap"><div class="tscroll"><table>
-            <thead><tr><th>ID</th><th>User</th><th>Role</th><th>Amount</th><th>Method</th><th>Wallet</th><th>Status</th><th>Screenshot URL</th><th>Action</th></tr></thead>
-            <tbody id="admWBody"></tbody>
-          </table></div><div class="table-foot"><div class="info" id="admWInfo"></div></div></div>
-        </div>
-      </section>
-
-
-      <section class="page" id="page-paymentConfig">
-        <div class="page-head"><div><h2>Payment Configuration</h2><div class="breadcrumb"><b>System</b> › Payment Cycle</div></div></div>
-        <div class="card">
-          <div class="card-head"><div><h3>Configure Dynamic Payment Cycle</h3><div class="sub">Set weekly, bi-weekly, monthly or custom cycles. Dashboard and earnings use this configuration.</div></div></div>
-          <div class="form-grid" style="grid-template-columns:repeat(3,1fr);gap:14px">
-            <div class="form-group"><label>Cycle Type</label><select id="pcType"><option value="weekly">Weekly</option><option value="biweekly">Bi-weekly</option><option value="monthly">Monthly</option><option value="custom">Custom</option></select></div>
-            <div class="form-group"><label>Cycle Start Day</label><select id="pcStartDay"><option value="1">Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option><option value="0">Sunday</option></select></div>
-            <div class="form-group"><label>Payment Release Day</label><select id="pcReleaseDay"><option value="1">Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option><option value="0">Sunday</option></select></div>
-          </div>
-          <div class="form-grid" style="grid-template-columns:repeat(3,1fr);gap:14px">
-            <div class="form-group"><label>Custom Start Date</label><input type="date" id="pcCustomStart" /></div>
-            <div class="form-group"><label>Custom End Date</label><input type="date" id="pcCustomEnd" /></div>
-            <div class="form-group"><label>Custom Release Date</label><input type="date" id="pcCustomRelease" /></div>
-          </div>
-          <div class="hint" id="pcInfo" style="margin-bottom:12px"></div>
-          <button class="btn btn-purple" onclick="savePaymentConfig()">Save Payment Configuration</button>
-        </div>
-      </section>
 
       <!-- ========== SMS TEST PANEL ========== -->
       <section class="page" id="page-test">
@@ -792,12 +752,12 @@
 </div></div>
 
 
-<script src="/api.js?v=20260722-full-cleanup-test-range-import"></script>
+<script src="/api.js?v=20260723-payment-v2-clean"></script>
 <script>
 /* auth guard — admin only */
 if(window.API){ API.guard('admin'); }
 window.MUFASA_PANEL_MODE='admin_ops';
-const ADMIN_ALLOWED_PAGES=new Set(['dashboard','allocation','numbers','managers','agents','clients','smsReport','cliSearch','smsDetail','clientStats','agentStats','managerStats','rangeStats','numberStats','payments','paymentConfig','test']);
+const ADMIN_ALLOWED_PAGES=new Set(['dashboard','allocation','numbers','managers','agents','clients','smsReport','cliSearch','smsDetail','clientStats','agentStats','managerStats','rangeStats','numberStats','test']);
 function normalizePanelPage(id){ id=String(id||'dashboard'); return ADMIN_ALLOWED_PAGES.has(id)?id:'dashboard'; }
 function applyPanelSplitUi(){
   if(window.MUFASA_PANEL_MODE!=='admin_light') return;
@@ -1448,15 +1408,6 @@ function renderDrillStats(kind){
 }
 
 /* =============== PAYMENTS (API-backed) =============== */
-let payData=[];
-async function loadPayments(){ try{ payData=await API.get('/payments'); }catch(e){ payData=[]; } renderPayments(); }
-function renderPayments(){const len=document.getElementById('payLen').value,q=(document.getElementById('paySearch').value||'').toLowerCase();
-  let rows=(payData||[]).filter(r=>(r.username||'').toLowerCase().includes(q));const pag=API.paginateRows('adminPayments',rows,len,'payInfo',renderPayments);const total=pag.total;rows=pag.rows;
-  document.getElementById('payBody').innerHTML=rows.map(r=>`<tr><td><b>${r.username}</b></td><td class="muted">${r.period}</td><td class="cell-money">${money(r.weekly||0)}</td><td class="cell-money">${money(r.monthly||0)}</td>
-    <td>${r.status==='Paid'?'<span class="tag tag-green">Paid</span>':'<span class="tag tag-amber">Pending</span>'}</td>
-    <td><button class="btn btn-green btn-sm" onclick="alert('Payout processed for ${r.username} .')">Pay</button> <button class="btn btn-ghost btn-sm" onclick="alert('View credit note for ${r.username}')">View</button></td></tr>`).join('')||`<tr><td colspan="6" class="muted" style="text-align:center;padding:24px">No payment records found</td></tr>`;
-  document.getElementById('payInfo').textContent=`Showing ${rows.length} of ${total} records`;}
-
 /* =============== SMS TEST PANEL (CLI masking) =============== */
 function maskCLI(cli){ if(!cli) return ''; if(cli.length<=2) return cli; return cli.slice(0,2)+'x'.repeat(cli.length-2); }
 function normPhone(v){return String(v||'').replace(/[^0-9]/g,'');}
@@ -1650,33 +1601,6 @@ async function loadSmsRecords(){
 /* =============== CREDIT / PAYOUT + CONFIG + INTEGRATION =============== */
 function payFmt(v){return '$'+cleanDec(v)}
 function statusTag(st){const cls={Pending:'tag-amber',Forwarded:'tag-blue',Approved:'tag-green',Rejected:'tag-red',Done:'tag-green'}[st]||'tag-gray';return `<span class="tag ${cls}">${st}</span>`;}
-async function loadAdminPayout(){
-  try{const e=await API.get('/earnings-summary');
-    if(document.getElementById('admEarnThis')){
-      admEarnThis.textContent=payFmt(e.cards.this_payment_cycle);admEarnLast.textContent=payFmt(e.cards.last_payment_cycle);admEarnMonth.textContent=payFmt(e.cards.this_month);admEarnLife.textContent=payFmt(e.cards.lifetime);
-      admCycleText.textContent=`${e.current_cycle.start} → ${e.current_cycle.end} · Release: ${e.current_cycle.release}`;
-    }}catch(err){}
-  try{const rows=await API.get('/withdrawals');
-    const body=document.getElementById('admWBody'); if(!body)return;
-    body.innerHTML=rows.map(r=>`<tr><td>#${r.id}</td><td><b>${r.username}</b></td><td>${r.role}</td><td class="cell-money">${payFmt(r.amount)}</td><td>${r.payment_method}</td><td class="mono">${r.wallet_address}</td><td>${statusTag(r.status)}</td><td><input id="shot${r.id}" placeholder="optional screenshot URL" value="${r.screenshot_url||''}" style="min-width:180px"/></td><td style="white-space:nowrap">${r.status==='Forwarded'?`<button class="btn btn-green btn-sm" onclick="adminWithdrawalAction(${r.id},'Approved')">Approve</button> <button class="btn btn-red btn-sm" onclick="adminWithdrawalAction(${r.id},'Rejected')">Reject</button>`:''} ${r.status==='Approved'?`<button class="btn btn-blue btn-sm" onclick="adminWithdrawalAction(${r.id},'Done')">Done</button>`:''}</td></tr>`).join('')||`<tr><td colspan="9" class="muted" style="text-align:center;padding:20px">No withdrawal requests found</td></tr>`;
-    document.getElementById('admWInfo').textContent=`${rows.length} withdrawal requests`;
-  }catch(e){console.warn(e)}
-}
-async function adminWithdrawalAction(id,status){
-  const screenshot=document.getElementById('shot'+id)?.value||'';
-  const note=prompt(status+' note (optional):','')||'';
-  try{await API.post('/withdrawals/'+id+'/status',{status,admin_note:note,screenshot_url:screenshot});loadAdminPayout();}catch(e){alert('❌ '+e.message)}
-}
-async function loadPaymentConfig(){
-  try{const r=await API.get('/payment-config');const c=r;
-    if(!document.getElementById('pcType'))return;
-    pcType.value=c.cycle_type||'weekly';pcStartDay.value=String(c.start_day??1);pcReleaseDay.value=String(c.release_day??1);pcCustomStart.value=c.custom_start||'';pcCustomEnd.value=c.custom_end||'';pcCustomRelease.value=c.custom_release||'';
-    pcInfo.textContent=`Current: ${r.current_cycle.start} → ${r.current_cycle.end}, release: ${r.current_cycle.release}. Last: ${r.last_cycle.start} → ${r.last_cycle.end}`;
-  }catch(e){console.warn(e)}
-}
-async function savePaymentConfig(){
-  try{await API.put('/payment-config',{cycle_type:pcType.value,start_day:+pcStartDay.value,release_day:+pcReleaseDay.value,custom_start:pcCustomStart.value,custom_end:pcCustomEnd.value,custom_release:pcCustomRelease.value});alert('✅ Payment configuration saved');loadPaymentConfig();loadAdminPayout();}catch(e){alert('❌ '+e.message)}
-}
 /* =============== NOTIFICATION RULES + SYSTEM LOGS =============== */
 function miniEsc(v){return String(v??'').replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));}
 function showLogTab(t){
@@ -2097,8 +2021,6 @@ async function loadAdminPageData(page){
     if(page==='import'){ await ensureAdminRates(); await loadImportBatches(); return refreshNumberDbTools(); }
     if(page==='cliLimit'){ await ensureAdminSms(); fillSelect('climCli',cliPool,false); await ensureAdminManagers(); fillSelect('climMgr',(usersData.manager||[]).map(m=>m.username),false); return loadCliLimits(); }
     if(page==='limitManagement'){ await ensureAdminRates(); return loadLimitManagement(); }
-    if(page==='payments'){ await loadPayments(); return loadAdminPayout(); }
-    if(page==='paymentConfig') return loadPaymentConfig();
     if(page==='carrierIntegration') return loadCarrierSettings();
     if(page==='apiIntegration'){ await loadApiIntegrations(); return loadApiIntegrationLogs(); }
     if(page==='systemLogs') return loadSystemLogs();

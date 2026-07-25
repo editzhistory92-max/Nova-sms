@@ -6,6 +6,7 @@ const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
 const crypto = require('crypto');
 try { require('dotenv').config({ path: path.join(__dirname, '..', '.env') }); require('dotenv').config({ path: path.join(__dirname, '.env') }); } catch (_) {}
 const bcrypt = require('bcryptjs');
@@ -67,6 +68,11 @@ app.get('/login.html', (req, res) => res.redirect(301, '/login'));
 app.get('/admin', (req, res) => sendFrontendPage(res, 'admin.html'));
 app.get('/admin.html', (req, res) => res.redirect(301, '/admin'));
 app.get('/admin/:page', (req, res) => sendFrontendPage(res, 'admin.html'));
+app.get('/payment-login', (req, res) => sendFrontendPage(res, 'payment-login.html'));
+app.get('/payment-login.html', (req, res) => res.redirect(301, '/payment-login'));
+app.get('/payment', (req, res) => sendFrontendPage(res, 'payment.html'));
+app.get('/payment.html', (req, res) => res.redirect(301, '/payment'));
+app.get('/payment/:page', (req, res) => sendFrontendPage(res, 'payment.html'));
 app.get('/management-login', (req, res) => sendFrontendPage(res, 'management-login.html'));
 app.get('/management-login.html', (req, res) => res.redirect(301, '/management-login'));
 app.get('/management', (req, res) => sendFrontendPage(res, 'management.html'));
@@ -318,6 +324,74 @@ app.delete('/api/users/:id', authRequired, (req, res) => {
 });
 
 
+
+/* ============ PAYMENT V2 HELPERS ============ */
+const PAYMENT_TYPES = ['daily','weekly','monthly_30x45'];
+function normalizePaymentType(v){
+  const s=String(v||'').trim().toLowerCase().replace(/[\s-]+/g,'_');
+  if(['daily','day'].includes(s)) return 'daily';
+  if(['weekly','week'].includes(s)) return 'weekly';
+  if(['monthly','month','30x45','monthly_30x45','30_45'].includes(s)) return 'monthly_30x45';
+  return 'weekly';
+}
+function paymentTypeLabel(t){ return ({daily:'Daily',weekly:'Weekly',monthly_30x45:'Monthly (30x45)'})[normalizePaymentType(t)] || 'Weekly'; }
+function cents(v){ return Math.round((parseFloat(normalizeDecimalString(v)||'0')||0)*100); }
+function moneyFromCents(c){ return (Math.max(0, Math.round(c||0))/100).toFixed(2).replace(/\.00$/,'').replace(/(\.\d)0$/,'$1'); }
+function ukParts(date=new Date()){
+  return new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',hour12:false,year:'numeric',month:'2-digit',day:'2-digit',weekday:'short',hour:'2-digit',minute:'2-digit',second:'2-digit'}).formatToParts(date).reduce((a,p)=>(a[p.type]=p.value,a),{});
+}
+function utcMsFromUkDate(dateStr, plusDays=0){
+  const m=String(dateStr||'').match(/^(\d{4})-(\d{2})-(\d{2})$/); if(!m)return Date.now();
+  const base=Date.UTC(+m[1],+m[2]-1,+m[3]+plusDays,0,0,0);
+  let off=ukOffsetMinutes(new Date(base)); let out=base-off*60000; const off2=ukOffsetMinutes(new Date(out)); if(off2!==off)out=base-off2*60000; return out;
+}
+function utcSqlFromMs(ms){ const d=new Date(ms); const p=n=>String(n).padStart(2,'0'); return `${d.getUTCFullYear()}-${p(d.getUTCMonth()+1)}-${p(d.getUTCDate())} ${p(d.getUTCHours())}:${p(d.getUTCMinutes())}:${p(d.getUTCSeconds())}`; }
+function ukDateFromDb(ts){ return ukDateExprValue(ts); }
+function ukDateExprValue(ts){
+  const d = dbDateToDate(ts); if(!d)return '';
+  const p=ukParts(d); return `${p.year}-${p.month}-${p.day}`;
+}
+function dbDateToDate(ts){
+  const m=String(ts||'').match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/);
+  if(!m)return null; return new Date(Date.UTC(+m[1],+m[2]-1,+m[3],+(m[4]||0),+(m[5]||0),+(m[6]||0)));
+}
+function paymentCycleInfo(type, earnedAt){
+  type=normalizePaymentType(type); const d=dbDateToDate(earnedAt)||new Date(); const uk=ukParts(d); const date=`${uk.year}-${uk.month}-${uk.day}`;
+  if(type==='daily') return {cycle_key:date, eligible_at:utcSqlFromMs(utcMsFromUkDate(date,1))};
+  const startMs=utcMsFromUkDate(date,0); const weekdayMap={Sun:0,Mon:1,Tue:2,Wed:3,Thu:4,Fri:5,Sat:6}; const dow=weekdayMap[uk.weekday] ?? 0; const daysSinceTue=(dow-2+7)%7;
+  if(type==='weekly'){
+    const start=new Date(startMs-daysSinceTue*86400000); const key=utcSqlFromMs(start.getTime()).slice(0,10); return {cycle_key:key, eligible_at:utcSqlFromMs(start.getTime()+7*86400000)};
+  }
+  // 30-day work cycle anchored at Unix epoch in UK-date days; eligible after 30+45 days.
+  const dayNo=Math.floor(utcMsFromUkDate(date,0)/86400000); const cycleStartDay=dayNo-(dayNo%30); const startDate=utcSqlFromMs(cycleStartDay*86400000).slice(0,10); return {cycle_key:startDate, eligible_at:utcSqlFromMs((cycleStartDay+75)*86400000)};
+}
+function walletValid(v){ return /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(String(v||'').trim()); }
+function agentManagerId(agentId){ return db.get("SELECT parent_id FROM users WHERE id=? AND role='agent'",[agentId])?.parent_id || null; }
+function recordPaymentLedgerForSms(smsId){
+  const srow=db.get(`SELECT s.id,s.agent_id,s.manager_id,s.range_id,s.payout_amount,s.received_at,r.payment_type FROM sms_records s LEFT JOIN ranges r ON r.id=s.range_id WHERE s.id=?`,[smsId]);
+  if(!srow || !srow.agent_id || cents(srow.payout_amount)<=0) return;
+  if(db.get('SELECT id FROM payment_ledger WHERE sms_record_id=?',[smsId])) return;
+  const type=normalizePaymentType(srow.payment_type||'weekly'); const cyc=paymentCycleInfo(type,srow.received_at);
+  db.runNoSave(`INSERT INTO payment_ledger (sms_record_id,agent_id,manager_id,range_id,payment_type,amount,earned_at,cycle_key,eligible_at,status)
+    VALUES (?,?,?,?,?,?,?,?,?,'open')`, [srow.id,srow.agent_id,srow.manager_id||agentManagerId(srow.agent_id),srow.range_id,type,normalizeDecimalString(srow.payout_amount)||'0',srow.received_at,cyc.cycle_key,cyc.eligible_at]);
+  db.runNoSave('UPDATE sms_records SET payment_type=? WHERE id=?',[type,smsId]);
+  db.save();
+}
+function backfillPaymentLedger(){
+  const rows=db.all(`SELECT s.id FROM sms_records s LEFT JOIN payment_ledger l ON l.sms_record_id=s.id WHERE l.id IS NULL AND COALESCE(s.is_test,0)=0 AND s.agent_id IS NOT NULL AND CAST(COALESCE(NULLIF(s.payout_amount,''),'0') AS REAL)>0 ORDER BY s.id ASC LIMIT 5000`);
+  rows.forEach(r=>{ try{recordPaymentLedgerForSms(r.id)}catch(e){} });
+  if(rows.length) console.log('• Payment ledger backfilled:', rows.length);
+}
+function paymentOpenBalance(agentId,type,eligibleOnly=true){
+  const now=utcSqlFromMs(Date.now()); const params=[agentId,normalizePaymentType(type),'open']; let where='agent_id=? AND payment_type=? AND status=?';
+  if(eligibleOnly){ where+=' AND eligible_at<=?'; params.push(now); }
+  return moneyFromCents(db.all(`SELECT amount FROM payment_ledger WHERE ${where}`,params).reduce((a,r)=>a+cents(r.amount),0));
+}
+function paymentPendingAmount(agentId,type){ return moneyFromCents(db.all(`SELECT amount FROM payment_requests_v2 WHERE agent_id=? AND payment_type=? AND status='Pending'`,[agentId,normalizePaymentType(type)]).reduce((a,r)=>a+cents(r.amount),0)); }
+function paymentMinimum(type){ return normalizeDecimalString(db.get('SELECT min_withdrawal FROM payment_v2_settings WHERE payment_type=?',[normalizePaymentType(type)])?.min_withdrawal || '0') || '0'; }
+function paymentNotify(agentId,requestId,event,message){ db.run('INSERT INTO payment_notifications_v2 (agent_id,request_id,event,message) VALUES (?,?,?,?)',[agentId,requestId,event,message]); }
+function paymentAudit(req,action,body={}){ const u=req?.user||{}; db.run(`INSERT INTO payment_audit_logs (actor_id,actor_name,actor_role,action,request_id,agent_id,manager_id,payment_type,amount,wallet_address,status,details) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`, [u.id||null,u.username||'',u.role||'',action,body.request_id||null,body.agent_id||null,body.manager_id||null,body.payment_type||'',body.amount||'',body.wallet_address||'',body.status||'',safeJson(body.details||{})]); }
+
 function parseTestNumbers(value) {
   if (Array.isArray(value)) return value.map(v => String(v).trim()).filter(Boolean);
   return String(value || '').split(/[\s,;]+/).map(v => v.trim()).filter(Boolean);
@@ -344,10 +418,10 @@ app.get('/api/ranges', authRequired, (req, res) => cachedJson(req, res, 5000, ()
 app.post('/api/ranges', authRequired, requireRole('admin'), (req, res) => {
   const b = req.body || {};
   if (!b.name) return res.status(400).json({ error: 'Range name required' });
-  const ins = db.run(`INSERT INTO ranges (name,prefix,test_number,currency,rate_1_1,rate_7_1,rate_7_7,rate_30_45,memo)
-          VALUES (?,?,?,?,?,?,?,?,?)`,
+  const ins = db.run(`INSERT INTO ranges (name,prefix,test_number,currency,rate_1_1,rate_7_1,rate_7_7,rate_30_45,memo,payment_type)
+          VALUES (?,?,?,?,?,?,?,?,?,?)`,
     [b.name, b.prefix || '', '', b.currency || 'USD',
-     b.rate_1_1 || 'NA', b.rate_7_1 || 'NA', b.rate_7_7 || 'NA', b.rate_30_45 || 'NA', b.memo || '']);
+     b.rate_1_1 || 'NA', b.rate_7_1 || 'NA', b.rate_7_7 || 'NA', b.rate_30_45 || 'NA', b.memo || '', normalizePaymentType(b.payment_type || b.payterm || 'weekly')]);
   const newRange = db.get('SELECT id FROM ranges WHERE name=? ORDER BY id DESC LIMIT 1', [b.name]);
   syncRangeTestNumbers(newRange ? newRange.id : ins.lastInsertRowid, b.test_numbers || b.test_number || '');
   logAction(req,'create_range','ranges',b.name);
@@ -393,8 +467,8 @@ app.post('/api/ranges/bulk-create', authRequired, requireRole('admin'), (req, re
         existing.push(name);
         continue;
       }
-      const ins = db.runNoSave(`INSERT INTO ranges (name,prefix,test_number,currency,rate_1_1,rate_7_1,rate_7_7,rate_30_45,memo)
-        VALUES (?,?,?,?,?,?,?,?,?)`, [name, defaults.prefix, '', currency, defaults.rate_1_1, defaults.rate_7_1, defaults.rate_7_7, defaults.rate_30_45, defaults.memo]);
+      const ins = db.runNoSave(`INSERT INTO ranges (name,prefix,test_number,currency,rate_1_1,rate_7_1,rate_7_7,rate_30_45,memo,payment_type)
+        VALUES (?,?,?,?,?,?,?,?,?,?)`, [name, defaults.prefix, '', currency, defaults.rate_1_1, defaults.rate_7_1, defaults.rate_7_7, defaults.rate_30_45, defaults.memo, normalizePaymentType(b.payment_type || 'weekly')]);
       inserted++;
       created.push({ id: ins.lastInsertRowid, name });
     }
@@ -429,7 +503,8 @@ function normalizeRangeImportRow(row) {
     rate_7_1: get('7/1','rate_7_1') || payout || 'NA',
     rate_7_7: get('7/7','rate_7_7') || 'NA',
     rate_30_45: payout || get('30/45','rate_30_45') || 'NA',
-    memo: get('Memo','memo','notes')
+    memo: get('Memo','memo','notes'),
+    payment_type: normalizePaymentType(get('Payment Type','PaymentType','Pay Type','payterm','payment_type') || 'weekly')
   };
 }
 
@@ -487,8 +562,8 @@ function upsertRangeWithTestNumbers(rangeName, testNumbers, defaults = {}) {
   let row = db.get('SELECT id FROM ranges WHERE lower(name)=lower(?) LIMIT 1', [name]);
   let inserted = false, restored = false;
   if (!row) {
-    const ins = db.runNoSave(`INSERT INTO ranges (name,prefix,test_number,currency,rate_1_1,rate_7_1,rate_7_7,rate_30_45,memo)
-      VALUES (?,?,?,?,?,?,?,?,?)`, [name, defaults.prefix || '', '', defaults.currency || 'USD', defaults.rate_1_1 || 'NA', defaults.rate_7_1 || 'NA', defaults.rate_7_7 || 'NA', defaults.rate_30_45 || 'NA', defaults.memo || '']);
+    const ins = db.runNoSave(`INSERT INTO ranges (name,prefix,test_number,currency,rate_1_1,rate_7_1,rate_7_7,rate_30_45,memo,payment_type)
+      VALUES (?,?,?,?,?,?,?,?,?,?)`, [name, defaults.prefix || '', '', defaults.currency || 'USD', defaults.rate_1_1 || 'NA', defaults.rate_7_1 || 'NA', defaults.rate_7_7 || 'NA', defaults.rate_30_45 || 'NA', defaults.memo || '', normalizePaymentType(defaults.payment_type || 'weekly')]);
     row = { id: ins.lastInsertRowid };
     inserted = true;
   } else {
@@ -530,7 +605,7 @@ app.post('/api/ranges/import-test-bulk', authRequired, requireRole('admin'), upl
     db.execNoSave('BEGIN');
     try {
       for (const g of groups) {
-        const r = upsertRangeWithTestNumbers(g.range_name, g.test_numbers, { currency: req.body?.currency || 'USD' });
+        const r = upsertRangeWithTestNumbers(g.range_name, g.test_numbers, { currency: req.body?.currency || 'USD', payment_type: req.body?.payment_type || 'weekly' });
         if (r.inserted) inserted++;
         if (r.restored) restored++;
         added_test_numbers += r.added_test_numbers || 0;
@@ -556,14 +631,14 @@ app.post('/api/ranges/import', authRequired, requireRole('admin'), (req,res)=>{
     if(!r.name){ skipped++; errors.push({row: raw, error:'Range name missing'}); continue; }
     const existing=db.get('SELECT id FROM ranges WHERE name=?',[r.name]);
     if(existing && updateExisting){
-      db.run(`UPDATE ranges SET prefix=?,currency=?,rate_1_1=?,rate_7_1=?,rate_7_7=?,rate_30_45=?,memo=?,deleted_at='' WHERE id=?`,
-        [r.prefix,r.currency,r.rate_1_1,r.rate_7_1,r.rate_7_7,r.rate_30_45,r.memo,existing.id]);
+      db.run(`UPDATE ranges SET prefix=?,currency=?,rate_1_1=?,rate_7_1=?,rate_7_7=?,rate_30_45=?,memo=?,payment_type=?,deleted_at='' WHERE id=?`,
+        [r.prefix,r.currency,r.rate_1_1,r.rate_7_1,r.rate_7_7,r.rate_30_45,r.memo,r.payment_type,existing.id]);
       syncRangeTestNumbers(existing.id, r.test_number || '');
       updated++;
     } else if(existing){ skipped++; }
     else {
-      const ins=db.run(`INSERT INTO ranges (name,prefix,test_number,currency,rate_1_1,rate_7_1,rate_7_7,rate_30_45,memo) VALUES (?,?,?,?,?,?,?,?,?)`,
-        [r.name,r.prefix,'',r.currency,r.rate_1_1,r.rate_7_1,r.rate_7_7,r.rate_30_45,r.memo]);
+      const ins=db.run(`INSERT INTO ranges (name,prefix,test_number,currency,rate_1_1,rate_7_1,rate_7_7,rate_30_45,memo,payment_type) VALUES (?,?,?,?,?,?,?,?,?,?)`,
+        [r.name,r.prefix,'',r.currency,r.rate_1_1,r.rate_7_1,r.rate_7_7,r.rate_30_45,r.memo,r.payment_type]);
       const nr=db.get('SELECT id FROM ranges WHERE name=? ORDER BY id DESC LIMIT 1',[r.name]);
       syncRangeTestNumbers(nr?nr.id:ins.lastInsertRowid, r.test_number || '');
       inserted++;
@@ -574,9 +649,9 @@ app.post('/api/ranges/import', authRequired, requireRole('admin'), (req,res)=>{
 });
 app.put('/api/ranges/:id', authRequired, requireRole('admin'), (req, res) => {
   const b = req.body || {};
-  db.run(`UPDATE ranges SET name=?,prefix=?,currency=?,rate_1_1=?,rate_7_1=?,rate_7_7=?,rate_30_45=?,memo=? WHERE id=?`,
+  db.run(`UPDATE ranges SET name=?,prefix=?,currency=?,rate_1_1=?,rate_7_1=?,rate_7_7=?,rate_30_45=?,memo=?,payment_type=? WHERE id=?`,
     [b.name, b.prefix || '', b.currency || 'USD',
-     b.rate_1_1 || 'NA', b.rate_7_1 || 'NA', b.rate_7_7 || 'NA', b.rate_30_45 || 'NA', b.memo || '', +req.params.id]);
+     b.rate_1_1 || 'NA', b.rate_7_1 || 'NA', b.rate_7_7 || 'NA', b.rate_30_45 || 'NA', b.memo || '', normalizePaymentType(b.payment_type || 'weekly'), +req.params.id]);
   syncRangeTestNumbers(+req.params.id, b.test_numbers || b.test_number || '');
   logAction(req,'update_range','ranges',{id:+req.params.id});
   res.json({ ok: true });
@@ -1503,34 +1578,73 @@ app.delete('/api/numbers/imported-all', authRequired, requireRole('admin'), (req
 });
 
 /* ============ PAYMENTS ============ */
-app.get('/api/payments', authRequired, (req, res) => {
-  const ids = scopeIds(req.user);
-  const ph = ids.map(() => '?').join(',');
-  const rows = db.all(
-    `SELECT p.*, u.username FROM payments p JOIN users u ON u.id=p.user_id
-     WHERE p.user_id IN (${ph}) ORDER BY p.id DESC`, ids);
-  res.json(rows);
-});
 
-/* ============ CLI LIMITS ============ */
-app.get('/api/cli-limits', authRequired, (req, res) => {
-  if (req.user.role === 'admin') return res.json(db.all('SELECT * FROM cli_limits ORDER BY id DESC'));
-  // manager: only overall + specific-to-me
-  const rows = db.all(
-    `SELECT * FROM cli_limits WHERE type='overall' OR manager_id=? ORDER BY id DESC`, [req.user.id]);
-  res.json(rows);
+
+/* ============ PAYMENT V2 (separate payment system) ============ */
+function paymentTypesSettings(){ return db.all('SELECT * FROM payment_v2_settings WHERE active=1 ORDER BY sort_order ASC').map(r=>({payment_type:r.payment_type,label:r.label,min_withdrawal:normalizeDecimalString(r.min_withdrawal)||'0'})); }
+function agentPaymentSummary(agentId){
+  return paymentTypesSettings().map(t=>{
+    const available=paymentOpenBalance(agentId,t.payment_type,true), pending=paymentPendingAmount(agentId,t.payment_type), minimum=t.min_withdrawal;
+    return {...t, available_balance:available, pending_amount:pending, minimum, can_request:cents(available)>=cents(minimum) && cents(available)>0 && cents(pending)===0};
+  });
+}
+app.get('/api/payment-v2/settings', authRequired, requireRole('admin'), (req,res)=>res.json(paymentTypesSettings()));
+app.put('/api/payment-v2/settings', authRequired, requireRole('admin'), (req,res)=>{
+  const rows=Array.isArray(req.body?.settings)?req.body.settings:[];
+  rows.forEach(r=>{ const t=normalizePaymentType(r.payment_type); db.run('UPDATE payment_v2_settings SET min_withdrawal=?, updated_at=datetime(\'now\') WHERE payment_type=?',[normalizeDecimalString(r.min_withdrawal)||'0',t]); paymentAudit(req,'update_minimum',{payment_type:t,amount:r.min_withdrawal,status:'settings'}); });
+  res.json({ok:true,settings:paymentTypesSettings()});
 });
-app.post('/api/cli-limits', authRequired, requireRole('admin'), (req, res) => {
-  const b = req.body || {};
-  if (!b.cli || !b.limit_val) return res.status(400).json({ error: 'cli & limit required' });
-  db.run('INSERT INTO cli_limits (cli,type,manager_id,limit_val,used) VALUES (?,?,?,?,0)',
-    [b.cli, b.type || 'overall', b.type === 'specific' ? b.manager_id : null, b.limit_val]);
-  res.json({ ok: true });
+app.get('/api/payment-v2/agent/summary', authRequired, requireRole('agent'), (req,res)=>res.json({agent_id:req.user.id, balances:agentPaymentSummary(req.user.id), wallet:db.get('SELECT * FROM agent_wallets WHERE agent_id=?',[req.user.id])||{wallet_address:'',network:'USDT_TRC20'}}));
+app.get('/api/payment-v2/agent/wallet', authRequired, requireRole('agent'), (req,res)=>res.json(db.get('SELECT * FROM agent_wallets WHERE agent_id=?',[req.user.id])||{wallet_address:'',network:'USDT_TRC20'}));
+app.put('/api/payment-v2/agent/wallet', authRequired, requireRole('agent'), (req,res)=>{
+  const wallet=String(req.body?.wallet_address||'').trim(); if(!walletValid(wallet)) return res.status(400).json({error:'Invalid USDT TRC20 wallet. It should start with T and be 34 characters.'});
+  const ex=db.get('SELECT agent_id FROM agent_wallets WHERE agent_id=?',[req.user.id]);
+  if(ex) db.run('UPDATE agent_wallets SET wallet_address=?,network=\'USDT_TRC20\',updated_at=datetime(\'now\') WHERE agent_id=?',[wallet,req.user.id]);
+  else db.run('INSERT INTO agent_wallets (agent_id,wallet_address,network) VALUES (?,?,\'USDT_TRC20\')',[req.user.id,wallet]);
+  paymentAudit(req,'update_wallet',{agent_id:req.user.id,wallet_address:wallet,status:'saved'});
+  res.json({ok:true,wallet_address:wallet,network:'USDT_TRC20'});
 });
-app.delete('/api/cli-limits/:id', authRequired, requireRole('admin'), (req, res) => {
-  db.run('DELETE FROM cli_limits WHERE id=?', [+req.params.id]);
-  res.json({ ok: true });
+app.post('/api/payment-v2/agent/request', authRequired, requireRole('agent'), (req,res)=>{
+  const type=normalizePaymentType(req.body?.payment_type); const wallet=db.get('SELECT * FROM agent_wallets WHERE agent_id=?',[req.user.id]);
+  if(!wallet || !walletValid(wallet.wallet_address)) return res.status(400).json({error:'Save a valid USDT (TRC20) wallet first.'});
+  if(db.get("SELECT id FROM payment_requests_v2 WHERE agent_id=? AND payment_type=? AND status='Pending'",[req.user.id,type])) return res.status(409).json({error:'A pending request already exists for this payment type.'});
+  const amount=paymentOpenBalance(req.user.id,type,true); const min=paymentMinimum(type); if(cents(amount)<=0 || cents(amount)<cents(min)) return res.status(400).json({error:`Minimum withdrawal not reached. Available ${amount}, minimum ${min}.`});
+  const rows=db.all("SELECT id FROM payment_ledger WHERE agent_id=? AND payment_type=? AND status='open' AND eligible_at<=?",[req.user.id,type,utcSqlFromMs(Date.now())]); if(!rows.length) return res.status(400).json({error:'No eligible balance found.'});
+  try{ db.execNoSave('BEGIN');
+    const ins=db.runNoSave(`INSERT INTO payment_requests_v2 (agent_id,manager_id,payment_type,amount,wallet_address,status) VALUES (?,?,?,?,?,'Pending')`,[req.user.id,agentManagerId(req.user.id),type,amount,wallet.wallet_address]);
+    const ph=rows.map(()=>'?').join(','); db.runNoSave(`UPDATE payment_ledger SET status='requested',request_id=? WHERE id IN (${ph})`,[ins.lastInsertRowid,...rows.map(r=>r.id)]);
+    db.execNoSave('COMMIT'); db.save(); paymentNotify(req.user.id,ins.lastInsertRowid,'submitted',`${paymentTypeLabel(type)} payment request submitted: $${amount}`); paymentAudit(req,'request_submitted',{request_id:ins.lastInsertRowid,agent_id:req.user.id,manager_id:agentManagerId(req.user.id),payment_type:type,amount,wallet_address:wallet.wallet_address,status:'Pending'}); res.json({ok:true,id:ins.lastInsertRowid,amount,status:'Pending'});
+  }catch(e){ try{db.execNoSave('ROLLBACK')}catch(_){} res.status(500).json({error:e.message}); }
 });
+app.get('/api/payment-v2/agent/requests', authRequired, requireRole('agent'), (req,res)=>res.json(db.all('SELECT * FROM payment_requests_v2 WHERE agent_id=? ORDER BY id DESC LIMIT 300',[req.user.id])));
+app.get('/api/payment-v2/agent/notifications', authRequired, requireRole('agent'), (req,res)=>res.json(db.all('SELECT * FROM payment_notifications_v2 WHERE agent_id=? ORDER BY id DESC LIMIT 100',[req.user.id])));
+app.post('/api/payment-v2/agent/notifications/read-all', authRequired, requireRole('agent'), (req,res)=>{db.run("UPDATE payment_notifications_v2 SET read_at=datetime('now') WHERE agent_id=? AND read_at IS NULL",[req.user.id]);res.json({ok:true});});
+app.get('/api/payment-v2/manager/agents', authRequired, requireRole('manager'), (req,res)=>{
+  const agents=db.all("SELECT id,username,name FROM users WHERE role='agent' AND parent_id=? ORDER BY username COLLATE NOCASE",[req.user.id]);
+  res.json(agents.map(a=>({agent_id:a.id,agent_name:a.username,name:a.name||'',balances:agentPaymentSummary(a.id),payment_status:db.get("SELECT status FROM payment_requests_v2 WHERE agent_id=? ORDER BY id DESC LIMIT 1",[a.id])?.status||'No Request'})));
+});
+app.get('/api/payment-v2/admin/summary', authRequired, requireRole('admin'), (req,res)=>{
+  const pending=db.get("SELECT COUNT(*) c, COALESCE(SUM(CAST(amount AS REAL)),0) a FROM payment_requests_v2 WHERE status='Pending'");
+  const paid=db.get("SELECT COUNT(*) c, COALESCE(SUM(CAST(amount AS REAL)),0) a FROM payment_requests_v2 WHERE status='Paid'");
+  res.json({pending_count:pending?.c||0,pending_amount:normalizeDecimalString(pending?.a||0),paid_count:paid?.c||0,paid_amount:normalizeDecimalString(paid?.a||0),settings:paymentTypesSettings()});
+});
+app.get('/api/payment-v2/admin/requests', authRequired, requireRole('admin'), (req,res)=>{
+  const status=req.query.status?String(req.query.status):''; const where=status?'WHERE pr.status=?':''; const params=status?[status]:[];
+  const rows=db.all(`SELECT pr.*, au.username AS agent_name, au.name AS agent_full_name, mu.username AS manager_name, admin.username AS processed_by_name FROM payment_requests_v2 pr JOIN users au ON au.id=pr.agent_id LEFT JOIN users mu ON mu.id=pr.manager_id LEFT JOIN users admin ON admin.id=pr.processed_by ${where} ORDER BY pr.id DESC LIMIT 500`,params);
+  res.json(rows.map(r=>({...r,payment_label:paymentTypeLabel(r.payment_type)})));
+});
+app.post('/api/payment-v2/admin/requests/:id/reject', authRequired, requireRole('admin'), (req,res)=>{
+  const id=+req.params.id; const r=db.get("SELECT * FROM payment_requests_v2 WHERE id=? AND status='Pending'",[id]); if(!r)return res.status(404).json({error:'Pending request not found'});
+  try{db.execNoSave('BEGIN'); db.runNoSave("UPDATE payment_requests_v2 SET status='Rejected',reject_reason=?,processed_by=?,rejected_at=datetime('now'),admin_notes=? WHERE id=?",[req.body?.reason||'',req.user.id,req.body?.notes||'',id]); db.runNoSave("UPDATE payment_ledger SET status='open',request_id=NULL WHERE request_id=?",[id]); db.execNoSave('COMMIT'); db.save(); paymentNotify(r.agent_id,id,'rejected',`${paymentTypeLabel(r.payment_type)} payment request rejected.`); paymentAudit(req,'request_rejected',{request_id:id,agent_id:r.agent_id,manager_id:r.manager_id,payment_type:r.payment_type,amount:r.amount,wallet_address:r.wallet_address,status:'Rejected',details:{reason:req.body?.reason||''}}); res.json({ok:true});}catch(e){try{db.execNoSave('ROLLBACK')}catch(_){} res.status(500).json({error:e.message});}
+});
+app.post('/api/payment-v2/admin/requests/:id/pay', authRequired, requireRole('admin'), upload.single('screenshot'), (req,res)=>{
+  const id=+req.params.id; const r=db.get("SELECT * FROM payment_requests_v2 WHERE id=? AND status='Pending'",[id]); if(!r)return res.status(404).json({error:'Pending request not found'});
+  let screenshotUrl=''; if(req.file&&req.file.buffer){ const dir=path.join(FRONTEND_ROOT,'uploads','payment-screenshots'); fs.mkdirSync(dir,{recursive:true}); const ext=(path.extname(req.file.originalname||'')||'.png').toLowerCase(); const file=`payment-${id}-${Date.now()}${ext}`; fs.writeFileSync(path.join(dir,file),req.file.buffer); screenshotUrl='/uploads/payment-screenshots/'+file; }
+  try{db.execNoSave('BEGIN'); db.runNoSave("UPDATE payment_requests_v2 SET status='Paid',processed_by=?,paid_at=datetime('now'),txid=?,screenshot_url=?,admin_notes=? WHERE id=?",[req.user.id,req.body?.txid||'',screenshotUrl,req.body?.notes||'',id]); db.runNoSave("UPDATE payment_ledger SET status='paid' WHERE request_id=?",[id]); db.execNoSave('COMMIT'); db.save(); paymentNotify(r.agent_id,id,'paid',`${paymentTypeLabel(r.payment_type)} payment sent: $${r.amount}`); paymentAudit(req,'payment_sent',{request_id:id,agent_id:r.agent_id,manager_id:r.manager_id,payment_type:r.payment_type,amount:r.amount,wallet_address:r.wallet_address,status:'Paid',details:{txid:req.body?.txid||'',screenshot_url:screenshotUrl,notes:req.body?.notes||''}}); res.json({ok:true,screenshot_url:screenshotUrl});}catch(e){try{db.execNoSave('ROLLBACK')}catch(_){} res.status(500).json({error:e.message});}
+});
+app.get('/api/payment-v2/admin/audit-logs', authRequired, requireRole('admin'), (req,res)=>res.json(db.all('SELECT * FROM payment_audit_logs ORDER BY id DESC LIMIT 1000')));
+
+
 
 /* ============ LIMIT MANAGEMENT (Admin only, payout-zero after daily UK limits) ============ */
 function dailyLimitUsage(row){
@@ -1617,144 +1731,6 @@ app.delete('/api/limit-management/:id', authRequired, requireRole('admin'), (req
   db.run('DELETE FROM daily_limit_rules WHERE id=?',[id]);
   logAction(req,'delete_daily_limit','limit_management',{id});
   res.json({ok:true});
-});
-
-/* ============ NEWS ============ */
-
-
-/* ============ PAYMENT CONFIG / EARNINGS / WITHDRAWALS ============ */
-const PAYOUT_RATE = 0.013;
-function pad2(n){ return String(n).padStart(2,'0'); }
-function dateOnly(d){ return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; }
-function addDays(d,n){ const x=new Date(d); x.setDate(x.getDate()+n); return x; }
-function startOfDay(d){ const x=new Date(d); x.setHours(0,0,0,0); return x; }
-function getPaymentConfig(){
-  let c = db.get('SELECT * FROM payment_config ORDER BY id ASC LIMIT 1');
-  if(!c){ db.run(`INSERT INTO payment_config (cycle_type,start_day,end_day,release_day,timezone) VALUES ('weekly',1,0,1,'UTC')`); c=db.get('SELECT * FROM payment_config ORDER BY id ASC LIMIT 1'); }
-  return c;
-}
-function cycleBounds(config, offset=0){
-  const now=startOfDay(new Date());
-  const type=(config.cycle_type||'weekly').toLowerCase();
-  if(type==='custom' && config.custom_start && config.custom_end){
-    let s=new Date(config.custom_start+'T00:00:00'), e=new Date(config.custom_end+'T23:59:59');
-    const len=Math.max(1, Math.round((startOfDay(e)-startOfDay(s))/86400000)+1);
-    if(offset<0){ s=addDays(s, offset*len); e=addDays(e, offset*len); }
-    return { start:dateOnly(s), end:dateOnly(e), release: config.custom_release || dateOnly(addDays(e,1)) };
-  }
-  if(type==='monthly'){
-    const monthStart=new Date(now.getFullYear(), now.getMonth()+offset, 1);
-    const monthEnd=new Date(now.getFullYear(), now.getMonth()+offset+1, 0);
-    const relDay=Number(config.release_day||1);
-    const release=new Date(now.getFullYear(), now.getMonth()+offset+1, Math.max(1,relDay));
-    return { start:dateOnly(monthStart), end:dateOnly(monthEnd), release:dateOnly(release) };
-  }
-  const startDay=Number(config.start_day ?? 1); // 0 Sun, 1 Mon
-  const span=type==='biweekly'?14:7;
-  const diff=(now.getDay()-startDay+7)%7;
-  let start=addDays(now,-diff + offset*span);
-  let end=addDays(start,span-1);
-  let release=addDays(end,1);
-  return { start:dateOnly(start), end:dateOnly(end), release:dateOnly(release) };
-}
-function smsCountForUser(user, start, end){
-  let scope=smsScopeWhere(user);
-  const row=db.get(`SELECT COUNT(*) c FROM sms_records WHERE ${scope.where} AND date(received_at) BETWEEN date(?) AND date(?)`, [...scope.params,start,end]);
-  return row?.c||0;
-}
-function lifetimeCountForUser(user){
-  let scope=smsScopeWhere(user);
-  const row=db.get(`SELECT COUNT(*) c FROM sms_records WHERE ${scope.where}`, scope.params);
-  return row?.c||0;
-}
-app.get('/api/payment-config', authRequired, (req,res)=>{
-  const config=getPaymentConfig();
-  res.json({ ...config, current_cycle:cycleBounds(config,0), last_cycle:cycleBounds(config,-1) });
-});
-app.put('/api/payment-config', authRequired, requireRole('admin'), (req,res)=>{
-  const b=req.body||{};
-  const type=['weekly','biweekly','monthly','custom'].includes((b.cycle_type||'').toLowerCase()) ? b.cycle_type.toLowerCase() : 'weekly';
-  const existing=getPaymentConfig();
-  db.run(`UPDATE payment_config SET cycle_type=?,start_day=?,end_day=?,release_day=?,custom_start=?,custom_end=?,custom_release=?,timezone=?,updated_at=datetime('now') WHERE id=?`,
-    [type, Number(b.start_day||1), Number(b.end_day||0), Number(b.release_day||1), b.custom_start||'', b.custom_end||'', b.custom_release||'', b.timezone||'UTC', existing.id]);
-  const config=getPaymentConfig();
-  logAction(req,'update_payment_config','payments',config);
-  res.json({ ok:true, config, current_cycle:cycleBounds(config,0), last_cycle:cycleBounds(config,-1) });
-});
-app.get('/api/earnings-summary', authRequired, (req,res)=>{
-  const config=getPaymentConfig();
-  const cur=cycleBounds(config,0), last=cycleBounds(config,-1);
-  const currentRows=smsRowsForScope(req.user, `date(s.received_at) BETWEEN date(?) AND date(?)`, [cur.start, cur.end]);
-  const lastRows=smsRowsForScope(req.user, `date(s.received_at) BETWEEN date(?) AND date(?)`, [last.start, last.end]);
-  const monthStart=dateOnly(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
-  const monthEnd=dateOnly(new Date(new Date().getFullYear(), new Date().getMonth()+1, 0));
-  const monthRows=smsRowsForScope(req.user, `date(s.received_at) BETWEEN date(?) AND date(?)`, [monthStart, monthEnd]);
-  const lifeRows=smsRowsForScope(req.user);
-  res.json({
-    config,
-    current_cycle:cur,
-    last_cycle:last,
-    cards:{
-      this_payment_cycle:sumPayout(currentRows),
-      last_payment_cycle:sumPayout(lastRows),
-      this_month:sumPayout(monthRows),
-      lifetime:sumPayout(lifeRows)
-    },
-    sms:{ this_payment_cycle:currentRows.length, last_payment_cycle:lastRows.length, this_month:monthRows.length, lifetime:lifeRows.length }
-  });
-});
-function userManagerId(u){
-  if(u.role==='manager') return u.id;
-  if(u.role==='agent') return db.get('SELECT parent_id FROM users WHERE id=?',[u.id])?.parent_id || null;
-  if(u.role==='client'){
-    const ag=db.get('SELECT parent_id FROM users WHERE id=?',[u.id]);
-    return ag ? (db.get('SELECT parent_id FROM users WHERE id=?',[ag.parent_id])?.parent_id || null) : null;
-  }
-  return null;
-}
-app.get('/api/withdrawals', authRequired, (req,res)=>{
-  let where='1=1', params=[];
-  if(req.user.role==='manager'){ where='(w.user_id=? OR w.manager_id=?)'; params=[req.user.id,req.user.id]; }
-  else if(req.user.role==='agent'){ where='w.user_id=?'; params=[req.user.id]; }
-  else if(req.user.role==='client'){ return res.json([]); }
-  const rows=db.all(`SELECT w.*, u.username, u.name, u.role, m.username AS manager_username
-    FROM withdrawal_requests w
-    JOIN users u ON u.id=w.user_id
-    LEFT JOIN users m ON m.id=w.manager_id
-    WHERE ${where} ORDER BY w.id DESC`, params);
-  res.json(rows);
-});
-app.post('/api/withdrawals', authRequired, (req,res)=>{
-  if(!['manager','agent'].includes(req.user.role)) return res.status(403).json({ error:'Only Manager or Agent can submit withdrawal requests' });
-  const b=req.body||{}; const amount=Number(b.amount||0);
-  if(!amount || amount<=0) return res.status(400).json({ error:'Valid amount required' });
-  if(!b.wallet_address) return res.status(400).json({ error:'Binance wallet address required' });
-  const status=req.user.role==='manager'?'Forwarded':'Pending';
-  const managerId=userManagerId(req.user);
-  db.run(`INSERT INTO withdrawal_requests (user_id,user_role,manager_id,amount,wallet_address,payment_method,status,forwarded_at)
-          VALUES (?,?,?,?,?,?,?,${status==='Forwarded'?"datetime('now')":"NULL"})`,
-    [req.user.id, req.user.role, managerId, amount, String(b.wallet_address).trim(), b.payment_method||'Binance', status]);
-  logAction(req,'create_withdrawal_request','withdrawals',{amount,status});
-  res.json({ ok:true, status });
-});
-app.post('/api/withdrawals/:id/forward', authRequired, requireRole('manager'), (req,res)=>{
-  const id=+req.params.id;
-  const w=db.get('SELECT * FROM withdrawal_requests WHERE id=?',[id]);
-  if(!w) return res.status(404).json({ error:'Request not found' });
-  if(w.manager_id!==req.user.id && w.user_id!==req.user.id) return res.status(403).json({ error:'Not your request' });
-  if(w.status!=='Pending') return res.status(400).json({ error:'Only pending requests can be forwarded' });
-  db.run(`UPDATE withdrawal_requests SET status='Forwarded', manager_note=?, forwarded_at=datetime('now') WHERE id=?`, [(req.body||{}).manager_note||'', id]);
-  logAction(req,'forward_withdrawal','withdrawals',{id});
-  res.json({ ok:true });
-});
-app.post('/api/withdrawals/:id/status', authRequired, requireRole('admin'), (req,res)=>{
-  const id=+req.params.id; const b=req.body||{};
-  const allowed=['Approved','Rejected','Done'];
-  if(!allowed.includes(b.status)) return res.status(400).json({ error:'Invalid status' });
-  const col=b.status==='Approved'?'approved_at':(b.status==='Rejected'?'rejected_at':'done_at');
-  db.run(`UPDATE withdrawal_requests SET status=?, admin_note=?, screenshot_url=?, ${col}=datetime('now') WHERE id=?`, [b.status,b.admin_note||'',b.screenshot_url||'',id]);
-  logAction(req,'admin_withdrawal_status','withdrawals',{id,status:b.status});
-  res.json({ ok:true });
 });
 
 
@@ -2059,6 +2035,7 @@ function processIncomingSmsPayload(req, payload, sourceIp='', opts={}) {
           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     [n.id, n.number, n.range_id, cli || '', senderType, message || '', otpCode, n.client_id, n.agent_id, n.manager_id, opts.isTest?1:0, opts.testBatchId||'', opts.source||'carrier', smsPayoutRate, smsPayoutRate, limitReason]);
   const saved = db.get('SELECT id, received_at FROM sms_records ORDER BY id DESC LIMIT 1');
+  if(saved && !opts.isTest) { try { recordPaymentLedgerForSms(saved.id); } catch(e) { console.warn('[PAYMENT_V2] ledger insert failed:', e.message); } }
   const smsRow = { number_id:n.id, number:n.number, range_id:n.range_id, cli:cli||'', sender_type:senderType, message:message||'', otp_code:otpCode, client_id:n.client_id, agent_id:n.agent_id, manager_id:n.manager_id, is_test: opts.isTest?1:0 };
   logWebhook('success', b, number, n.number, cli, message, '', sourceIp);
   console.log('[INCOMING_SMS] saved', { id: saved ? saved.id : null, number: n.number, cli: cli || '', sender_type: senderType, otp_detected: !!otpCode, source: opts.source || 'carrier', manager_id: n.manager_id || null, agent_id: n.agent_id || null, client_id: n.client_id || null });
@@ -2419,6 +2396,7 @@ const PORT = process.env.PORT || 4000;
   createTables();
   seed();
   if (backup && backup.startAutomaticBackups) backup.startAutomaticBackups(db, console);
+  try { backfillPaymentLedger(); } catch(e) { console.warn('[PAYMENT_V2] backfill failed:', e.message); }
   try { startApiIntegrationPoller(); console.log('• API Integration poller enabled: every 5 seconds'); } catch(e) { console.warn('[API_INTEGRATION] poller startup failed:', e.message); }
   app.listen(PORT, () => console.log(`\n✅ Mufasa SMS backend running: http://localhost:${PORT}\n`));
 })();

@@ -527,7 +527,7 @@
 
     <div class="navtab" data-page="cliSearch"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><span class="lbl">CLI Search</span></div>
     <div class="navtab" data-page="test"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18v-6a3 3 0 0 1 6 0v6"/><rect x="4" y="18" width="16" height="3"/><path d="M12 3v3"/></svg><span class="lbl">Test Panel</span></div>
-    <div class="navtab" data-page="credit"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg><span class="lbl">Credit / Payouts</span></div>
+    <div class="navtab" data-page="credit"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg><span class="lbl">Agent Payments</span></div>
     <div class="navtab" data-page="cliLimit"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 6v6l4 2"/></svg><span class="lbl">CLI Limits</span></div>
   </nav>
 </header>
@@ -664,29 +664,9 @@
 
   <!-- ========== AGENT CREDIT NOTES ========== -->
     <section class="page" id="page-credit">
-    <div class="page-head"><div><h2>Credit / Payout</h2><div class="breadcrumb"><b>Payments</b> › Withdrawal & Earnings</div></div></div>
-    <div class="stats-grid">
-      <div class="stat-card dash-metric d-blue"><div class="stat-info"><p>This Payment Cycle</p><h3 id="mgrEarnThis">$0.00</h3><span id="mgrCycleText">Current cycle</span></div><div class="dash-go">$</div></div>
-      <div class="stat-card dash-metric d-pink"><div class="stat-info"><p>Last Payment Cycle</p><h3 id="mgrEarnLast">$0.00</h3><span>Previous cycle</span></div><div class="dash-go">$</div></div>
-      <div class="stat-card dash-metric d-green"><div class="stat-info"><p>This Month</p><h3 id="mgrEarnMonth">$0.00</h3><span>Monthly earnings</span></div><div class="dash-go">$</div></div>
-      <div class="stat-card dash-metric d-orange"><div class="stat-info"><p>Lifetime Earnings</p><h3 id="mgrEarnLife">$0.00</h3><span>All time</span></div><div class="dash-go">$</div></div>
-    </div>
-    <div class="grid2">
-      <div class="card">
-        <div class="card-head"><div><h3>Submit Withdrawal Request</h3><div class="sub">Wallet address will be locked with the request.</div></div></div>
-        <div class="form-grid"><div class="form-group"><label>Amount ($)</label><input type="number" id="mgrWAmount" placeholder="0.00" step="0.01"/></div><div class="form-group"><label>Payment Method</label><select id="mgrWMethod"><option>Binance</option><option>USDT TRC20</option><option>Bank</option></select></div></div>
-        <div class="form-group"><label>Binance Wallet Address</label><input id="mgrWWallet" placeholder="Paste Binance wallet address"/></div>
-        <div class="hint"><b>Guide:</b> Binance app → Wallet → Deposit → USDT/selected method → copy the address. Wrong wallet may delay or reject the payment.</div>
-        <button class="btn btn-teal" style="margin-top:12px" onclick="submitWithdrawal('manager')">Submit Request</button>
-      </div>
-      <div class="card"><div class="card-head"><div><h3>Approval Workflow</h3><div class="sub">Manager requests go directly to Admin. Agent requests can be reviewed and forwarded here.</div></div></div>
-        <div class="hint">Statuses: Pending → Forwarded → Approved → Done / Rejected</div>
-      </div>
-    </div>
-    <div class="table-wrap" style="padding:15px 17px;margin-top:16px"><div class="table-controls"><div class="tc-left"><label>Withdrawal Requests</label></div><div class="tc-right"><button class="btn btn-teal" onclick="loadManagerPayout()">Refresh</button></div></div></div>
-    <div class="table-wrap"><div class="tscroll"><table>
-      <thead><tr><th>ID</th><th>User</th><th>Role</th><th>Amount</th><th>Method</th><th>Wallet</th><th>Status</th><th>Action</th></tr></thead>
-      <tbody id="mgrWBody"></tbody></table></div><div class="table-foot"><div class="info" id="mgrWInfo"></div></div></div>
+    <div class="page-head"><div><h2>Agent Payments</h2><div class="breadcrumb"><b>Payments</b> › Agent Balances</div></div><div class="head-actions"><span class="readonly-note">View only — requests are submitted by Agents and processed by Admin</span></div></div>
+    <div class="table-wrap" style="padding:15px 17px;margin-top:0"><div class="table-controls"><div class="tc-left"><label>Agent Payment Status</label></div><div class="tc-right"><button class="btn btn-teal" onclick="loadManagerPayments()">Refresh</button></div></div></div>
+    <div class="table-wrap"><div class="tscroll"><table><thead><tr><th>Agent Name</th><th>Daily Balance</th><th>Weekly Balance</th><th>Monthly Balance</th><th>Payment Status</th></tr></thead><tbody id="mgrPayBody"></tbody></table></div><div class="table-foot"><div class="info" id="mgrPayInfo"></div></div></div>
   </section>
 
   <!-- ========== CLI LIMITS (view) ========== -->
@@ -743,7 +723,7 @@
   <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal('agentModal')">Cancel</button><button class="btn btn-teal" onclick="saveAgent()">Save</button></div>
 </div></div>
 
-<script src="/api.js?v=20260722-full-cleanup-test-range-import"></script>
+<script src="/api.js?v=20260723-payment-v2-clean"></script>
 <script>
 if(window.API){ API.guard('manager'); }
 /* ===== NAV ===== */
@@ -793,7 +773,6 @@ let testNumbers=[];
 let recentTests=[];
 let agentsData=[];
 let clientsData=[];
-let creditData=[];
 let cliLimits=[];
 function unique(arr){return [...new Set((arr||[]).filter(Boolean))];}
 function refreshAgentClientMaps(){myAgents=unique((agentsData||[]).map(a=>a.username).concat((smsRecords||[]).map(r=>r.agent_name)));agentClients={};myAgents.forEach(a=>agentClients[a]=[]);(clientsData||[]).forEach(c=>{const ag=(agentsData||[]).find(a=>a.id===c.parent_id);if(ag){if(!agentClients[ag.username])agentClients[ag.username]=[];agentClients[ag.username].push(c.username);}});(smsRecords||[]).forEach(r=>{if(r.agent_name&&r.client_name){if(!agentClients[r.agent_name])agentClients[r.agent_name]=[];if(!agentClients[r.agent_name].includes(r.client_name))agentClients[r.agent_name].push(r.client_name);}});}
@@ -1039,13 +1018,6 @@ async function renderTest(){const rf=document.getElementById('testRange').value,
 }
 
 /* ===== CREDIT NOTES ===== */
-function renderCredit(){const len=document.getElementById('crLen').value,q=(document.getElementById('crSearch').value||'').toLowerCase();
-  let rows=creditData.filter(r=>r.ag.toLowerCase().includes(q));const pag=API.paginateRows('mgrCredit',rows,len,'crInfo',renderCredit);const t=pag.total;rows=pag.rows;
-  document.getElementById('crBody').innerHTML=rows.map((r,i)=>`<tr><td><span class="tag tag-agt">${r.ag}</span></td><td class="muted">${r.period}</td><td class="cell-money">$ ${r.w}</td><td class="cell-money">$ ${r.m}</td>
-    <td>${r.st==='Paid'?'<span class="tag tag-green">Paid</span>':'<span class="tag tag-amber">Pending</span>'}</td>
-    <td><button class="btn btn-green btn-sm" onclick="alert('Payout to ${r.ag} processed .')">Pay</button> <button class="btn btn-ghost btn-sm" onclick="alert('Credit note for ${r.ag}')">View</button></td></tr>`).join('');
-  document.getElementById('crInfo').textContent=`Showing ${rows.length} of ${t} agents`;}
-
 /* ===== CLI LIMITS (view, API — server already filters for this manager) ===== */
 async function loadClim(){ try{ cliLimits=await API.get('/cli-limits'); }catch(e){ cliLimits=[]; } renderClim(); }
 function renderClim(){
@@ -1082,19 +1054,11 @@ function baRow(i){const q=parseInt(document.getElementById('bq'+i).value),a=docu
 function baUn(i){const q=parseInt(document.getElementById('bu'+i).value),row=baData[i];if(!q||!row){alert('Enter quantity.');return;}const ids=(numData||[]).filter(n=>n.range===row.range&&n.agent).slice(0,q).map(n=>n.id);if(!ids.length){alert('Allocated numbers were not found.');return;}API.post('/numbers/unallocate',{ids}).then(()=>{alert(`✅ ${ids.length} numbers unallocated.`);loadNumbers();}).catch(e=>alert('❌ '+e.message));}
 function doBulk(){const r=document.getElementById('baRange').value,a=document.getElementById('baAgent').value,q=parseInt(document.getElementById('baQty').value);if(!r||!a||!q){alert('Select range, agent and quantity.');return;}const row=(rateCard||[]).find(x=>x.range===r),ag=(agentsData||[]).find(x=>x.username===a);if(!row||!ag)return;API.post('/numbers/smart-divide',{range_ids:[row.id],target_ids:[ag.id],qty:q}).then(res=>{alert(`✅ ${res.total||0} numbers allocated.`);document.getElementById('baQty').value='';loadNumbers();}).catch(e=>alert('❌ '+e.message));}
 
-/* ===== CREDIT / WITHDRAWAL WORKFLOW ===== */
-function payFmt(v){return '$'+cleanDec(v)}
-function wStatus(st){const cls={Pending:'tag-amber',Forwarded:'tag-blue',Approved:'tag-green',Rejected:'tag-red',Done:'tag-green'}[st]||'tag-gray';return `<span class="tag ${cls}">${st}</span>`;}
-async function loadManagerPayout(){
-  try{const e=await API.get('/earnings-summary');if(document.getElementById('mgrEarnThis')){mgrEarnThis.textContent=payFmt(e.cards.this_payment_cycle);mgrEarnLast.textContent=payFmt(e.cards.last_payment_cycle);mgrEarnMonth.textContent=payFmt(e.cards.this_month);mgrEarnLife.textContent=payFmt(e.cards.lifetime);mgrCycleText.textContent=`${e.current_cycle.start} → ${e.current_cycle.end}`;}}catch(e){}
-  try{const rows=await API.get('/withdrawals');const b=document.getElementById('mgrWBody');if(!b)return;b.innerHTML=rows.map(r=>`<tr><td>#${r.id}</td><td><b>${r.username}</b></td><td>${r.role}</td><td class="cell-money">${payFmt(r.amount)}</td><td>${r.payment_method}</td><td class="mono">${r.wallet_address}</td><td>${wStatus(r.status)}</td><td>${r.status==='Pending'?`<button class="btn btn-teal btn-sm" onclick="forwardWithdrawal(${r.id})">Forward</button>`:''}</td></tr>`).join('')||`<tr><td colspan="8" class="muted" style="text-align:center;padding:20px">No withdrawal requests found</td></tr>`;mgrWInfo.textContent=`${rows.length} requests`; }catch(e){console.warn(e)}
+/* ===== AGENT PAYMENT VIEW (read-only) ===== */
+function balFor(row,type){const b=(row.balances||[]).find(x=>x.payment_type===type)||{};return b.available_balance||'0'}
+async function loadManagerPayments(){
+  try{const rows=await API.get('/payment-v2/manager/agents');const b=document.getElementById('mgrPayBody');if(!b)return;b.innerHTML=(rows||[]).map(r=>`<tr><td><span class="tag tag-agt">${r.agent_name}</span></td><td class="cell-money">$ ${balFor(r,'daily')}</td><td class="cell-money">$ ${balFor(r,'weekly')}</td><td class="cell-money">$ ${balFor(r,'monthly_30x45')}</td><td><span class="tag tag-blue">${r.payment_status||'No Request'}</span></td></tr>`).join('')||`<tr><td colspan="5" class="muted" style="text-align:center;padding:20px">No agent payment data</td></tr>`;mgrPayInfo.textContent=`${(rows||[]).length} agent(s)`;}catch(e){console.warn(e);alert('❌ '+e.message)}
 }
-async function submitWithdrawal(role){
-  const amount=Number(document.getElementById('mgrWAmount').value||0), wallet=document.getElementById('mgrWWallet').value.trim(), method=document.getElementById('mgrWMethod').value;
-  if(!amount||amount<=0){alert('Enter a valid amount');return;} if(!wallet){alert('Wallet address required');return;}
-  try{await API.post('/withdrawals',{amount,wallet_address:wallet,payment_method:method});mgrWAmount.value='';mgrWWallet.value='';alert('✅ Withdrawal request submit ho gayi');loadManagerPayout();}catch(e){alert('❌ '+e.message)}
-}
-async function forwardWithdrawal(id){const note=prompt('Forward note optional:','')||'';try{await API.post('/withdrawals/'+id+'/forward',{manager_note:note});loadManagerPayout();}catch(e){alert('❌ '+e.message)}}
 
 
 /* ===== CLI SEARCH & ANALYTICS ===== */
@@ -1119,7 +1083,7 @@ async function loadManagerPageData(page){
     if(['clientStats','agentStats'].includes(page)){ const k=page.replace('Stats',''); if(!document.getElementById(k+'Body')) buildEntity(k); return loadSms(); }
     if(['rangeStats','numberStats'].includes(page)){ const k=page.replace('Stats',''); if(!document.getElementById(k+'Body')) buildDrill(k); return loadSms(); }
     if(page==='test'){ await loadRateCard(); await loadSms(); return renderTest(); }
-    if(page==='credit'){ renderCredit(); return loadManagerPayout(); }
+    if(page==='credit') return loadManagerPayments();
     if(page==='cliLimit') return loadClim();
   }catch(e){console.warn('loadManagerPageData failed',page,e);}
 }
@@ -1176,7 +1140,7 @@ async function loadManagerPageData(page){
     if(['clientStats','agentStats'].includes(page)){ const k=page.replace('Stats',''); if(!document.getElementById(k+'Body')) buildEntity(k); return renderEntity(k); }
     if(['rangeStats','numberStats'].includes(page)){ const k=page.replace('Stats',''); if(!document.getElementById(k+'Body')) buildDrill(k); return renderDrill(k); }
     if(page==='test'){ await loadRateCard(); return renderTest(); }
-    if(page==='credit'){ renderCredit(); return loadManagerPayout(); }
+    if(page==='credit') return loadManagerPayments();
     if(page==='cliLimit') return loadClim();
   }catch(e){console.warn('loadManagerPageData failed',page,e);}
 }
@@ -1208,9 +1172,9 @@ async function renderDrill(kind){
 /* ===== FAST PRIORITY INIT ===== */
 loadProfile();loadDashboard();
 buildSmsReport();buildSmsDetail();
-renderTest();renderCredit();
+renderTest();
 setTimeout(async()=>{try{await Promise.allSettled([loadRateCard(),loadAgents(),loadClients()]);await Promise.allSettled([renderNumbers(),renderSmsReport()]);}catch(e){console.warn('manager critical preload failed',e)}},50);
-setTimeout(()=>{Promise.allSettled([loadManagerPayout(),loadClim()]);},1200);
+setTimeout(()=>{Promise.allSettled([loadClim()]);},1200);
 
 function toggleManagerSidebar(){document.querySelector('.appbar')?.classList.toggle('show');document.getElementById('mgrMobileOverlay')?.classList.toggle('show');}
 function closeManagerSidebar(){document.querySelector('.appbar')?.classList.remove('show');document.getElementById('mgrMobileOverlay')?.classList.remove('show');}
