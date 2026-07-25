@@ -2113,7 +2113,7 @@ function processIncomingSmsPayload(req, payload, sourceIp='', opts={}) {
           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     [n.id, n.number, n.range_id, cli || '', senderType, message || '', otpCode, n.client_id, n.agent_id, n.manager_id, opts.isTest?1:0, opts.testBatchId||'', opts.source||'carrier', smsPayoutRate, smsPayoutRate, limitReason, assignedPaymentType]);
   const saved = db.get('SELECT id, received_at FROM sms_records ORDER BY id DESC LIMIT 1');
-  if(saved && !opts.isTest) { try { recordPaymentLedgerForSms(saved.id); } catch(e) { console.warn('[PAYMENT_V2] ledger insert failed:', e.message); } }
+  if(saved && !opts.isTest) { try { recordPaymentLedgerForSms(saved.id, false); } catch(e) { console.warn('[PAYMENT_V2] ledger insert failed:', e.message); } }
   const smsRow = { number_id:n.id, number:n.number, range_id:n.range_id, cli:cli||'', sender_type:senderType, message:message||'', otp_code:otpCode, client_id:n.client_id, agent_id:n.agent_id, manager_id:n.manager_id, is_test: opts.isTest?1:0 };
   logWebhook('success', b, number, n.number, cli, message, '', sourceIp);
   console.log('[INCOMING_SMS] saved', { id: saved ? saved.id : null, number: n.number, cli: cli || '', sender_type: senderType, otp_detected: !!otpCode, source: opts.source || 'carrier', manager_id: n.manager_id || null, agent_id: n.agent_id || null, client_id: n.client_id || null });
@@ -2164,6 +2164,23 @@ app.get('/api/incoming-sms', (req, res) => {
 /* ============ API INTEGRATION POLLING (incoming API pull channel) ============ */
 let apiPollTimer = null;
 const apiPollInProgress = new Set();
+let lastApiIntegrationCleanupAt = 0;
+function apiIntegrationLogLimit(){ return Math.max(1000, parseInt(process.env.API_INTEGRATION_LOG_LIMIT || '20000', 10) || 20000); }
+function cleanupApiIntegrationTables(){
+  const now=Date.now();
+  if(now-lastApiIntegrationCleanupAt < 10*60*1000) return;
+  lastApiIntegrationCleanupAt=now;
+  const limit=apiIntegrationLogLimit();
+  try{
+    db.runNoSave(`DELETE FROM api_integration_logs WHERE id NOT IN (SELECT id FROM api_integration_logs ORDER BY id DESC LIMIT ${limit})`);
+    db.runNoSave(`DELETE FROM api_integration_seen WHERE id NOT IN (SELECT id FROM api_integration_seen ORDER BY id DESC LIMIT ${Math.max(limit*2, 50000)})`);
+  }catch(e){ console.warn('[API_INTEGRATION] cleanup failed:', e.message); }
+}
+async function withBackgroundDbBatch(fn){
+  try{ db.beginBatch && db.beginBatch(); }catch(_){ }
+  try{ return await fn(); }
+  finally{ try{ db.endBatch && db.endBatch(); }catch(e){ console.warn('[DB_BATCH] background save failed:', e.message); } }
+}
 function maskToken(t){ t=String(t||''); if(!t) return ''; return t.length<=8 ? '********' : t.slice(0,4)+'********'+t.slice(-4); }
 function publicApiIntegration(row){ if(!row) return row; return {...row, token: undefined, token_masked: maskToken(row.token)}; }
 function ukDateStringJs(d=new Date()){
@@ -2253,30 +2270,49 @@ async function processApiIntegrationRow(row, rec){
 async function fetchApiIntegration(row, manual=false){
   if(apiPollInProgress.has(row.id)) return {ok:false, skipped:true, reason:'Already running'};
   apiPollInProgress.add(row.id);
-  let summary={ok:true,total:0,success:0,failed:0,duplicate:0};
+  let summary={ok:true,total:0,received:0,success:0,failed:0,duplicate:0};
+  const started=Date.now();
   try{
     const reqInfo=buildApiIntegrationRequest(row);
-    db.run("UPDATE api_integrations SET last_poll_at=datetime('now') WHERE id=?",[row.id]);
+    // Avoid db.run() full-save here. The processing batch below persists once.
+    db.runNoSave("UPDATE api_integrations SET last_poll_at=datetime('now') WHERE id=?",[row.id]);
     const resp=await fetch(reqInfo.url,{method:row.method||'GET',headers:reqInfo.headers,signal:AbortSignal.timeout ? AbortSignal.timeout(15000) : undefined});
     const text=await resp.text();
     if(!resp.ok) throw new Error('HTTP '+resp.status+' '+text.slice(0,120));
-    const parsed=parseApiResponse(text, resp.headers.get('content-type')||'');
+    const allParsed=parseApiResponse(text, resp.headers.get('content-type')||'');
+    const maxRecords=Math.max(1, Math.min(1000, parseInt(row.records_limit||100,10)||100));
+    const parsed=allParsed.slice(0,maxRecords);
+    summary.received=allParsed.length;
     summary.total=parsed.length;
-    let dupLogged=0;
-    for(const raw of parsed){
-      const rec=normalizeApiSmsRecord(raw);
-      const r=await processApiIntegrationRow(row,rec);
-      summary.success+=r.success||0; summary.failed+=r.failed||0; summary.duplicate+=r.duplicate||0;
-      if(r.duplicate && dupLogged<3){ rec.duplicate_key=apiDuplicateKey(row.id,rec); apiLog(row,'duplicate','Duplicate message',rec); dupLogged++; }
-    }
-    db.run("UPDATE api_integrations SET last_success_at=datetime('now'), last_error='' WHERE id=?",[row.id]);
+    await withBackgroundDbBatch(async()=>{
+      cleanupApiIntegrationTables();
+      let dupLogged=0;
+      let processed=0;
+      for(const raw of parsed){
+        const rec=normalizeApiSmsRecord(raw);
+        const r=await processApiIntegrationRow(row,rec);
+        summary.success+=r.success||0; summary.failed+=r.failed||0; summary.duplicate+=r.duplicate||0;
+        if(r.duplicate && dupLogged<3){ rec.duplicate_key=apiDuplicateKey(row.id,rec); apiLog(row,'duplicate','Duplicate message',rec); dupLogged++; }
+        processed++;
+        if(processed % 25 === 0) await new Promise(resolve=>setImmediate(resolve));
+      }
+      db.runNoSave("UPDATE api_integrations SET last_success_at=datetime('now'), last_error='' WHERE id=?",[row.id]);
+    });
     return summary;
   }catch(e){
-    db.run("UPDATE api_integrations SET last_error=? WHERE id=?",[e.message,row.id]);
-    apiLog(row,'failed',e.message,{});
+    await withBackgroundDbBatch(async()=>{
+      db.runNoSave("UPDATE api_integrations SET last_error=? WHERE id=?",[e.message,row.id]);
+      apiLog(row,'failed',e.message,{});
+      cleanupApiIntegrationTables();
+    });
     return {ok:false,error:e.message};
-  }finally{ apiPollInProgress.delete(row.id); }
+  }finally{
+    apiPollInProgress.delete(row.id);
+    const took=Date.now()-started;
+    if(took>10000) console.warn('[API_INTEGRATION] slow poll', {id:row.id,name:row.name,took_ms:took,total:summary.total,received:summary.received,success:summary.success,failed:summary.failed,duplicate:summary.duplicate});
+  }
 }
+
 async function pollApiIntegrations(){
   const rows=db.all('SELECT * FROM api_integrations WHERE enabled=1 ORDER BY id ASC');
   const now=Date.now();

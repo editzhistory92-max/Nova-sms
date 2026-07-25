@@ -1,65 +1,70 @@
-MUFASA SMS — System-wide Performance Investigation + Full Optimization
+MUFASA SMS — API Poller CPU Fix + System Performance Update
 Date: 2026-07-25
-Cache marker: /api.js?v=20260725-perf-bg-jobs
+Cache marker: /api.js?v=20260725-api-poller-cpu-fix
 
-Root cause found:
-1) System-wide write delay was caused by sql.js db.run() saving/exporting the full DB after every write.
-   Small actions often do many writes (allocation update + number history rows + audit logs), so even 20-25 numbers could feel slow.
-2) Move to Test Panel / Import Test Numbers were slow on large DBs because normalized phone checks used REPLACE(...) scans without indexes.
-3) Delete actions were running VACUUM after deletes, which rewrites the DB and caused visible delays.
-4) Dashboard loaded full SMS rows for payout/recent activity; now it uses aggregate SQL.
+What your VPS diagnostics showed:
+- Node process was stuck at 100% CPU on one core.
+- Host CPU/RAM were not exhausted.
+- PM2 logs were empty after flush.
+- DB had 168,832 api_integration_logs rows and 75 MB DB size.
 
-Fixes included:
-- Request-level DB write batching: one DB save per non-GET API request instead of one save per db.run().
-- Large smart-divide allocations run as background jobs.
-- New endpoint: GET /api/number-jobs/:jobId
-- Frontend API helper automatically waits/polls background number jobs and shows progress toasts.
-- Smart divide uses chunked UPDATE ... WHERE id IN (...), runNoSave(), one final save, and setImmediate yielding.
-- Removed automatic VACUUM after every delete.
-- Added expression indexes for normalized phone lookups:
-  idx_numbers_clean_phone
-  idx_range_test_numbers_range_clean_phone
-  idx_range_test_numbers_number
-- Dashboard uses COUNT/SUM SQL and LIMIT 5 recent rows.
-- Payment ledger backfill batches saves.
+Conclusion:
+This is code/background task behavior, not VPS hardware. The active suspect is API Integration Poller doing many sql.js writes without console logs.
 
-Stress test evidence:
-Old smart divide loop:
-- 1,000 numbers: 2,010 ms blocked
-- 5,000 numbers: 17,775 ms blocked
+Fixes in this update:
+1) API Integration poller batching
+   - Poller now uses background DB batching.
+   - Uses db.runNoSave() where appropriate.
+   - Saves once per poll instead of per DB write.
 
-New HTTP/background smart-divide:
-- 5,000: initial 20 ms, complete 242 ms, dashboard during job 93 ms
-- 10,000: initial 28 ms, complete 403 ms, dashboard during job 109 ms
-- 20,000: initial 30 ms, complete 920 ms, dashboard during job 155 ms
-- 50,000: initial 44 ms, complete 3,950 ms, dashboard during job 235 ms
-- 70,000: initial 61 ms, complete 7,266 ms, dashboard during job 312 ms
+2) API poller record cap/yield
+   - Processes up to records_limit per response (hard max 1000).
+   - Yields every 25 records so Node can respond to other requests.
 
-Small operation test on 70k numbers:
-- Allocate selected 25: 14 ms
-- Unallocate selected 25: 28 ms
-- Move to Test Panel 25: 23 ms
-- Import Test Numbers 25: 70 ms
-- Range create: 54 ms
-- Delete range with ~35k numbers: 883 ms
-- SMS Numbers page: 95 ms
+3) API logs/seen cleanup
+   - api_integration_logs capped periodically.
+   - Default cap: 20,000 rows.
+   - api_integration_seen capped too.
+   - This prevents 100k+ log growth from slowing DB export/save.
 
-Full report:
-- PERFORMANCE_INVESTIGATION.md
+4) Slow poll warning
+   - Logs a warning only if API poll takes >10 seconds.
 
-Other retained changes:
-- Payment V2 fixes retained.
-- Manager payment view hides empty categories.
-- Agent assigned payment type controls future OTP payout rate.
-- Historical earnings stay in original category.
-- Cleanup modules remain removed (notifications/news/SMPP/test generator/integration placeholder/PDF/Print).
+5) Previous performance fixes retained
+   - Request-level DB batching for non-GET API requests.
+   - Background number jobs.
+   - Smart-divide chunked updates.
+   - No automatic VACUUM after every delete.
+   - Normalized phone indexes.
+   - Dashboard aggregate optimization.
+   - Payment V2 fixes retained.
 
-VPS deployment after GitHub push:
+Important emergency mitigation if CPU is stuck before/after deploy:
+cd ~/Mufasa-sms
+pm2 stop mufasa-sms
+mkdir -p ~/mufasa-sms-backups
+cp -a backend/data.sqlite ~/mufasa-sms-backups/manual-before-disable-api-poller-$(date +%F-%H%M%S).sqlite
+node - <<'NODE'
+const db=require('./backend/db');
+(async()=>{
+  await db.init();
+  console.log('Before:', db.all('SELECT id,name,enabled,poll_interval_sec,last_poll_at,last_error FROM api_integrations'));
+  db.run('UPDATE api_integrations SET enabled=0');
+  console.log('After:', db.all('SELECT id,name,enabled FROM api_integrations'));
+})();
+NODE
+pm2 restart mufasa-sms --update-env
+pm2 list
+
+VPS deploy after GitHub push:
 cd ~/Mufasa-sms
 git pull --ff-only origin main
 npm install && pm2 flush mufasa-sms && pm2 restart mufasa-sms --update-env && pm2 list
 pm2 logs mufasa-sms --lines 80
 
+Correct health check command (no brackets):
+for i in 1 2 3 4 5; do curl -s -o /dev/null -w "health %{time_total}s\n" http://127.0.0.1:4000/api/health; sleep 1; done
+
 Verify:
-grep -n "20260725-perf-bg-jobs" admin.html manager.html agent.html client.html management.html payment.html
-grep -n "number-jobs\|performSmartDivideJob\|beginBatch\|idx_numbers_clean_phone" backend/server.js backend/db.js backend/schema.js
+grep -n "20260725-api-poller-cpu-fix" admin.html manager.html agent.html client.html management.html payment.html
+grep -n "withBackgroundDbBatch\|lastApiIntegrationCleanupAt\|slow poll" backend/server.js
