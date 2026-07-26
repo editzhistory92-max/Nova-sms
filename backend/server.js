@@ -218,6 +218,7 @@ function smsRowsForScope(user, extraWhere='', extraParams=[]){
     LEFT JOIN ranges r ON r.id=s.range_id
     LEFT JOIN users cu ON cu.id=s.client_id
     LEFT JOIN users au ON au.id=s.agent_id
+    LEFT JOIN sharing_users su ON su.agent_user_id=s.agent_id
     LEFT JOIN users mu ON mu.id=s.manager_id
     WHERE ${where.join(' AND ')} ORDER BY s.received_at DESC`, params);
   return attachSmsPayoutFields(rows);
@@ -802,6 +803,7 @@ app.get('/api/test-panel/sms', authRequired, requireRole('admin','manager','agen
     LEFT JOIN ranges r ON r.id=s.range_id
     LEFT JOIN users cu ON cu.id=s.client_id
     LEFT JOIN users au ON au.id=s.agent_id
+    LEFT JOIN sharing_users su ON su.agent_user_id=s.agent_id
     LEFT JOIN users mu ON mu.id=s.manager_id
     WHERE EXISTS (SELECT 1 FROM range_test_numbers t WHERE t.active=1 AND ${matchExpr})
       AND datetime(s.received_at) >= datetime((SELECT t.created_at FROM range_test_numbers t WHERE t.active=1 AND ${matchExpr} ORDER BY t.id DESC LIMIT 1))
@@ -1360,6 +1362,7 @@ function buildSmsPagedQuery(user, q = {}) {
     LEFT JOIN numbers n ON n.id=s.number_id
     LEFT JOIN users cu ON cu.id=s.client_id
     LEFT JOIN users au ON au.id=s.agent_id
+    LEFT JOIN sharing_users su ON su.agent_user_id=s.agent_id
     LEFT JOIN users mu ON mu.id=s.manager_id
     WHERE ${where.join(' AND ')}`;
   return { baseSql, params };
