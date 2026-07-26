@@ -79,6 +79,11 @@ app.get('/login.html', (req, res) => res.redirect(301, '/login'));
 app.get('/admin', (req, res) => sendFrontendPage(res, 'admin.html'));
 app.get('/admin.html', (req, res) => res.redirect(301, '/admin'));
 app.get('/admin/:page', (req, res) => sendFrontendPage(res, 'admin.html'));
+app.get('/panel-sharing-login', (req, res) => sendFrontendPage(res, 'panel-sharing-login.html'));
+app.get('/panel-sharing-login.html', (req, res) => res.redirect(301, '/panel-sharing-login'));
+app.get('/panel-sharing', (req, res) => sendFrontendPage(res, 'panel-sharing.html'));
+app.get('/panel-sharing.html', (req, res) => res.redirect(301, '/panel-sharing'));
+app.get('/panel-sharing/:page', (req, res) => sendFrontendPage(res, 'panel-sharing.html'));
 app.get('/payment-login', (req, res) => sendFrontendPage(res, 'payment-login.html'));
 app.get('/payment-login.html', (req, res) => res.redirect(301, '/payment-login'));
 app.get('/payment', (req, res) => sendFrontendPage(res, 'payment.html'));
@@ -207,7 +212,7 @@ function smsRowsForScope(user, extraWhere='', extraParams=[]){
   if(extraWhere){ where.push(extraWhere); params.push(...extraParams); }
   const rows=db.all(`SELECT s.*, r.name AS range_name, r.rate_1_1, r.rate_7_1, r.rate_7_7, r.rate_30_45,
       n.rate AS number_rate, n.payout AS number_payout, n.payterm AS payterm, r.payment_type AS payment_type,
-      cu.username AS client_name, au.username AS agent_name, mu.username AS manager_name
+      cu.username AS client_name, COALESCE(su.panel_name, au.username) AS agent_name, au.username AS agent_username, su.panel_name AS sharing_panel_name, su.id AS sharing_user_id, mu.username AS manager_name
     FROM sms_records s
     LEFT JOIN numbers n ON n.id=s.number_id
     LEFT JOIN ranges r ON r.id=s.range_id
@@ -792,7 +797,7 @@ app.get('/api/test-panel/sms', authRequired, requireRole('admin','manager','agen
       (SELECT t.id FROM range_test_numbers t WHERE t.active=1 AND ${matchExpr} ORDER BY t.id DESC LIMIT 1) AS test_number_id,
       (SELECT t.test_number FROM range_test_numbers t WHERE t.active=1 AND ${matchExpr} ORDER BY t.id DESC LIMIT 1) AS test_number,
       (SELECT t.created_at FROM range_test_numbers t WHERE t.active=1 AND ${matchExpr} ORDER BY t.id DESC LIMIT 1) AS test_number_created_at,
-      cu.username AS client_name, au.username AS agent_name, mu.username AS manager_name
+      cu.username AS client_name, COALESCE(su.panel_name, au.username) AS agent_name, au.username AS agent_username, su.panel_name AS sharing_panel_name, su.id AS sharing_user_id, mu.username AS manager_name
     FROM sms_records s
     LEFT JOIN ranges r ON r.id=s.range_id
     LEFT JOIN users cu ON cu.id=s.client_id
@@ -929,6 +934,7 @@ function numberFromSql(where) {
      LEFT JOIN ranges r ON r.id=n.range_id
      LEFT JOIN users cu ON cu.id=n.client_id
      LEFT JOIN users au ON au.id=n.agent_id
+     LEFT JOIN sharing_users su ON su.agent_user_id=n.agent_id
      LEFT JOIN users mu ON mu.id=n.manager_id
      WHERE ${where}`;
 }
@@ -938,7 +944,7 @@ function numberSelectSql(where, options = {}) {
   return `SELECT n.*, r.name AS range_name,
             COALESCE(NULLIF(n.rate,''), NULLIF(r.rate_30_45,''), NULLIF(r.rate_7_1,''), NULLIF(r.rate_7_7,''), NULLIF(r.rate_1_1,''), '0') AS effective_rate,
             CASE WHEN n.manager_id IS NOT NULL THEN 'manager' WHEN n.agent_id IS NOT NULL THEN 'agent' WHEN n.client_id IS NOT NULL THEN 'client' ELSE 'unallocated' END AS owner_type,
-            cu.username AS client_name, au.username AS agent_name, mu.username AS manager_name${lastSms}
+            cu.username AS client_name, COALESCE(su.panel_name, au.username) AS agent_name, au.username AS agent_username, su.panel_name AS sharing_panel_name, su.id AS sharing_user_id, mu.username AS manager_name${lastSms}
      ${numberFromSql(where)}`;
 }
 app.get('/api/numbers/summary', authRequired, (req, res) => cachedJson(req, res, 3000, () => {
@@ -1373,7 +1379,7 @@ app.get('/api/sms/paged', authRequired, (req, res) => cachedJson(req, res, 1200,
   const dir = String(q.dir || 'desc').toLowerCase() === 'asc' ? 'ASC' : 'DESC';
   const rows = db.all(`SELECT s.*, r.name AS range_name, r.rate_1_1, r.rate_7_1, r.rate_7_7, r.rate_30_45,
       n.rate AS number_rate, n.payout AS number_payout, n.payterm AS payterm, r.payment_type AS payment_type,
-      cu.username AS client_name, au.username AS agent_name, mu.username AS manager_name
+      cu.username AS client_name, COALESCE(su.panel_name, au.username) AS agent_name, au.username AS agent_username, su.panel_name AS sharing_panel_name, su.id AS sharing_user_id, mu.username AS manager_name
     ${built.baseSql}
     ORDER BY ${sortCol} ${dir}, s.id DESC LIMIT ? OFFSET ?`, [...built.params, limit, offset]);
   return { rows: attachSmsPayoutFields(rows), total, page, limit, totalPages, totalPayment };
@@ -1809,6 +1815,95 @@ app.delete('/api/limit-management/:id', authRequired, requireRole('admin'), (req
 
 
 
+/* ============ PANEL SHARING (Admin-only external panel allocation) ============ */
+function sharingPublic(row){ return row ? {...row, password: undefined, password_hash: undefined} : row; }
+function sharingUserByAgent(agentId){ return db.get('SELECT * FROM sharing_users WHERE agent_user_id=? AND active=1', [agentId]); }
+function sharingAgentUser(row){ return db.get('SELECT * FROM users WHERE id=?', [row.agent_user_id]); }
+app.get('/api/panel-sharing/dashboard', authRequired, requireRole('admin'), (req,res)=>{
+  const users=db.get('SELECT COUNT(*) c FROM sharing_users WHERE active=1')?.c||0;
+  const shared=db.get(`SELECT COUNT(*) c FROM numbers n JOIN sharing_users su ON su.agent_user_id=n.agent_id WHERE su.active=1`)?.c||0;
+  const otps=db.get(`SELECT COUNT(*) c FROM sms_records s JOIN sharing_users su ON su.agent_user_id=s.agent_id WHERE COALESCE(s.is_test,0)=0`)?.c||0;
+  res.json({total_sharing_users:users,total_shared_numbers:shared,total_otp_received:otps});
+});
+app.get('/api/panel-sharing/users', authRequired, requireRole('admin'), (req,res)=>{
+  const rows=db.all(`SELECT su.*, u.active AS user_active FROM sharing_users su JOIN users u ON u.id=su.agent_user_id ORDER BY su.id DESC`);
+  res.json(rows.map(sharingPublic));
+});
+app.post('/api/panel-sharing/users', authRequired, requireRole('admin'), (req,res)=>{
+  const b=req.body||{}; const panel=String(b.panel_name||'').trim(); const username=String(b.username||'').trim(); const password=String(b.password||'');
+  if(!panel||!username||!password) return res.status(400).json({error:'panel_name, username and password required'});
+  if(db.get('SELECT id FROM users WHERE username=? COLLATE NOCASE',[username])) return res.status(409).json({error:'Username already exists'});
+  try{ db.beginBatch&&db.beginBatch();
+    const ins=db.run(`INSERT INTO users (username,password,role,name,email,whatsapp,contact,skype,parent_id,active,payment_type) VALUES (?,?,?,?,?,?,?,?,?,?,?)`, [username,bcrypt.hashSync(password,10),'agent',String(b.user_name||panel),b.email||'',b.whatsapp||'',b.contact||'',b.skype||'',req.user.id,b.active===false?0:1,'weekly']);
+    db.run('INSERT INTO sharing_users (agent_user_id,panel_name,user_name,username,attribute_url,active,created_by) VALUES (?,?,?,?,?,?,?)',[ins.lastInsertRowid,panel,String(b.user_name||''),username,String(b.attribute_url||''),b.active===false?0:1,req.user.id]);
+    logAction(req,'create_sharing_user','panel_sharing',{panel_name:panel,username});
+    res.json({ok:true,id:ins.lastInsertRowid});
+  } finally { try{db.endBatch&&db.endBatch()}catch(e){} }
+});
+app.put('/api/panel-sharing/users/:id', authRequired, requireRole('admin'), (req,res)=>{
+  const id=+req.params.id; const row=db.get('SELECT * FROM sharing_users WHERE id=?',[id]); if(!row) return res.status(404).json({error:'Sharing user not found'});
+  const b=req.body||{}; const panel=String(b.panel_name||row.panel_name).trim(); const username=String(b.username||row.username).trim();
+  const other=db.get('SELECT id FROM users WHERE username=? COLLATE NOCASE AND id<>?',[username,row.agent_user_id]); if(other) return res.status(409).json({error:'Username already exists'});
+  try{ db.beginBatch&&db.beginBatch();
+    db.run('UPDATE sharing_users SET panel_name=?,user_name=?,username=?,attribute_url=?,active=?,updated_at=datetime(\'now\') WHERE id=?',[panel,String(b.user_name||''),username,String(b.attribute_url||''),b.active===false?0:1,id]);
+    db.run('UPDATE users SET username=?,name=?,active=? WHERE id=?',[username,String(b.user_name||panel),b.active===false?0:1,row.agent_user_id]);
+    if(b.password) db.run('UPDATE users SET password=? WHERE id=?',[bcrypt.hashSync(String(b.password),10),row.agent_user_id]);
+    logAction(req,'update_sharing_user','panel_sharing',{id,panel_name:panel});
+    res.json({ok:true});
+  } finally { try{db.endBatch&&db.endBatch()}catch(e){} }
+});
+app.delete('/api/panel-sharing/users/:id', authRequired, requireRole('admin'), (req,res)=>{
+  const id=+req.params.id; const row=db.get('SELECT * FROM sharing_users WHERE id=?',[id]); if(!row) return res.status(404).json({error:'Sharing user not found'});
+  db.run('UPDATE sharing_users SET active=0,updated_at=datetime(\'now\') WHERE id=?',[id]);
+  db.run('UPDATE users SET active=0 WHERE id=?',[row.agent_user_id]);
+  logAction(req,'disable_sharing_user','panel_sharing',{id});
+  res.json({ok:true});
+});
+app.get('/api/panel-sharing/numbers', authRequired, requireRole('admin'), (req,res)=>cachedJson(req,res,1500,()=>{
+  const q=String(req.query.search||'').trim(); const range=String(req.query.range||'').trim();
+  const where=['n.manager_id IS NULL','n.agent_id IS NULL','n.client_id IS NULL',"COALESCE(r.deleted_at,'')=''"], params=[];
+  if(q){where.push('(n.number LIKE ? OR r.name LIKE ?)'); params.push('%'+q+'%','%'+q+'%');}
+  if(range){where.push('r.name=?'); params.push(range);}
+  const total=db.get(`SELECT COUNT(*) c FROM numbers n LEFT JOIN ranges r ON r.id=n.range_id WHERE ${where.join(' AND ')}`,params)?.c||0;
+  const limitRaw=String(req.query.limit||25); const limit=limitRaw.toLowerCase()==='all'?Math.min(total||1,100000):Math.min(Math.max(parseInt(limitRaw)||25,1),1000);
+  const totalPages=Math.max(1,Math.ceil(total/limit)); const page=Math.min(Math.max(parseInt(req.query.page||1)||1,1),totalPages); const offset=(page-1)*limit;
+  const rows=db.all(`SELECT n.id,n.number,n.range_id,r.name AS range_name FROM numbers n LEFT JOIN ranges r ON r.id=n.range_id WHERE ${where.join(' AND ')} ORDER BY r.name COLLATE NOCASE,n.number LIMIT ? OFFSET ?`,[...params,limit,offset]);
+  return {rows,total,page,limit,totalPages};
+}));
+app.post('/api/panel-sharing/allocate', authRequired, requireRole('admin'), (req,res)=>{
+  const b=req.body||{}; const userId=+b.sharing_user_id; const ids=(Array.isArray(b.ids)?b.ids:[]).map(x=>parseInt(x,10)).filter(x=>x>0);
+  const su=db.get('SELECT * FROM sharing_users WHERE id=? AND active=1',[userId]); if(!su) return res.status(404).json({error:'Sharing user not found'});
+  if(!ids.length) return res.status(400).json({error:'ids[] required'});
+  const ph=ids.map(()=>'?').join(',');
+  const rows=db.all(`SELECT n.id,n.number,r.name AS range_name FROM numbers n LEFT JOIN ranges r ON r.id=n.range_id WHERE n.id IN (${ph}) AND n.manager_id IS NULL AND n.agent_id IS NULL AND n.client_id IS NULL`, ids);
+  if(!rows.length) return res.status(404).json({error:'No unallocated numbers found'});
+  try{ db.beginBatch&&db.beginBatch();
+    const rowIds=rows.map(r=>r.id); const ph2=rowIds.map(()=>'?').join(',');
+    db.run(`UPDATE numbers SET agent_id=?, manager_id=NULL, client_id=NULL, payout='0', rate='', payterm='weekly' WHERE id IN (${ph2})`, [su.agent_user_id,...rowIds]);
+    rows.forEach(nr=>logNumberHistory(req,nr,'allocated','',su.panel_name,{target_role:'sharing_agent',sharing_user_id:su.id}));
+    logAction(req,'allocate_panel_sharing_numbers','panel_sharing',{count:rows.length,panel_name:su.panel_name});
+    res.json({ok:true,count:rows.length,panel_name:su.panel_name,rows:rows.map(r=>({range_name:r.range_name||'',number:r.number||''}))});
+  } finally { try{db.endBatch&&db.endBatch()}catch(e){} }
+});
+app.get('/api/panel-sharing/forward-logs', authRequired, requireRole('admin'), (req,res)=>{
+  res.json(db.all(`SELECT l.*, su.panel_name FROM sharing_forward_logs l LEFT JOIN sharing_users su ON su.id=l.sharing_user_id ORDER BY l.id DESC LIMIT 500`));
+});
+function forwardSharingOtpIfNeeded(savedId, smsRow){
+  if(!savedId || !smsRow || !smsRow.agent_id) return;
+  const su=sharingUserByAgent(smsRow.agent_id); if(!su || !su.attribute_url) return;
+  setImmediate(async()=>{
+    let status='failed', error='', preview='';
+    try{
+      const rangeName=db.get('SELECT name FROM ranges WHERE id=?',[smsRow.range_id])?.name||'';
+      const payload={number:smsRow.number,cli:smsRow.cli,message:smsRow.message,otp_code:smsRow.otp_code,range_name:rangeName,received_at:new Date().toISOString(),panel_name:su.panel_name};
+      const resp=await fetch(su.attribute_url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),signal:AbortSignal.timeout?AbortSignal.timeout(10000):undefined});
+      preview=(await resp.text()).slice(0,250); status=resp.ok?'success':'failed'; if(!resp.ok) error='HTTP '+resp.status;
+    }catch(e){ error=e.message||String(e); }
+    try{ db.run('INSERT INTO sharing_forward_logs (sharing_user_id,sms_record_id,url,status,error,response_preview) VALUES (?,?,?,?,?,?)',[su.id,savedId,su.attribute_url,status,error,preview]); }catch(e){}
+  });
+}
+
+
 /* ============ CARRIER INTEGRATION SETTINGS ============ */
 function getCarrierSettings(){
   let row = db.get('SELECT * FROM carrier_settings ORDER BY id ASC LIMIT 1');
@@ -2117,6 +2212,7 @@ function processIncomingSmsPayload(req, payload, sourceIp='', opts={}) {
   const smsRow = { number_id:n.id, number:n.number, range_id:n.range_id, cli:cli||'', sender_type:senderType, message:message||'', otp_code:otpCode, client_id:n.client_id, agent_id:n.agent_id, manager_id:n.manager_id, is_test: opts.isTest?1:0 };
   logWebhook('success', b, number, n.number, cli, message, '', sourceIp);
   console.log('[INCOMING_SMS] saved', { id: saved ? saved.id : null, number: n.number, cli: cli || '', sender_type: senderType, otp_detected: !!otpCode, source: opts.source || 'carrier', manager_id: n.manager_id || null, agent_id: n.agent_id || null, client_id: n.client_id || null });
+  forwardSharingOtpIfNeeded(saved ? saved.id : null, smsRow);
   return { status: 200, body: { ok: true, id: saved ? saved.id : null, received_at: saved ? saved.received_at : null, matched_number: n.number, sender_type: senderType, otp_detected: !!otpCode } };
 }
 

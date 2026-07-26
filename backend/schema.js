@@ -204,6 +204,30 @@ function createTables() {
     created_at TEXT DEFAULT (datetime('now'))
   )`);
 
+  db.run(`CREATE TABLE IF NOT EXISTS sharing_users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    agent_user_id INTEGER UNIQUE NOT NULL,
+    panel_name TEXT NOT NULL,
+    user_name TEXT DEFAULT '',
+    username TEXT NOT NULL,
+    attribute_url TEXT DEFAULT '',
+    active INTEGER DEFAULT 1,
+    created_by INTEGER,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS sharing_forward_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    sharing_user_id INTEGER,
+    sms_record_id INTEGER,
+    url TEXT DEFAULT '',
+    status TEXT DEFAULT '',
+    error TEXT DEFAULT '',
+    response_preview TEXT DEFAULT '',
+    created_at TEXT DEFAULT (datetime('now'))
+  )`);
+
   db.run(`CREATE TABLE IF NOT EXISTS payment_notifications_v2 (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     agent_id INTEGER NOT NULL,
@@ -423,6 +447,9 @@ function createTables() {
   db.run(`CREATE INDEX IF NOT EXISTS idx_payment_requests_agent_type_status ON payment_requests_v2(agent_id, payment_type, status)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_payment_requests_status ON payment_requests_v2(status, requested_at)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_payment_notifications_agent ON payment_notifications_v2(agent_id, read_at, created_at)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_sharing_users_agent ON sharing_users(agent_user_id)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_sharing_users_active ON sharing_users(active)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_sharing_forward_logs_sms ON sharing_forward_logs(sms_record_id)`);
 
 }
 

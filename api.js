@@ -7,8 +7,9 @@
   function clearAuthStorage(){
     try{ AUTH_KEYS.forEach(k=>{ sessionStorage.removeItem(k); localStorage.removeItem(k); }); }catch(e){}
   }
-  const TOKEN = () => sessionStorage.getItem('ms_token');
-  const ROLE = () => sessionStorage.getItem('ms_role');
+  const STORE = (k) => sessionStorage.getItem(k) || localStorage.getItem(k);
+  const TOKEN = () => STORE('ms_token');
+  const ROLE = () => STORE('ms_role');
 
   function guard(expectedRole) {
     if (!TOKEN()) { location.href = '/login'; return false; }
@@ -179,7 +180,7 @@
     try{
       const body={username:document.getElementById('msProfileUsername').value.trim(),current_password:document.getElementById('msProfileCurrent').value,new_password:document.getElementById('msProfileNew').value,confirm_password:document.getElementById('msProfileConfirm').value,admin_security_code:document.getElementById('msProfileAdminCode')?document.getElementById('msProfileAdminCode').value:''};
       const r=await req('PUT','/profile',body);
-      sessionStorage.setItem('ms_token',r.token);sessionStorage.setItem('ms_user',r.user.username);sessionStorage.setItem('ms_role',r.user.role);sessionStorage.setItem('ms_name',r.user.name||r.user.username);['ms_token','ms_role','ms_user','ms_name'].forEach(k=>localStorage.removeItem(k));
+      sessionStorage.setItem('ms_token',r.token);sessionStorage.setItem('ms_user',r.user.username);sessionStorage.setItem('ms_role',r.user.role);sessionStorage.setItem('ms_name',r.user.name||r.user.username);localStorage.setItem('ms_token',r.token);localStorage.setItem('ms_user',r.user.username);localStorage.setItem('ms_role',r.user.role);localStorage.setItem('ms_name',r.user.name||r.user.username);
       document.getElementById('msProfileMsg').textContent='Profile updated successfully.';
       setTimeout(()=>location.reload(),700);
     }catch(e){document.getElementById('msProfileMsg').textContent='Error: '+e.message;}
@@ -270,11 +271,12 @@
   function basePathForRole(role=ROLE()){
     if(location.pathname.startsWith('/management')) return '/management';
     if(location.pathname.startsWith('/payment')) return '/payment';
+    if(location.pathname.startsWith('/panel-sharing')) return '/panel-sharing';
     return {admin:'/admin',manager:'/manager',agent:'/agent',client:'/client',test:'/test'}[role] || '/login';
   }
   function defaultPageForCurrentPanel(){ return location.pathname.startsWith('/management') ? 'rates' : 'dashboard'; }
   function pageUrl(page){ return basePathForRole() + '/' + encodeURIComponent(page || defaultPageForCurrentPanel()); }
-  function panelKeyForStorage(){ if(location.pathname.startsWith('/management')) return 'management'; if(location.pathname.startsWith('/payment')) return 'payment'; return (ROLE()||''); }
+  function panelKeyForStorage(){ if(location.pathname.startsWith('/management')) return 'management'; if(location.pathname.startsWith('/payment')) return 'payment'; if(location.pathname.startsWith('/panel-sharing')) return 'panelsharing'; return (ROLE()||''); }
   function pageFromUrl(){
     const base=basePathForRole();
     const path=location.pathname.replace(/\/+$/,'');
@@ -572,8 +574,8 @@
   window.API = {
     guard,
     role: ROLE,
-    user: () => sessionStorage.getItem('ms_user'),
-    name: () => sessionStorage.getItem('ms_name'),
+    user: () => STORE('ms_user'),
+    name: () => STORE('ms_name'),
     ukDate: ukDateString,
     ukToday: () => ukDateString(new Date()),
     ukTimestamp: formatLocalFromDb,

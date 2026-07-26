@@ -179,3 +179,13 @@ However, the current update removes the worst causes:
 - background jobs for large allocations
 
 A `better-sqlite3` migration should be handled separately with full backup/rollback.
+
+## Additional 100,000 Number Test
+
+After the final background-job and batching changes, a real HTTP smart-divide test with 100,000 numbers was run:
+
+| Workload | Initial API Response | Dashboard During Job | Job Complete | Allocated |
+|---:|---:|---:|---:|---:|
+| 100,000 numbers | 125 ms | 481 ms | 12,214 ms | 100,000 |
+
+This confirms large operations now start immediately and run in background while the panel remains responsive.
