@@ -189,3 +189,28 @@ After the final background-job and batching changes, a real HTTP smart-divide te
 | 100,000 numbers | 125 ms | 481 ms | 12,214 ms | 100,000 |
 
 This confirms large operations now start immediately and run in background while the panel remains responsive.
+
+## Live Production Comparison: Reference Panels vs MUFASA
+
+Reference panels (server-rendered PHP Agent panels) were measured after login. Their pages return mostly 18–34 KB HTML and respond around 0.41–0.54 seconds:
+
+- MySMSNumbers: ~0.49–0.54s
+- SMSCDRReports: ~0.42–0.45s
+- SMSCDRStats: ~0.42–0.45s
+- SMSClientStats/RangeStats/NumberStats: ~0.41–0.45s
+
+MUFASA live API measurements showed:
+
+- Dashboard: ~0.47s
+- SMS Numbers page API: ~0.47s
+- SMS paged CDR: ~0.45–0.49s
+- SMS CDR is now comparable to the reference panels.
+
+Remaining bottleneck found:
+
+- `/api/test-panel/sms` took about 55 seconds on production.
+- Root cause: query used correlated subqueries with normalized phone matching against `range_test_numbers` for every SMS row.
+- Fix: Test Panel SMS now reads direct `sms_records.is_test=1` rows with regular joins and LIMIT, using existing `idx_sms_test_date`/test indexes.
+- Test Panel dashboard also changed to count `is_test=1` directly instead of EXISTS + normalized matching.
+
+This is why SMS CDR felt fast while SMS Test Panel records were still slow.

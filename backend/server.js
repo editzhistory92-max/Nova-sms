@@ -774,43 +774,36 @@ app.delete('/api/test-numbers/:id', authRequired, requireRole('admin'), (req, re
 
 app.get('/api/test-panel/dashboard', authRequired, requireRole('admin','manager','agent','client','test'), (req, res) => {
   const nums = db.get('SELECT COUNT(*) c FROM range_test_numbers WHERE active=1')?.c || 0;
-  const ukDay = ukDateExpr('s.received_at');
-  const matchExpr = `REPLACE(REPLACE(REPLACE(REPLACE(t.test_number,'+',''),' ',''),'-',''),'_','')=REPLACE(REPLACE(REPLACE(REPLACE(s.number,'+',''),' ',''),'-',''),'_','')`;
-  const today = db.get(`SELECT COUNT(*) c FROM sms_records s WHERE ${ukDay}=${ukDateNowSql()} AND EXISTS (
-      SELECT 1 FROM range_test_numbers t WHERE t.active=1 AND ${matchExpr}
-    )`)?.c || 0;
+  const normalTest = 'COALESCE(is_test,0)=1';
+  const dExpr = ukDateExpr('received_at');
+  const today = db.get(`SELECT COUNT(*) c FROM sms_records WHERE ${normalTest} AND ${dExpr}=${ukDateNowSql()}`)?.c || 0;
   const daily7 = db.all(`WITH days(n,d) AS (
       SELECT 6, ${ukDateNowSql('-6 days')} UNION ALL SELECT n-1, date(d,'+1 day') FROM days WHERE n>0
-    ) SELECT d AS date, COALESCE((SELECT COUNT(*) FROM sms_records s WHERE ${ukDay}=d AND EXISTS (
-      SELECT 1 FROM range_test_numbers t WHERE t.active=1 AND ${matchExpr}
-    )),0) AS count FROM days ORDER BY d`);
+    ) SELECT d AS date, COALESCE((SELECT COUNT(*) FROM sms_records s WHERE COALESCE(s.is_test,0)=1 AND ${ukDateExpr('s.received_at')}=d),0) AS count FROM days ORDER BY d`);
   res.json({ today_otps: today, total_test_numbers: nums, daily7, reporting_timezone: 'Europe/London' });
 });
 
-app.get('/api/test-panel/sms', authRequired, requireRole('admin','manager','agent','client','test'), (req, res) => {
+app.get('/api/test-panel/sms', authRequired, requireRole('admin','manager','agent','client','test'), (req, res) => cachedJson(req, res, 1500, () => {
   const number = String(req.query.number || '').trim();
+  const limit = Math.max(1, Math.min(parseInt(req.query.limit || '500', 10) || 500, 2000));
   const params = [];
-  let extra = '';
-  if (number) { extra = `AND REPLACE(REPLACE(REPLACE(REPLACE(s.number,'+',''),' ',''),'-',''),'_','')=?`; params.push(cleanPhone(number)); }
-  const matchExpr = `REPLACE(REPLACE(REPLACE(REPLACE(t.test_number,'+',''),' ',''),'-',''),'_','')=REPLACE(REPLACE(REPLACE(REPLACE(s.number,'+',''),' ',''),'-',''),'_','')`;
-  const rows = db.all(`SELECT s.*,
-      COALESCE(r.name, (SELECT r2.name FROM range_test_numbers t LEFT JOIN ranges r2 ON r2.id=t.range_id WHERE t.active=1 AND ${matchExpr} ORDER BY t.id DESC LIMIT 1)) AS range_name,
-      (SELECT t.id FROM range_test_numbers t WHERE t.active=1 AND ${matchExpr} ORDER BY t.id DESC LIMIT 1) AS test_number_id,
-      (SELECT t.test_number FROM range_test_numbers t WHERE t.active=1 AND ${matchExpr} ORDER BY t.id DESC LIMIT 1) AS test_number,
-      (SELECT t.created_at FROM range_test_numbers t WHERE t.active=1 AND ${matchExpr} ORDER BY t.id DESC LIMIT 1) AS test_number_created_at,
+  const where = ['COALESCE(s.is_test,0)=1'];
+  if (number) { where.push("REPLACE(REPLACE(REPLACE(REPLACE(s.number,'+',''),' ',''),'-',''),'_','')=?"); params.push(cleanPhone(number)); }
+  const rows = db.all(`SELECT s.*, r.name AS range_name,
+      t.id AS test_number_id, COALESCE(t.test_number, s.number) AS test_number, t.created_at AS test_number_created_at,
       cu.username AS client_name, COALESCE(su.panel_name, au.username) AS agent_name, au.username AS agent_username, su.panel_name AS sharing_panel_name, su.id AS sharing_user_id, mu.username AS manager_name
     FROM sms_records s
     LEFT JOIN ranges r ON r.id=s.range_id
+    LEFT JOIN range_test_numbers t ON t.range_id=s.range_id AND t.active=1 AND REPLACE(REPLACE(REPLACE(REPLACE(t.test_number,'+',''),' ',''),'-',''),'_','')=REPLACE(REPLACE(REPLACE(REPLACE(s.number,'+',''),' ',''),'-',''),'_','')
     LEFT JOIN users cu ON cu.id=s.client_id
     LEFT JOIN users au ON au.id=s.agent_id
     LEFT JOIN sharing_users su ON su.agent_user_id=s.agent_id
     LEFT JOIN users mu ON mu.id=s.manager_id
-    WHERE EXISTS (SELECT 1 FROM range_test_numbers t WHERE t.active=1 AND ${matchExpr})
-      AND datetime(s.received_at) >= datetime((SELECT t.created_at FROM range_test_numbers t WHERE t.active=1 AND ${matchExpr} ORDER BY t.id DESC LIMIT 1))
-      ${extra}
-    ORDER BY s.id DESC LIMIT 1000`, params);
-  res.json(rows);
-});
+    WHERE ${where.join(' AND ')}
+    ORDER BY s.id DESC LIMIT ?`, [...params, limit]);
+  return rows;
+}));
+
 
 function testPanelNumbersPool() {
   return db.all(`SELECT t.id, t.range_id, t.test_number AS number, r.name AS range_name,
