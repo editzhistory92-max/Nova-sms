@@ -724,7 +724,7 @@
   <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal('agentModal')">Cancel</button><button class="btn btn-teal" onclick="saveAgent()">Save</button></div>
 </div></div>
 
-<script src="/api.js?v=20260728-dashboard-allocation-fix"></script>
+<script src="/api.js?v=20260728-agent-manager-allocation-final"></script>
 <script>
 if(window.API){ API.guard('manager'); }
 /* ===== NAV ===== */
@@ -801,7 +801,7 @@ function cycleAgentFilter(){agFilter=(agFilter+1)%3;document.getElementById('aSo
 function resetNum(){rangeF='';agentF='';document.getElementById('numRange').value='';document.getElementById('numAgent').value='';document.getElementById('numSearch').value='';agFilter=0;document.getElementById('aSortHint').textContent='⇅';renderNumbers();}
 async function loadTestNumbers(){try{const data=await API.get('/test-numbers?paged=1&page=1&limit=100');const rows=data.rows||data;testNumbers=(rows||[]).map(t=>({range:t.range_name,num:t.number,payout:t.payout||'Ask'}));}catch(e){testNumbers=[];}}
 
-async function loadNumbers(){ try{ numData=(await API.get('/numbers')).map(r=>({id:r.id,range:r.range_name||'',number:r.number,rate:r.effective_rate||r.rate||'',agent:r.agent_name||'',sd:r.sd_limit||0,sw:r.sw_limit||0})); }catch(e){ numData=[]; } renderNumbers(); }
+async function loadNumbers(){ return renderNumbers(); }
 function renderNumbers(){
   rangeF=document.getElementById('numRange').value;agentF=document.getElementById('numAgent').value;
   const len=document.getElementById('numLen').value,q=(document.getElementById('numSearch').value||'').toLowerCase();
@@ -1049,14 +1049,14 @@ function uniqueVals(arr){return [...new Set((arr||[]).filter(Boolean))];}
 async function loadProfile(){try{const me=await API.get('/me');MGR=me.name||me.username||MGR;document.querySelectorAll('.nm').forEach(e=>e.textContent=MGR);document.querySelectorAll('.av').forEach(e=>e.textContent=(MGR[0]||'M').toUpperCase());document.querySelectorAll('.breadcrumb b').forEach(e=>{if(e.textContent.startsWith('Manager:'))e.textContent='Manager: '+MGR;});}catch(e){}}
 async function loadDashboard(){try{const d=await API.get('/dashboard');const cards=document.querySelectorAll('#page-dashboard .stat-card .stat-info h3');[(d.otp_today||d.sms_today||0),(d.successful_otp_today||0),(d.failed_otp_today||0),(d.total_sms||0)].forEach((v,i)=>{if(cards[i])cards[i].textContent=String(v)});const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];drawWeek((d.daily7||[]).map(x=>({l:days[new Date(x.date).getDay()]||'',v:x.count||0})));const recentCard=document.querySelector('#page-dashboard .dashboard-recent');if(recentCard){const head=recentCard.querySelector('.card-head')?.outerHTML||'';recentCard.innerHTML=head+((d.recent||[]).map(r=>`<div class="li"><div class="l"><div><div class="t1">SMS received — ${r.number||'—'}</div><div class="t2">${(r.received_at||'').slice(0,19)} · ${r.cli||'—'}</div></div></div></div>`).join('')||'<div class="muted" style="padding:18px">No recent activity yet</div>');}}catch(e){console.warn(e)}}
 function rebuildBa(){baData=(rateCard||[]).map(r=>{const nums=(numData||[]).filter(n=>n.range===r.range);const alloc=nums.filter(n=>n.agent).length;return{id:r.id,range:r.range,total:nums.length,alloc,avail:nums.length-alloc,rate:r.r4||r.r2||'NA'};});}
-async function loadRateCard(){ try{const ranges=await API.get('/ranges'); rateCard=ranges.map(r=>({id:r.id,range:r.name,prefix:r.prefix,cur:r.currency,r1:r.rate_1_1,r2:r.rate_7_1,r3:r.rate_7_7,r4:r.rate_30_45,test_number:r.test_number})); rangeNames=rateCard.map(r=>r.range) }catch(e){ rateCard=[]; rangeNames=[]; testNumbers=[]; } renderRateCard(); fillSel('numRange',rangeNames);fillSel('testRange',rangeNames);rebuildBa();renderBulk(); }
-async function loadNumbers(){ try{ numData=(await API.get('/numbers')).map(r=>({id:r.id,range_id:r.range_id,range:r.range_name||'',number:r.number,rate:r.effective_rate||r.rate||'',agent:r.agent_name||'',agent_id:r.agent_id,sd:r.sd_limit||0,sw:r.sw_limit||0})); }catch(e){ numData=[]; } rebuildBa(); renderNumbers(); renderBulk(); }
+async function loadRateCard(){ try{const ranges=await API.get('/ranges'); rateCard=ranges.map(r=>({id:r.id,range:r.name,prefix:r.prefix,cur:r.currency,r1:r.rate_1_1,r2:r.rate_7_1,r3:r.rate_7_7,r4:r.rate_30_45,test_number:r.test_number})); rangeNames=rateCard.map(r=>r.range) }catch(e){ rateCard=[]; rangeNames=[]; testNumbers=[]; } renderRateCard(); fillSel('numRange',rangeNames); fillSel('testRange',rangeNames); }
+async function loadNumbers(){ return renderNumbers(); }
 async function loadAgents(){ try{ agentsData=await API.get('/users/agent'); }catch(e){ agentsData=[]; } refreshAgentClientMaps(); fillSel('numAgent',myAgents);fillSel('bulkAgent',myAgents);fillSel('baAgent',myAgents); renderAgents(); if(document.getElementById('clBody')) renderClients(); if(document.getElementById('sdAgent')){fillSel('sdAgent',myAgents);document.getElementById('sdAgent').children[0].textContent='Filter Agent';} }
 async function loadClients(){ try{ clientsData=await API.get('/users/client'); }catch(e){ clientsData=[]; } refreshAgentClientMaps(); if(document.getElementById('clBody')) {buildClients();} }
 async function loadSms(){ try{ smsRecords=await API.get('/sms'); }catch(e){ smsRecords=[]; } cdr=(smsRecords||[]).map(smsToCdr); recentTests=(smsRecords||[]).slice(0,50).map(r=>({date:(r.received_at||'').slice(0,19),range:r.range_name||'—',num:r.number||'',cli:r.cli||'',msg:r.message||''})); refreshAgentClientMaps(); const b=document.getElementById('agSumBody');if(b){const byAgt={};smsRecords.forEach(r=>{const a=r.agent_name||'—';byAgt[a]=(byAgt[a]||0)+1;});b.innerHTML=Object.keys(byAgt).map(a=>`<tr><td><span class="tag tag-agt">${a}</span></td><td><span class="tag tag-cli">${(agentClients[a]||[]).length}</span></td><td class="cell-money">${byAgt[a]}</td><td class="cell-money" style="color:#6ee7b7">$ ${sumPay((smsRecords||[]).filter(r=>r.agent_name===a))}</td></tr>`).join('')||`<tr><td colspan="4" class="muted" style="text-align:center;padding:16px">No records found</td></tr>`;} if(document.getElementById('srBody'))renderSmsReport(); if(document.getElementById('sdBody'))renderSmsDetail(); ['client','agent'].forEach(k=>{if(document.getElementById(k+'Body')){buildEntTot(k);renderEntity(k);}}); ['range','number'].forEach(k=>{if(document.getElementById(k+'Body')){buildDrillTot(k);renderDrill(k);}}); }
-function baRow(i){const q=parseInt(document.getElementById('bq'+i).value),a=document.getElementById('ba'+i).value;if(!q||!a){alert('Select agent and quantity.');return;}const row=baData[i],ag=(agentsData||[]).find(x=>x.username===a);if(!row||!ag)return;API.post('/numbers/smart-divide',{range_ids:[row.id],target_ids:[ag.id],qty:q,payterm:(document.getElementById('baPayterm')?.value||'weekly_7_1')}).then(res=>{alert(`✅ ${res.total||0} numbers allocated.`);loadNumbers();}).catch(e=>alert('❌ '+e.message));}
+function baRow(i){const q=parseInt(document.getElementById('bq'+i).value),a=document.getElementById('ba'+i).value;if(!q||!a){alert('Select agent and quantity.');return;}const row=baData[i],ag=(agentsData||[]).find(x=>x.username===a);if(!row||!ag)return;API.post('/numbers/smart-divide',{range_ids:[row.id],target_ids:[ag.id],qty:q,payterm:(document.getElementById('baPayterm')?.value||'weekly_7_1')}).then(res=>{alert(`✅ ${res.total||0} numbers allocated.`);loadNumberSummaryForBulk();renderNumbers();}).catch(e=>alert('❌ '+e.message));}
 function baUn(i){const q=parseInt(document.getElementById('bu'+i).value),row=baData[i];if(!q||!row){alert('Enter quantity.');return;}const ids=(numData||[]).filter(n=>n.range===row.range&&n.agent).slice(0,q).map(n=>n.id);if(!ids.length){alert('Allocated numbers were not found.');return;}API.post('/numbers/unallocate',{ids}).then(()=>{alert(`✅ ${ids.length} numbers unallocated.`);loadNumbers();}).catch(e=>alert('❌ '+e.message));}
-function doBulk(){const r=document.getElementById('baRange').value,a=document.getElementById('baAgent').value,q=parseInt(document.getElementById('baQty').value);if(!r||!a||!q){alert('Select range, agent and quantity.');return;}const row=(baData||[]).find(x=>x.range===r)|| (rateCard||[]).find(x=>x.range===r),ag=(agentsData||[]).find(x=>x.username===a);if(!row||!ag)return;API.post('/numbers/smart-divide',{range_ids:[row.id],target_ids:[ag.id],qty:q,payterm:(document.getElementById('baPayterm')?.value||'weekly_7_1')}).then(res=>{alert(`✅ ${res.total||0} numbers allocated.`);document.getElementById('baQty').value='';loadNumbers();}).catch(e=>alert('❌ '+e.message));}
+function doBulk(){const r=document.getElementById('baRange').value,a=document.getElementById('baAgent').value,q=parseInt(document.getElementById('baQty').value);if(!r||!a||!q){alert('Select range, agent and quantity.');return;}const row=(baData||[]).find(x=>x.range===r)|| (rateCard||[]).find(x=>x.range===r),ag=(agentsData||[]).find(x=>x.username===a);if(!row||!ag)return;API.post('/numbers/smart-divide',{range_ids:[row.id],target_ids:[ag.id],qty:q,payterm:(document.getElementById('baPayterm')?.value||'weekly_7_1')}).then(res=>{alert(`✅ ${res.total||0} numbers allocated.`);document.getElementById('baQty').value='';loadNumberSummaryForBulk();renderNumbers();}).catch(e=>alert('❌ '+e.message));}
 
 /* ===== AGENT PAYMENT VIEW (read-only) ===== */
 function balFor(row,type){const b=(row.balances||[]).find(x=>x.payment_type===type)||{};return b.available_balance||'0'}
@@ -1090,7 +1090,7 @@ async function loadManagerPageData(page){
     if(page==='dashboard') return loadDashboard();
     if(page==='rateCard') return loadRateCard();
     if(page==='numbers') return loadNumbers();
-    if(page==='bulkAlloc'){ await loadNumbers(); return renderBulk(); }
+    if(page==='bulkAlloc'){ await Promise.allSettled([loadAgents(), loadNumberSummaryForBulk()]); return; }
     if(page==='agents'){ buildAgents(); return loadAgents(); }
     if(page==='clients'){ buildClients(); return loadClients(); }
     if(page==='smsReport'){ if(!document.getElementById('srBody')) buildSmsReport(); return loadSms(); }
@@ -1152,7 +1152,7 @@ async function loadManagerPageData(page){
     if(page==='dashboard') return loadDashboard();
     if(page==='rateCard') return loadRateCard();
     if(page==='numbers') return loadNumbers();
-    if(page==='bulkAlloc'){ await Promise.allSettled([loadRateCard(),loadAgents(),loadNumberSummaryForBulk()]); return; }
+    if(page==='bulkAlloc'){ await Promise.allSettled([loadAgents(), loadNumberSummaryForBulk()]); return; }
     if(page==='agents'){ buildAgents(); return loadAgents(); }
     if(page==='clients'){ buildClients(); return loadClients(); }
     if(page==='smsReport'){ if(!document.getElementById('srBody')) buildSmsReport(); return renderSmsReport(); }

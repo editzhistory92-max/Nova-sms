@@ -467,8 +467,6 @@
         <div class="rsubitem" data-page="rangeStats"><span class="d"></span><span class="lbl">Range Stats</span></div>
         <div class="rsubitem" data-page="numberStats"><span class="d"></span><span class="lbl">Number Stats</span></div>
       </div>
-
-      <div class="ritem" data-page="test"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18v-6a3 3 0 0 1 6 0v6"/><rect x="4" y="18" width="16" height="3"/><path d="M12 3v3"/></svg><span class="lbl">SMS Test Panel</span></div>
       <div class="ritem" data-page="payment"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg><span class="lbl">Payment Section</span></div>
     </nav>
   </aside>
@@ -574,28 +572,6 @@
       <section class="page" id="page-rangeStats"></section>
       <section class="page" id="page-numberStats"></section>
 
-      <!-- TEST PANEL (masked CLI) -->
-      <section class="page" id="page-test">
-        <div class="page-head"><div><h2>SMS Test Panel</h2><div class="breadcrumb"><b>Home</b> › Test Panel</div></div>
-          <div class="head-actions"><span class="masknote">🔒 CLI masked (Agent)</span></div></div>
-        <div class="toolbar"><div class="filter-row">
-          <select class="sel-lg" id="testRange"><option value="">Select Range</option></select>
-          <button class="btn btn-blue" onclick="renderTest()">Filter</button>
-          <button class="btn btn-ghost" onclick="document.getElementById('testRange').value='';renderTest()">Reset</button>
-          <span class="muted" style="font-size:11.5px">(Range filter applies only to Test Numbers)</span>
-        </div></div>
-        <div class="grid2" style="grid-template-columns:1fr 1.3fr">
-          <div><h3 style="margin-bottom:12px;font-size:15px">SMS Test Numbers</h3>
-            <div class="table-wrap" style="margin-top:0"><div class="tscroll"><table>
-              <thead><tr><th>Range</th><th>Test Number</th></tr></thead><tbody id="tnBody"></tbody></table></div></div></div>
-          <div><h3 style="margin-bottom:12px;font-size:15px">Recent SMS Test</h3>
-            <div class="toolbar" style="margin-bottom:12px;padding:12px 14px"><div class="filter-row" style="margin:0">
-              <input type="text" id="testCli" placeholder="Filter by CLI" oninput="renderTest()" style="min-width:180px"/></div></div>
-            <div class="table-wrap" style="margin-top:0"><div class="tscroll"><table>
-              <thead><tr><th>Date</th><th>Range</th><th>Number</th><th>CLI</th><th>Message</th></tr></thead><tbody id="trBody"></tbody></table></div></div></div>
-        </div>
-      </section>
-
       <!-- PAYMENT SECTION -->
             <section class="page" id="page-payment">
         <div class="page-head"><div><h2>Payment Section</h2><div class="breadcrumb"><b>Payments</b> › Wallet & Requests</div></div></div>
@@ -659,7 +635,7 @@
 
 
 <div class="modal-overlay" id="walletHelpModal"><div class="modal" style="max-width:720px"><div class="modal-head"><h3>How to copy Binance USDT (TRC20) wallet</h3><button class="modal-close" onclick="closeModal('walletHelpModal')">×</button></div><div class="modal-body"><div class="hint" style="margin-bottom:12px"><b>Warning:</b> Using the wrong network or wallet address is the user's responsibility.</div><div class="card"><b>Step 1</b><div class="hint">Open Binance → Wallet → Spot/Funding → Deposit.</div><div style="border:1px solid #ddd6fe;border-radius:12px;padding:12px;margin-top:8px;background:#faf5ff">Example Screenshot: Deposit → Select USDT</div></div><div class="card"><b>Step 2</b><div class="hint">Choose coin: USDT. Choose network: TRC20 / Tron.</div><div style="border:1px solid #ddd6fe;border-radius:12px;padding:12px;margin-top:8px;background:#faf5ff">Example Screenshot: Network TRC20 selected</div></div><div class="card"><b>Step 3</b><div class="hint">Copy the address starting with T and paste it here.</div><div style="border:1px solid #ddd6fe;border-radius:12px;padding:12px;margin-top:8px;background:#faf5ff">Example: Txxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</div></div></div></div></div>
-<script src="/api.js?v=20260728-dashboard-allocation-fix"></script>
+<script src="/api.js?v=20260728-agent-manager-allocation-final"></script>
 <script>
 if(window.API){ API.guard('agent'); }
 /* NAV */
@@ -698,12 +674,10 @@ function refreshClients(){myClients=unique((clientsData||[]).map(c=>c.username).
 function smsToCdr(r){return {client:r.client_name||'—',range:r.range_name||'—',number:r.number||'',sms:1,pay:cleanDec(r.payout_amount||r.payout_rate||0),payout_rate:cleanDec(r.payout_rate||0),cli:r.cli||'',msg:r.message||'',date:(r.received_at||'').slice(0,19)};}
 
 /* CLI masking */
-function maskCLI(cli){if(!cli)return '';if(cli.length<=2)return cli;return cli.slice(0,2)+'x'.repeat(cli.length-2);}
-
 /* fill selects */
 function fillSel(id,arr,keep=true){const s=document.getElementById(id);if(!s)return;const f=keep?s.children[0].outerHTML:'';s.innerHTML=f+arr.map(x=>`<option>${x}</option>`).join('');}
 function refreshClientSelects(){fillSel('numClient',myClients);fillSel('bulkClient',myClients);fillSel('baClient',myClients);}
-fillSel('numRange',rangeNames);fillSel('testRange',rangeNames);refreshClientSelects();
+fillSel('numRange',rangeNames);refreshClientSelects();
 
 /* RATE CARD (API) */
 function fr(v){return v==='NA'||!v?'<span class="muted">NA</span>':'<span class="cell-money">$ '+v+'</span>';}
@@ -718,9 +692,7 @@ let nSort={k:null,d:1},cliF=0,rangeF='',clientF='';
 function sortNum(k){if(nSort.k===k)nSort.d*=-1;else{nSort.k=k;nSort.d=1;}if(k==='number')document.getElementById('nSortHint').textContent=nSort.d===1?'▲':'▼';renderNumbers();}
 function cycleClientFilter(){cliF=(cliF+1)%3;document.getElementById('cSortHint').textContent=cliF===0?'⇅':(cliF===1?'Unallocated ▾':'Allocated ▾');renderNumbers();}
 function resetNum(){rangeF='';clientF='';document.getElementById('numRange').value='';document.getElementById('numClient').value='';document.getElementById('numSearch').value='';cliF=0;document.getElementById('cSortHint').textContent='⇅';renderNumbers();}
-async function loadTestNumbers(){try{const data=await API.get('/test-numbers?paged=1&page=1&limit=100');const rows=data.rows||data;testNumbers=(rows||[]).map(t=>({range:t.range_name,num:t.number,payout:t.payout||'Ask'}));}catch(e){testNumbers=[];}}
-
-async function loadNumbers(){ try{ numData=(await API.get('/numbers')).map(r=>({id:r.id,range:r.range_name||'',number:r.number,rate:r.effective_rate||r.rate||'',client:r.client_name||'',sd:r.sd_limit||0,sw:r.sw_limit||0})); }catch(e){ numData=[]; } renderNumbers(); }
+async function loadNumbers(){ return renderNumbers(); }
 function renderNumbers(){rangeF=document.getElementById('numRange').value;clientF=document.getElementById('numClient').value;
   const len=document.getElementById('numLen').value,q=(document.getElementById('numSearch').value||'').toLowerCase();
   let rows=(numData||[]).filter(r=>(r.number.includes(q)||r.client.toLowerCase().includes(q)||r.range.toLowerCase().includes(q)));
@@ -895,14 +867,6 @@ function renderDrill(kind){const len=document.getElementById(kind+'Len').value,q
   document.getElementById(kind+'Info').textContent=`Showing ${rows.length} of ${t} rows`;}
 
 /* TEST PANEL (masked CLI + masked SMS body; range filter only on test numbers) */
-function normPhone(v){return String(v||'').replace(/[^0-9]/g,'');}
-async function renderTest(){const rf=document.getElementById('testRange').value,cf=(document.getElementById('testCli').value||'').toLowerCase();
-  document.getElementById('tnBody').innerHTML=testNumbers.filter(r=>!rf||r.range===rf).map(r=>`<tr><td>${r.range}</td><td class="mono">${r.num}</td></tr>`).join('');
-  const apiRows=await API.get('/test-panel/sms').catch(()=>[]);
-  const rows=(apiRows||[]).map(r=>({date:(r.received_at||'').slice(0,19),range:r.range_name||'',num:r.number||'',cli:r.cli||''})).filter(r=>(!rf||r.range===rf)&&(!cf||maskCLI(r.cli).toLowerCase().includes(cf)||r.cli.toLowerCase().includes(cf)));
-  document.getElementById('trBody').innerHTML=rows.map(r=>`<tr><td class="muted">${r.date}</td><td>${r.range}</td><td class="mono">${r.num}</td><td class="mono">${maskCLI(r.cli)}</td><td class="mono">xxxxxxxxxxxx</td></tr>`).join('')||`<tr><td colspan="5" class="muted" style="text-align:center;padding:22px">No test panel SMS found</td></tr>`;
-}
-
 /* PAYMENT */
 /* NEWS (API) */
 
@@ -922,13 +886,13 @@ function uniqueVals(arr){return [...new Set((arr||[]).filter(Boolean))];}
 async function loadProfile(){try{const me=await API.get('/me');AGT=me.name||me.username||AGT;document.querySelectorAll('.nm').forEach(e=>e.textContent=AGT);document.querySelectorAll('.av').forEach(e=>e.textContent=(AGT[0]||'A').toUpperCase());}catch(e){}}
 async function loadDashboard(){try{const d=await API.get('/dashboard');const cards=document.querySelectorAll('#page-dashboard .stat-card .stat-info h3');[(d.otp_today||d.sms_today||0),(d.successful_otp_today||0),(d.failed_otp_today||0),(d.total_sms||0)].forEach((v,i)=>{if(cards[i])cards[i].textContent=String(v)});const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];drawWeek((d.daily7||[]).map(x=>({l:days[new Date(x.date).getDay()]||'',v:x.count||0})));const recentCard=document.querySelector('#page-dashboard .dashboard-recent');if(recentCard){const head=recentCard.querySelector('.card-head')?.outerHTML||'';recentCard.innerHTML=head+((d.recent||[]).map(r=>`<div class="li"><div class="l"><div><div class="t1">SMS received — ${r.number||'—'}</div><div class="t2">${(r.received_at||'').slice(0,19)} · ${r.cli||'—'}</div></div></div></div>`).join('')||'<div class="muted" style="padding:18px">No recent activity yet</div>');}}catch(e){console.warn(e)}}
 function rebuildBa(){baData=(rateCard||[]).map(r=>{const nums=(numData||[]).filter(n=>n.range===r.range);const alloc=nums.filter(n=>n.client).length;return{id:r.id,range:r.range,total:nums.length,alloc,avail:nums.length-alloc,rate:r.r4||r.r2||'NA'};});}
-async function loadRateCard(){ try{const ranges=await API.get('/ranges'); rateCard=ranges.map(r=>({id:r.id,range:r.name,cur:r.currency,r1:r.rate_1_1,r2:r.rate_7_1,r3:r.rate_7_7,r4:r.rate_30_45,test_number:r.test_number})); rangeNames=rateCard.map(r=>r.range) }catch(e){ rateCard=[]; rangeNames=[]; testNumbers=[]; } renderRateCard(); fillSel('numRange',rangeNames);fillSel('testRange',rangeNames);rebuildBa();renderBulk(); }
-async function loadNumbers(){ try{ numData=(await API.get('/numbers')).map(r=>({id:r.id,range_id:r.range_id,range:r.range_name||'',number:r.number,rate:r.effective_rate||r.rate||'',client:r.client_name||'',client_id:r.client_id,sd:r.sd_limit||0,sw:r.sw_limit||0})); }catch(e){ numData=[]; } rebuildBa(); renderNumbers(); renderBulk(); }
+async function loadRateCard(){ try{const ranges=await API.get('/ranges'); rateCard=ranges.map(r=>({id:r.id,range:r.name,cur:r.currency,r1:r.rate_1_1,r2:r.rate_7_1,r3:r.rate_7_7,r4:r.rate_30_45,test_number:r.test_number})); rangeNames=rateCard.map(r=>r.range) }catch(e){ rateCard=[]; rangeNames=[]; testNumbers=[]; } renderRateCard(); fillSel('numRange',rangeNames); }
+async function loadNumbers(){ return renderNumbers(); }
 async function loadClients(){ try{ clientsData=await API.get('/users/client'); }catch(e){ clientsData=[]; } refreshClients(); refreshClientSelects(); renderClients(); }
 async function loadSms(){ try{ smsRecords=await API.get('/sms'); }catch(e){ smsRecords=[]; } cdr=(smsRecords||[]).map(smsToCdr); recentTests=(smsRecords||[]).slice(0,50).map(r=>({date:(r.received_at||'').slice(0,19),range:r.range_name||'—',num:r.number||'',cli:r.cli||'',msg:r.message||''})); refreshClients(); const byCli={};smsRecords.forEach(r=>{const c=r.client_name||'—';byCli[c]=(byCli[c]||0)+1;});const b=document.getElementById('clSumBody');if(b)b.innerHTML=Object.keys(byCli).map(c=>`<tr><td><span class="tag tag-cli">${c}</span></td><td class="cell-money">${byCli[c]}</td><td class="cell-money" style="color:#86efac">$ ${sumPay((smsRecords||[]).filter(r=>r.client_name===c))}</td></tr>`).join('')||`<tr><td colspan="3" class="muted" style="text-align:center;padding:16px">No records found</td></tr>`; if(document.getElementById('srBody'))renderSmsReport();if(document.getElementById('sdBody'))renderSmsDetail();if(document.getElementById('csBody'))renderClientStats();['range','number'].forEach(k=>{if(document.getElementById(k+'Body')){buildDrillTot(k);renderDrill(k);}});}
-function baRow(i){const q=parseInt(document.getElementById('bq'+i).value),c=document.getElementById('bc'+i).value;if(!q||!c){alert('Select client and quantity.');return;}const row=baData[i],cl=(clientsData||[]).find(x=>x.username===c);if(!row||!cl)return;API.post('/numbers/smart-divide',{range_ids:[row.id],target_ids:[cl.id],qty:q,payterm:(document.getElementById('baPayterm')?.value||'weekly_7_1')}).then(res=>{alert(`✅ ${res.total||0} numbers allocated.`);loadNumbers();}).catch(e=>alert('❌ '+e.message));}
+function baRow(i){const q=parseInt(document.getElementById('bq'+i).value),c=document.getElementById('bc'+i).value;if(!q||!c){alert('Select client and quantity.');return;}const row=baData[i],cl=(clientsData||[]).find(x=>x.username===c);if(!row||!cl)return;API.post('/numbers/smart-divide',{range_ids:[row.id],target_ids:[cl.id],qty:q,payterm:(document.getElementById('baPayterm')?.value||'weekly_7_1')}).then(res=>{alert(`✅ ${res.total||0} numbers allocated.`);loadNumberSummaryForBulk();renderNumbers();}).catch(e=>alert('❌ '+e.message));}
 function baUn(i){const q=parseInt(document.getElementById('bu'+i).value),row=baData[i];if(!q||!row){alert('Enter quantity.');return;}const ids=(numData||[]).filter(n=>n.range===row.range&&n.client).slice(0,q).map(n=>n.id);if(!ids.length){alert('Allocated numbers were not found.');return;}API.post('/numbers/unallocate',{ids}).then(()=>{alert(`✅ ${ids.length} numbers unallocated.`);loadNumbers();}).catch(e=>alert('❌ '+e.message));}
-function doBulk(){const r=document.getElementById('baRange').value,c=document.getElementById('baClient').value,q=parseInt(document.getElementById('baQty').value);if(!r||!c||!q){alert('Range, Select client and quantity.');return;}const row=(baData||[]).find(x=>x.range===r)|| (rateCard||[]).find(x=>x.range===r),cl=(clientsData||[]).find(x=>x.username===c);if(!row||!cl)return;API.post('/numbers/smart-divide',{range_ids:[row.id],target_ids:[cl.id],qty:q,payterm:(document.getElementById('baPayterm')?.value||'weekly_7_1')}).then(res=>{alert(`✅ ${res.total||0} numbers allocated.`);document.getElementById('baQty').value='';loadNumbers();}).catch(e=>alert('❌ '+e.message));}
+function doBulk(){const r=document.getElementById('baRange').value,c=document.getElementById('baClient').value,q=parseInt(document.getElementById('baQty').value);if(!r||!c||!q){alert('Range, Select client and quantity.');return;}const row=(baData||[]).find(x=>x.range===r)|| (rateCard||[]).find(x=>x.range===r),cl=(clientsData||[]).find(x=>x.username===c);if(!row||!cl)return;API.post('/numbers/smart-divide',{range_ids:[row.id],target_ids:[cl.id],qty:q,payterm:(document.getElementById('baPayterm')?.value||'weekly_7_1')}).then(res=>{alert(`✅ ${res.total||0} numbers allocated.`);document.getElementById('baQty').value='';loadNumberSummaryForBulk();renderNumbers();}).catch(e=>alert('❌ '+e.message));}
 
 /* PAYMENT V2 */
 function openWalletHelp(){document.getElementById('walletHelpModal').classList.add('show')}
@@ -954,13 +918,12 @@ async function loadAgentPageData(page){
     if(page==='dashboard') return loadDashboard();
     if(page==='rateCard') return loadRateCard();
     if(page==='numbers') return loadNumbers();
-    if(page==='bulkAlloc'){ await loadNumbers(); return renderBulk(); }
+    if(page==='bulkAlloc'){ await Promise.allSettled([loadClients(), loadNumberSummaryForBulk()]); return; }
     if(page==='clients'){ buildClients(); return loadClients(); }
     if(page==='smsReport'){ if(!document.getElementById('srBody')) buildSmsReport(); return loadSms(); }
     if(page==='smsDetail'){ if(!document.getElementById('sdBody')) buildSmsDetail(); return loadSms(); }
     if(page==='clientStats'){ if(!document.getElementById('csBody')) buildClientStats(); return loadSms(); }
     if(['rangeStats','numberStats'].includes(page)){ const k=page.replace('Stats',''); if(!document.getElementById(k+'Body')) buildDrill(k); return loadSms(); }
-    if(page==='test'){ await loadRateCard(); await loadTestNumbers(); return renderTest(); }
     if(page==='payment') return loadAgentPayment();
   }catch(e){console.warn('loadAgentPageData failed',page,e);}
 }
