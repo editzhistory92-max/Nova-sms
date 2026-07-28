@@ -101,7 +101,7 @@
     </section>
   </main>
 </div>
-<script src="/api.js?v=20260726-test-panel-fast"></script>
+<script src="/api.js?v=20260727-final-payload-optimization"></script>
 <script>
 API.guard('test');
 let ranges=[], testNumbers=[], selectedNumber='', pollTimer=null;
@@ -112,7 +112,7 @@ document.querySelectorAll('.item[data-page]').forEach(i=>i.onclick=()=>showPage(
 function fillRanges(){ /* public test panel: ranges are used for display only */ }
 function otp(msg){const m=String(msg||'').match(/\b\d{4,8}\b/);return m?m[0]:'—'}
 function maskCLI(cli){cli=String(cli||'');if(!cli)return '—';if(cli.length<=2)return cli[0]+'x';return cli.slice(0,2)+'x'.repeat(Math.min(8,cli.length-2));}
-async function loadAll(){ranges=await API.get('/ranges').catch(()=>[]);testNumbers=await API.get('/test-numbers').catch(()=>[]);fillRanges();renderNumbers();renderTestNumbers();loadDash();if(document.getElementById('page-test').classList.contains('active'))loadOtps();}
+async function loadAll(){ranges=await API.get('/ranges').catch(()=>[]);{const d=await API.get('/test-numbers?paged=1&page=1&limit=100').catch(()=>({rows:[]}));testNumbers=d.rows||d;}fillRanges();renderNumbers();renderTestNumbers();loadDash();if(document.getElementById('page-test').classList.contains('active'))loadOtps();}
 async function loadDash(){const d=await API.get('/test-panel/dashboard').catch(()=>({today_otps:0,total_test_numbers:testNumbers.length,daily7:[]}));todayOtp.textContent=d.today_otps||0;totalNums.textContent=d.total_test_numbers||0;dailyStats.innerHTML=(d.daily7||[]).map(x=>`<div class="card" style="min-width:120px;padding:12px"><b>${(x.date||'').slice(5)}</b><div class="otp">${x.count||0}</div></div>`).join('')||'<span class="muted">No data</span>';}
 function renderNumbers(){numBody.innerHTML=testNumbers.map(n=>`<tr><td>${n.range_name||''}</td><td class="mono">${n.number}</td></tr>`).join('')||'<tr><td colspan="2" class="muted">No test numbers found</td></tr>';}
 function renderTestNumbers(){const q=(numberSearch?.value||'').toLowerCase();const rows=testNumbers.filter(n=>[n.range_name,n.number].join(' ').toLowerCase().includes(q));leftNums.innerHTML=rows.map(n=>`<tr class="${selectedNumber===n.number?'selected-row':''}" onclick="selectNumber('${n.number.replace(/'/g,'\\\'')}')"><td>${n.range_name||''}</td><td class="mono">${n.number}</td></tr>`).join('')||'<tr><td colspan="2" class="muted">No test numbers</td></tr>';}

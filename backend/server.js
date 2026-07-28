@@ -435,7 +435,12 @@ function syncRangeTestNumbers(rangeId, testValue) {
 /* ============ RANGES / RATE MANAGEMENT ============ */
 app.get('/api/ranges', authRequired, (req, res) => cachedJson(req, res, 5000, () => {
   const includeDeleted = String(req.query.include_deleted || '').toLowerCase() === '1' || String(req.query.include_deleted || '').toLowerCase() === 'true';
+  const includeTests = String(req.query.include_tests || '').toLowerCase() === '1' || String(req.query.include_tests || '').toLowerCase() === 'true';
   const where = includeDeleted ? '1=1' : "COALESCE(r.deleted_at,'')=''";
+  if (!includeTests) {
+    return db.all(`SELECT r.id,r.name,r.prefix,r.currency,r.rate_1_1,r.rate_7_1,r.rate_7_7,r.rate_30_45,r.memo,r.payment_type,r.created_at,r.deleted_at,'' AS test_number,'' AS test_numbers
+      FROM ranges r WHERE ${where} ORDER BY r.name COLLATE NOCASE ASC, r.id ASC`);
+  }
   const rows = db.all(`SELECT r.*,
     COALESCE((SELECT GROUP_CONCAT(test_number, ', ') FROM range_test_numbers t WHERE t.range_id=r.id AND t.active=1), r.test_number, '') AS test_numbers
     FROM ranges r WHERE ${where} ORDER BY r.name COLLATE NOCASE ASC, r.id ASC`);
@@ -706,16 +711,27 @@ app.delete('/api/ranges/:id', authRequired, requireRole('admin'), (req, res) => 
   res.json({ ok: true, deleted_range: 1, deleted_numbers: numberResult.deleted || 0, deleted_sms: (numberResult.deleted_sms || 0) + rangeSmsDeleted, preserved_sms: (numberResult.preserved_sms || 0) + rangeSmsPreserved });
 });
 
-app.get('/api/test-numbers', authRequired, (req, res) => {
+app.get('/api/test-numbers', authRequired, (req, res) => cachedJson(req, res, 3000, () => {
   // Test panel numbers are separate from actual panel numbers. UI should show only range name + number.
+  const q=String(req.query.search||'').trim();
+  const range=String(req.query.range||'').trim();
+  const where=['t.active=1']; const params=[];
+  if(q){where.push('(t.test_number LIKE ? OR r.name LIKE ?)'); params.push('%'+q+'%','%'+q+'%');}
+  if(range){where.push('r.name=?'); params.push(range);}
+  const base=`FROM range_test_numbers t JOIN ranges r ON r.id=t.range_id WHERE ${where.join(' AND ')}`;
+  const paged=req.query.paged||req.query.page||req.query.limit;
+  const total=+(db.get(`SELECT COUNT(*) c ${base}`,params)?.c||0);
+  const limitRaw=String(req.query.limit||'100');
+  const limit=limitRaw.toLowerCase()==='all'?Math.max(1,Math.min(total||1,10000)):Math.max(1,Math.min(parseInt(limitRaw||'500',10)||500,2000));
+  const totalPages=Math.max(1,Math.ceil(total/limit));
+  const page=Math.min(Math.max(1,parseInt(req.query.page||'1',10)||1),totalPages);
+  const offset=(page-1)*limit;
   const rows = db.all(`SELECT t.id, t.range_id, t.test_number AS number, t.label, t.created_at, r.name AS range_name, r.prefix,
       COALESCE(NULLIF(r.rate_30_45,''), NULLIF(r.rate_7_1,''), 'Ask') AS payout
-    FROM range_test_numbers t
-    JOIN ranges r ON r.id=t.range_id
-    WHERE t.active=1
-    ORDER BY r.name, t.id`);
-  res.json(rows);
-});
+    ${base}
+    ORDER BY r.name COLLATE NOCASE, t.id DESC LIMIT ? OFFSET ?`, [...params,limit,offset]);
+  return paged ? {rows,total,page,limit,totalPages} : rows;
+}));
 
 app.post('/api/test-numbers/import', authRequired, requireRole('admin'), (req, res) => {
   const { range_id, range_name, numbers } = req.body || {};
@@ -785,7 +801,7 @@ app.get('/api/test-panel/dashboard', authRequired, requireRole('admin','manager'
 
 app.get('/api/test-panel/sms', authRequired, requireRole('admin','manager','agent','client','test'), (req, res) => cachedJson(req, res, 1500, () => {
   const number = String(req.query.number || '').trim();
-  const limit = Math.max(1, Math.min(parseInt(req.query.limit || '500', 10) || 500, 2000));
+  const limit = Math.max(1, Math.min(parseInt(req.query.limit || '50', 10) || 50, 500));
   const params = [];
   const where = ['COALESCE(s.is_test,0)=1'];
   if (number) { where.push("REPLACE(REPLACE(REPLACE(REPLACE(s.number,'+',''),' ',''),'-',''),'_','')=?"); params.push(cleanPhone(number)); }

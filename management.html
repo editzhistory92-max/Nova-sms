@@ -916,7 +916,7 @@ Pakistan Jazz
 </div></div>
 
 
-<script src="/api.js?v=20260726-test-panel-fast"></script>
+<script src="/api.js?v=20260727-final-payload-optimization"></script>
 <script>
 /* auth guard — management uses admin credentials */
 if(window.API){ API.guard('admin'); }
@@ -1035,7 +1035,7 @@ fillSelect('allocManager',managers.map(m=>m+' (Manager)'));
 /* =============== RATES (API-backed) =============== */
 function fmtRate(v){return v==='NA'||v===''?'<span class="muted">NA</span>':'<span class="cell-money">$ '+v+'</span>';}
 function paymentTypeText(v){return ({daily:'Daily',weekly:'Weekly',monthly_30x45:'Monthly (30x45)'})[v||'weekly']||'Weekly';}
-async function loadRates(){ try{ ratesData = await API.get('/ranges'); }catch(e){ ratesData=[]; } renderRates(); }
+async function loadRates(){ try{ ratesData = await API.get('/ranges?include_tests=1'); }catch(e){ ratesData=[]; } renderRates(); }
 function renderRates(){
   const len=document.getElementById('rateLen').value,q=(document.getElementById('rateSearch').value||'').toLowerCase();
   let rows=(ratesData||[]).filter(r=>(r.name||'').toLowerCase().includes(q)||(r.test_number||'').includes(q));
@@ -1153,6 +1153,11 @@ function doAllocate(){
 
 /* =============== SMS NUMBERS (API-backed) =============== */
 let numSort={key:null,dir:1}, clientFilterMode=0, numRangeFilter='', numClientFilter='';
+async function loadTestNumbers(){
+  try{ const data=await API.get('/test-numbers?paged=1&page=1&limit=100'); const rows=data.rows||data; testNumbers=(rows||[]).map(t=>({range:t.range_name,prefix:t.prefix||'',num:t.number,payout:t.payout||'Ask',created_at:t.created_at||''})); }
+  catch(e){ testNumbers=[]; }
+}
+
 async function loadNumbers(){ try{ numbersData=await API.get('/numbers'); }catch(e){ numbersData=[]; } renderNumbers(); }
 function sortNumbers(key){if(numSort.key===key)numSort.dir*=-1;else{numSort.key=key;numSort.dir=1;}
   if(key==='number'){document.getElementById('numSortHint').textContent=numSort.dir===1?'▲':'▼';}
@@ -1783,7 +1788,7 @@ async function loadDashboard(){
 function rebuildAllocData(){
   allocData=(ratesData||[]).map(r=>{const nums=(numbersData||[]).filter(n=>n.range_id===r.id);const alloc=nums.filter(n=>n.manager_id).length;return {id:r.id,range:r.name,total:nums.length,alloc,avail:nums.length-alloc,rate:r.rate_30_45||r.rate_7_1||'NA'};});
 }
-async function loadRates(){ try{ ratesData=await API.get('/ranges'); }catch(e){ ratesData=[]; }
+async function loadRates(){ try{ ratesData=await API.get('/ranges?include_tests=1'); }catch(e){ ratesData=[]; }
   const liveRanges=(ratesData||[]).map(r=>r.name);
   fillSelect('allocRange',liveRanges);
   fillSelect('numRange',liveRanges);
@@ -1792,9 +1797,7 @@ async function loadRates(){ try{ ratesData=await API.get('/ranges'); }catch(e){ 
   fillSelect('testRange',liveRanges);
   const delSel=document.getElementById('deleteRangeSelect');
   if(delSel) delSel.innerHTML='<option value="">Select Range</option>'+((ratesData||[]).map(r=>`<option value="${r.id}">${r.name}</option>`).join(''));
-  try{ testNumbers=(await API.get('/test-numbers')).map(t=>({range:t.range_name,prefix:t.prefix||'',num:t.number,payout:t.payout||'Ask',created_at:t.created_at||''})); }
-  catch(e){ testNumbers=[]; }
-  renderRates(); rebuildAllocData(); renderAlloc(); renderTest(); if(typeof loadLimitManagement==='function') loadLimitManagement();
+  renderRates(); rebuildAllocData(); renderAlloc(); if(typeof loadLimitManagement==='function') loadLimitManagement();
 }
 async function loadNumbers(){ try{ numbersData=await API.get('/numbers'); }catch(e){ numbersData=[]; }
   rebuildAllocData(); renderNumbers(); renderAlloc(); populateTestGeneratorNumbers();
@@ -2236,7 +2239,7 @@ async function loadAdminPageData(page){
     if(page==='smsDetail'){ if(!document.getElementById('sdBody')) buildSmsDetail(); await fillSmsDetailLiteFilters(); return renderSmsDetail(); }
     if(['clientStats','agentStats','managerStats'].includes(page)){ const k=page.replace('Stats',''); if(!document.getElementById(k+'SBody')) buildEntityStats(k); return ensureAdminSms(); }
     if(['rangeStats','numberStats'].includes(page)){ const k=page.replace('Stats',''); if(!document.getElementById(k+'SBody')) buildDrillStats(k); return ensureAdminSms(); }
-    if(page==='test'){ await ensureAdminRates(); return renderTest(); }
+    if(page==='test'){ await ensureAdminRates(); await loadTestNumbers(); return renderTest(); }
     if(page==='managers') return buildUserPage('manager');
     if(page==='agents') return buildUserPage('agent');
     if(page==='clients') return buildUserPage('client');

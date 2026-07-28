@@ -1,35 +1,41 @@
-MUFASA SMS — Live Comparison + Test Panel Performance Fix
-Date: 2026-07-26
-Cache marker: /api.js?v=20260726-test-panel-fast
+MUFASA SMS — Clean VPS Package + Final Payload Optimization
+Date: 2026-07-27
+Cache marker: /api.js?v=20260727-final-payload-optimization
 
-Live comparison findings:
-- Reference panels are server-rendered PHP pages, usually 18–34 KB, responding around 0.41–0.54s.
-- MUFASA SMS CDR endpoints are now comparable (~0.45–0.49s).
-- SMS Numbers API is also around reference range (~0.47s), though numbers/summary is larger because it returns all range summaries.
-- Remaining serious bottleneck was SMS Test Panel records.
+This archive is cleaned for VPS deployment only.
 
-Root cause fixed:
-- /api/test-panel/sms took ~55 seconds in production.
-- Cause: old query used correlated subqueries and normalized phone matching against range_test_numbers for every SMS row.
-- Fix: Test Panel SMS now reads direct sms_records where is_test=1 with simple joins and LIMIT.
-- Test Panel dashboard also counts is_test=1 directly.
+Removed from package:
+- Railway deployment files and Railway variables/config references
+- Stress-test scripts and temporary benchmark files
+- Old cleanup scripts
+- Old investigation-only markdown artifacts
+- SMPP runtime module from packaged backend (server no longer requires it)
+- Temporary/cache folders and uploads
 
-Existing features preserved:
-- HTTP incoming untouched.
-- Payment V2 retained.
-- Limit Management retained.
-- Panel Sharing retained.
-- API poller remains removed/disabled per user confirmation; HTTP incoming remains active.
+Runtime files included:
+- Panel HTML files (Admin, Manager, Agent, Client, Management, Payment, Panel Sharing, Test)
+- api.js
+- backend core files
+- package.json/package-lock.json
+- backend package files
+- logo/favicon assets
+- .env.example for VPS
+- README.md with VPS-only instructions
 
-VPS deploy:
+Final performance optimization included:
+- /api/ranges is lightweight by default; test numbers are only included with ?include_tests=1
+- /api/test-numbers supports pagination and defaults to smaller page sizes
+- Test Panel data is lazy-loaded only when the Test Panel page is opened
+- /api/test-panel/sms is optimized to use sms_records.is_test=1 with simple joins and LIMIT
+- Background number jobs and DB batching retained
+- API poller remains removed/disabled; HTTP incoming remains active
+
+Deploy on VPS after GitHub push:
 cd ~/Mufasa-sms
 git pull --ff-only origin main
 npm install && pm2 flush mufasa-sms && pm2 restart mufasa-sms --update-env && pm2 list
 pm2 logs mufasa-sms --lines 80
 
 Verify:
-grep -n "20260726-test-panel-fast" admin.html manager.html agent.html client.html management.html payment.html panel-sharing.html test.html
-grep -n "test-panel/sms\|is_test" backend/server.js | head -80
-
-Health check:
-for i in 1 2 3 4 5; do curl -s -o /dev/null -w "health %{time_total}s\n" http://127.0.0.1:4000/api/health; sleep 1; done
+grep -n "20260727-final-payload-optimization" admin.html manager.html agent.html client.html management.html payment.html panel-sharing.html test.html
+grep -n "include_tests\|test-panel/sms\|test-numbers" backend/server.js | head -100

@@ -3,7 +3,7 @@
  * - Uses sql.js export buffer from db.js for consistent snapshots.
  * - Writes backups atomically to a dedicated folder.
  * - Retains backups for a configurable number of days.
- * - Designed to work on Railway Volume (/data) and VPS.
+ * - Designed for VPS deployment.
  */
 const fs = require('fs');
 const path = require('path');
@@ -17,7 +17,6 @@ function getDbFile(db) {
 }
 function getBackupDir(db) {
   return process.env.BACKUP_DIR
-    || (process.env.RAILWAY_VOLUME_MOUNT_PATH ? path.join(process.env.RAILWAY_VOLUME_MOUNT_PATH, 'backups') : null)
     || (process.env.DATA_DIR ? path.join(process.env.DATA_DIR, 'backups') : null)
     // VPS-safe default: outside the application folder, so backups survive accidental app deletion.
     || path.join(os.homedir(), 'mufasa-sms-backups');

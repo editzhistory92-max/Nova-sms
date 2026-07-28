@@ -1,16 +1,14 @@
 /**
  * Database layer — sql.js (pure-JS SQLite) with file persistence.
  * ------------------------------------------------------------------
- * Ye sandbox/local ke liye hai (koi native build nahi chahiye).
- * VPS/production par MySQL par switch karne ke liye niche notes hain
- * (README dekhein) — SQL portable rakhi gayi hai.
+ * VPS deployment uses a persisted SQLite file.
+ * DB_FILE can override the default backend/data.sqlite path.
  */
 const fs = require('fs');
 const path = require('path');
 const initSqlJs = require('sql.js');
 
 const DB_FILE = process.env.DB_FILE
-  || (process.env.RAILWAY_VOLUME_MOUNT_PATH ? path.join(process.env.RAILWAY_VOLUME_MOUNT_PATH, 'data.sqlite') : null)
   || (process.env.DATA_DIR ? path.join(process.env.DATA_DIR, 'data.sqlite') : null)
   || path.join(__dirname, 'data.sqlite');
 let SQL, db;

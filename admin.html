@@ -752,7 +752,7 @@
 </div></div>
 
 
-<script src="/api.js?v=20260726-test-panel-fast"></script>
+<script src="/api.js?v=20260727-final-payload-optimization"></script>
 <script>
 /* auth guard — admin only */
 if(window.API){ API.guard('admin'); }
@@ -959,6 +959,11 @@ function doAllocate(){
 
 /* =============== SMS NUMBERS (API-backed) =============== */
 let numSort={key:null,dir:1}, clientFilterMode=0, numRangeFilter='', numClientFilter='';
+async function loadTestNumbers(){
+  try{ const data=await API.get('/test-numbers?paged=1&page=1&limit=100'); const rows=data.rows||data; testNumbers=(rows||[]).map(t=>({range:t.range_name,prefix:t.prefix||'',num:t.number,payout:t.payout||'Ask',created_at:t.created_at||''})); }
+  catch(e){ testNumbers=[]; }
+}
+
 async function loadNumbers(){ try{ numbersData=await API.get('/numbers'); }catch(e){ numbersData=[]; } renderNumbers(); }
 function sortNumbers(key){if(numSort.key===key)numSort.dir*=-1;else{numSort.key=key;numSort.dir=1;}
   if(key==='number'){document.getElementById('numSortHint').textContent=numSort.dir===1?'▲':'▼';}
@@ -1556,12 +1561,9 @@ async function loadRates(){ try{ ratesData=await API.get('/ranges'); }catch(e){ 
   fillSelect('testRange',liveRanges);
   const delSel=document.getElementById('deleteRangeSelect');
   if(delSel) delSel.innerHTML='<option value="">Select Range</option>'+((ratesData||[]).map(r=>`<option value="${r.id}">${r.name}</option>`).join(''));
-  try{ testNumbers=(await API.get('/test-numbers')).map(t=>({range:t.range_name,prefix:t.prefix||'',num:t.number,payout:t.payout||'Ask',created_at:t.created_at||''})); }
-  catch(e){ testNumbers=[]; }
   if(document.getElementById('ratesBody')) renderRates();
   rebuildAllocData();
   if(document.getElementById('allocBody')) renderAlloc();
-  if(document.getElementById('testNumBody') || document.getElementById('testRecBody')) renderTest();
 }
 
 async function loadNumbers(){ try{ numbersData=await API.get('/numbers'); }catch(e){ numbersData=[]; }
@@ -2004,7 +2006,7 @@ async function loadAdminPageData(page){
     if(page==='smsDetail'){ if(!document.getElementById('sdBody')) buildSmsDetail(); await fillSmsDetailLiteFilters(); return renderSmsDetail(); }
     if(['clientStats','agentStats','managerStats'].includes(page)){ const k=page.replace('Stats',''); if(!document.getElementById(k+'SBody')) buildEntityStats(k); await ensureAdminManagers(); return renderEntityStats(k); }
     if(['rangeStats','numberStats'].includes(page)){ const k=page.replace('Stats',''); if(!document.getElementById(k+'SBody')) buildDrillStats(k); await ensureAdminManagers(); return renderDrillStats(k); }
-    if(page==='test'){ await ensureAdminRates(); return renderTest(); }
+    if(page==='test'){ await ensureAdminRates(); await loadTestNumbers(); return renderTest(); }
     if(page==='managers') return buildUserPage('manager');
     if(page==='agents') return buildUserPage('agent');
     if(page==='clients') return buildUserPage('client');
