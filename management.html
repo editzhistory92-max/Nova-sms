@@ -896,7 +896,7 @@ Pakistan Jazz
     <div class="form-group"><label>Select Managers <span class="req">*</span></label><div id="smClients" style="max-height:130px;overflow-y:auto;background:var(--row);border:1px solid var(--border2);border-radius:9px;padding:10px"></div></div>
     <div class="form-grid">
       <div class="form-group"><label>Numbers per Range <span class="req">*</span></label><input type="number" id="smQty" placeholder="e.g. 20"/></div>
-      <div class="form-group"><label>Payterm</label><select id="smPayterm"><option value="weekly">Weekly</option><option value="daily">Daily</option><option value="monthly_30x45">Monthly (30x45)</option></select></div>
+      <div class="form-group"><label>Payterm</label><select id="smPayterm"><option value="daily">Daily (1/1)</option><option value="weekly_7_1">Weekly (7/1)</option><option value="weekly_7_7">Weekly (7/7)</option><option value="monthly_30x45">Monthly (30/45)</option></select></div>
     </div>
     <div class="hint" id="smPreview"></div>
   </div>
@@ -908,7 +908,7 @@ Pakistan Jazz
   <div class="modal-head"><h3>Allocate Selected Numbers</h3><button class="modal-close" onclick="closeModal('allocAllModal')">×</button></div>
   <div class="modal-body">
     <div class="form-group"><label>Select Manager / Agent <span class="req">*</span></label><select id="aaClient"><option value="">Please Select</option></select></div>
-    <div class="form-group"><label>Payterm</label><select id="aaPayterm"><option value="weekly">Weekly</option><option value="daily">Daily</option><option value="monthly_30x45">Monthly (30x45)</option></select></div>
+    <div class="form-group"><label>Payterm</label><select id="aaPayterm"><option value="daily">Daily (1/1)</option><option value="weekly_7_1">Weekly (7/1)</option><option value="weekly_7_7">Weekly (7/7)</option><option value="monthly_30x45">Monthly (30/45)</option></select></div>
     <div class="form-group" style="display:none"><label>Payout ($) Locked</label><input type="number" id="aaPayout" step="0.001" value="0" placeholder="0" disabled/></div>
     <div class="hint" id="aaCount"></div>
   </div>
@@ -916,7 +916,7 @@ Pakistan Jazz
 </div></div>
 
 
-<script src="/api.js?v=20260727-final-payload-optimization"></script>
+<script src="/api.js?v=20260728-dashboard-allocation-fix"></script>
 <script>
 /* auth guard — management uses admin credentials */
 if(window.API){ API.guard('admin'); }
@@ -1053,7 +1053,7 @@ function openRateModal(id){editRateId=id;document.getElementById('rateModalTitle
   rName.value=r.name||'';rPrefix.value=r.prefix||'';rTest.value=r.test_numbers||r.test_number||'';rCur.value=r.currency||'USD';if(document.getElementById('rPaymentType'))rPaymentType.value=r.payment_type||'weekly';r1.value=r.rate_1_1||'';r2.value=r.rate_7_1||'';r3.value=r.rate_7_7||'';r4.value=r.rate_30_45||'';rMemo.value=r.memo||'';
   document.getElementById('rateModal').classList.add('show');}
 async function saveRate(){if(!rName.value.trim()){alert('Range name is required.');return;}
-  const body={name:rName.value.trim(),prefix:rPrefix.value.trim(),test_number:rTest.value.trim(),test_numbers:rTest.value.trim(),currency:rCur.value,rate_1_1:r1.value.trim()||'NA',rate_7_1:r2.value.trim()||'NA',rate_7_7:r3.value.trim()||'NA',rate_30_45:r4.value.trim()||'NA',memo:rMemo.value.trim(),payment_type:(document.getElementById('rPaymentType')?.value||'weekly')};
+  const body={name:rName.value.trim(),prefix:rPrefix.value.trim(),test_number:rTest.value.trim(),test_numbers:rTest.value.trim(),currency:rCur.value,rate_1_1:r1.value.trim()||'NA',rate_7_1:r2.value.trim()||'NA',rate_7_7:r3.value.trim()||'NA',rate_30_45:r4.value.trim()||'NA',memo:rMemo.value.trim(),payment_type:(document.getElementById('rPaymentType')?.value||'weekly_7_1')};
   try{ if(editRateId<0) await API.post('/ranges',body); else await API.put('/ranges/'+editRateId,body); closeModal('rateModal'); loadRates(); }catch(e){ alert('❌ '+e.message); }
 }
 async function importRangeTestBulkFile(){
@@ -1062,7 +1062,7 @@ async function importRangeTestBulkFile(){
   const fd=new FormData();
   fd.append('file',file);
   fd.append('currency',document.getElementById('rangeTestBulkCurrency')?.value||'USD');
-  fd.append('payment_type',document.getElementById('rangeTestBulkPaymentType')?.value||'weekly');
+  fd.append('payment_type',document.getElementById('rangeTestBulkPaymentType')?.value||'weekly_7_1');
   try{
     const token=sessionStorage.getItem('ms_token');
     const res=await fetch('/api/ranges/import-test-bulk',{method:'POST',headers:{Authorization:'Bearer '+token},body:fd});
@@ -1229,7 +1229,7 @@ async function openAllocAll(){const ids=getSelectedIds();if(!ids.length){alert('
   const managerOpts=(usersData.manager||[]).map(m=>`<option value="${m.id}">Manager: ${m.username}</option>`).join('');
   const agentOpts=(usersData.agent||[]).map(a=>`<option value="${a.id}">Agent: ${a.username}</option>`).join('');
   const sel=document.getElementById('aaClient'); sel.innerHTML='<option value="">Please Select</option>'+managerOpts+agentOpts;
-  document.getElementById('aaPayterm').value='weekly';document.getElementById('aaPayout').value='0';
+  document.getElementById('aaPayterm').value='weekly_7_1';document.getElementById('aaPayout').value='0';
   document.getElementById('aaCount').innerHTML=`<b>${ids.length}</b> numbers selected — Manager ya direct Agent ko allocate honge.`;
   document.getElementById('allocAllModal').classList.add('show');}
 async function confirmAllocAll(){const ids=getSelectedIds();const target=document.getElementById('aaClient').value,pt=document.getElementById('aaPayterm').value,po=document.getElementById('aaPayout').value;

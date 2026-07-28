@@ -508,7 +508,8 @@
           <div style="font-weight:600;margin-bottom:12px;color:#c7d2fe">Allocate a Range to a Manager</div>
           <div class="filter-row">
             <select class="sel-lg" id="allocRange"><option value="">Select Range</option></select>
-            <select class="sel-lg" id="allocManager"><option value="">Select Manager</option></select>
+            <select class="sel-lg" id="allocManager"><option value="">Select User</option></select>
+            <select class="sel-lg" id="allocPayterm" onchange="renderAlloc()"><option value="daily">Daily (1/1)</option><option value="weekly_7_1" selected>Weekly (7/1)</option><option value="weekly_7_7">Weekly (7/7)</option><option value="monthly_30x45">Monthly (30/45)</option></select>
             <input type="number" style="width:130px" placeholder="Qty" id="allocQty" />
             <button class="btn btn-purple" onclick="doAllocate()">Allocate to Manager</button>
           </div>
@@ -732,7 +733,7 @@
     <div class="form-group"><label>Select Managers <span class="req">*</span></label><div id="smClients" style="max-height:130px;overflow-y:auto;background:var(--row);border:1px solid var(--border2);border-radius:9px;padding:10px"></div></div>
     <div class="form-grid">
       <div class="form-group"><label>Numbers per Range <span class="req">*</span></label><input type="number" id="smQty" placeholder="e.g. 20"/></div>
-      <div class="form-group"><label>Payterm</label><select id="smPayterm"><option value="weekly">Weekly</option><option value="daily">Daily</option><option value="monthly_30x45">Monthly (30x45)</option></select></div>
+      <div class="form-group"><label>Payterm</label><select id="smPayterm"><option value="daily">Daily (1/1)</option><option value="weekly_7_1">Weekly (7/1)</option><option value="weekly_7_7">Weekly (7/7)</option><option value="monthly_30x45">Monthly (30/45)</option></select></div>
     </div>
     <div class="hint" id="smPreview"></div>
   </div>
@@ -744,7 +745,7 @@
   <div class="modal-head"><h3>Allocate Selected Numbers</h3><button class="modal-close" onclick="closeModal('allocAllModal')">×</button></div>
   <div class="modal-body">
     <div class="form-group"><label>Select Manager / Agent <span class="req">*</span></label><select id="aaClient"><option value="">Please Select</option></select></div>
-    <div class="form-group"><label>Payterm</label><select id="aaPayterm"><option value="weekly">Weekly</option><option value="daily">Daily</option><option value="monthly_30x45">Monthly (30x45)</option></select></div>
+    <div class="form-group"><label>Payterm</label><select id="aaPayterm"><option value="daily">Daily (1/1)</option><option value="weekly_7_1">Weekly (7/1)</option><option value="weekly_7_7">Weekly (7/7)</option><option value="monthly_30x45">Monthly (30/45)</option></select></div>
     <div class="form-group" style="display:none"><label>Payout ($) Locked</label><input type="number" id="aaPayout" step="0.001" value="0" placeholder="0" disabled/></div>
     <div class="hint" id="aaCount"></div>
   </div>
@@ -752,7 +753,7 @@
 </div></div>
 
 
-<script src="/api.js?v=20260727-final-payload-optimization"></script>
+<script src="/api.js?v=20260728-dashboard-allocation-fix"></script>
 <script>
 /* auth guard — admin only */
 if(window.API){ API.guard('admin'); }
@@ -1035,7 +1036,7 @@ async function openAllocAll(){const ids=getSelectedIds();if(!ids.length){alert('
   const managerOpts=(usersData.manager||[]).map(m=>`<option value="${m.id}">Manager: ${m.username}</option>`).join('');
   const agentOpts=(usersData.agent||[]).map(a=>`<option value="${a.id}">Agent: ${a.username}</option>`).join('');
   const sel=document.getElementById('aaClient'); sel.innerHTML='<option value="">Please Select</option>'+managerOpts+agentOpts;
-  document.getElementById('aaPayterm').value='weekly';document.getElementById('aaPayout').value='0';
+  document.getElementById('aaPayterm').value='weekly_7_1';document.getElementById('aaPayout').value='0';
   document.getElementById('aaCount').innerHTML=`<b>${ids.length}</b> numbers selected — Manager ya direct Agent ko allocate honge.`;
   document.getElementById('allocAllModal').classList.add('show');}
 async function confirmAllocAll(){const ids=getSelectedIds();const target=document.getElementById('aaClient').value,pt=document.getElementById('aaPayterm').value,po=document.getElementById('aaPayout').value;
@@ -1986,7 +1987,7 @@ async function ensureAdminManagers(){
   try{
     if(!usersData.manager.length) usersData.manager=await API.get('/users/manager');
     if(!usersData.agent.length) usersData.agent=await API.get('/users/agent');
-    refreshHierarchy(); if(typeof fillAdminOwnerSelects==='function') fillAdminOwnerSelects();
+    refreshHierarchy(); if(typeof fillAdminOwnerSelects==='function') fillAdminOwnerSelects(); if(typeof fillAdminAllocationTargets==='function') fillAdminAllocationTargets();
   }catch(e){}
 }
 async function ensureAdminSms(){ if(!smsRecords || !smsRecords.length) await loadSmsRecords(); }
@@ -2072,6 +2073,51 @@ async function renderSmsDetail(){
   sdBody.innerHTML=rows.map(r=>`<tr><td class="muted">${(r.received_at||'').slice(0,19)}</td><td><span class="tag tag-mgr">${r.manager_name||'—'}</span></td><td><span class="tag tag-blue">${r.range_name||'—'}</span></td><td><span class="tag tag-gray mono">${r.number||''}</span></td><td class="mono">${r.cli||''}</td><td class="cell-money payout-rate">${cleanDec(r.payout_rate||r.payout_amount||0)}</td><td class="msg-body">${r.message||''}</td></tr>`).join('')||`<tr><td colspan="7" class="muted" style="text-align:center;padding:24px">No records found</td></tr>`;
   sdInfo.textContent=`Showing ${smsShownCount(data.page, data.limit, rows.length, data.total)} of ${data.total||0} rows`; sdPayoutInfo.textContent=`Filtered total payout: ${money(data.totalPayment||'0')}`;
   setServerFoot(sdInfo,state,renderSmsDetail);
+}
+
+
+/* =============== ADMIN RANGE ALLOCATION FINAL OVERRIDES =============== */
+function adminAllocTargets(){
+  const mgrs=(usersData.manager||[]).map(u=>({id:u.id,label:'Manager: '+u.username,username:u.username,role:'manager'}));
+  const ags=(usersData.agent||[]).map(u=>({id:u.id,label:'Agent: '+u.username,username:u.username,role:'agent'}));
+  return mgrs.concat(ags);
+}
+function fillAdminAllocationTargets(){
+  const opts=adminAllocTargets();
+  const html='<option value="">Select User</option>'+opts.map(u=>`<option value="${u.id}">${u.label}</option>`).join('');
+  const main=document.getElementById('allocManager'); if(main) main.innerHTML=html;
+  document.querySelectorAll('select[id^="am"]').forEach(sel=>{ const cur=sel.value; sel.innerHTML=html; if(cur) sel.value=cur; });
+}
+function adminCycleRate(r,cycle){cycle=cycle||document.getElementById('allocPayterm')?.value||'weekly_7_1';if(cycle==='daily')return r.r1||r.rate_1_1||r.rate||'0';if(cycle==='weekly_7_7')return r.r3||r.rate_7_7||r.r2||r.rate_7_1||r.rate||'0';if(cycle==='monthly_30x45')return r.r4||r.rate_30_45||r.rate||'0';return r.r2||r.rate_7_1||r.r3||r.rate_7_7||r.rate||'0';}
+async function loadNumberSummary(){
+  try{
+    const rows=await API.get('/numbers/summary');
+    allocData=(rows||[]).map(r=>({id:r.range_id,range:r.range_name,total:r.total||0,alloc:r.allocated||0,avail:r.available||0,rate:r.rate||'0',r1:r.rate_1_1,r2:r.rate_7_1,r3:r.rate_7_7,r4:r.rate_30_45,payment_type:r.payment_type}));
+  }catch(e){allocData=[];}
+  fillSelect('allocRange',allocData.map(r=>r.range));
+  fillAdminAllocationTargets();
+  renderAlloc();
+}
+function renderAlloc(){
+  const body=document.getElementById('allocBody'); if(!body)return;
+  fillAdminAllocationTargets();
+  const len=document.getElementById('allocLen')?.value||'25',q=(document.getElementById('allocSearch')?.value||'').toLowerCase();
+  let rows=allocData.map((r,i)=>({...r,_i:i})).filter(r=>r.range.toLowerCase().includes(q));
+  const pag=API.paginateRows('adminAlloc',rows,len,'allocInfo',renderAlloc);const total=pag.total;rows=pag.rows;
+  const targetHtml='<option value="">Select User</option>'+adminAllocTargets().map(u=>`<option value="${u.id}">${u.label}</option>`).join('');
+  body.innerHTML=rows.map(r=>`<tr><td><b>${r.range}</b></td><td><span class="tag tag-green">${r.avail}</span> <span class="muted">/ ${r.total}</span></td><td><span class="tag tag-amber">${r.alloc}</span></td><td class="cell-money">${adminCycleRate(r)}</td><td><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><select id="am${r._i}" style="width:auto;padding:7px 9px">${targetHtml}</select><select id="ap${r._i}" style="width:auto;padding:7px 9px"><option value="daily">Daily (1/1)</option><option value="weekly_7_1" selected>Weekly (7/1)</option><option value="weekly_7_7">Weekly (7/7)</option><option value="monthly_30x45">Monthly (30/45)</option></select><input type="number" class="allocate-num" placeholder="Qty" id="al${r._i}"/><button class="btn btn-green btn-sm" onclick="allocRow(${r._i})">Allocate</button></div></td><td><div style="display:flex;gap:6px;align-items:center"><input type="number" class="allocate-num" placeholder="Qty" id="ul${r._i}"/><button class="btn btn-red btn-sm" onclick="unallocRow(${r._i})">Unallocate</button></div></td></tr>`).join('')||`<tr><td colspan="6" class="muted" style="text-align:center;padding:24px">No ranges found</td></tr>`;
+  const info=document.getElementById('allocInfo'); if(info) info.textContent=`Showing ${rows.length} of ${total} ranges`;
+}
+async function doAllocate(){
+  const r=document.getElementById('allocRange').value,t=document.getElementById('allocManager').value,q=parseInt(document.getElementById('allocQty').value),payterm=document.getElementById('allocPayterm')?.value||'weekly_7_1';
+  if(!r||!t||!q){alert('Select range, user and quantity.');return;}
+  const row=(allocData||[]).find(x=>x.range===r); if(!row){alert('Range not found.');return;}
+  try{const res=await API.post('/numbers/smart-divide',{range_ids:[row.id],target_ids:[+t],qty:q,payterm});alert(`✅ ${res.total||0} numbers allocated.`);document.getElementById('allocQty').value='';await loadNumberSummary();await renderNumbers();}catch(e){alert('❌ '+e.message)}
+}
+async function allocRow(i){
+  const q=parseInt(document.getElementById('al'+i).value),t=document.getElementById('am'+i).value,payterm=document.getElementById('ap'+i)?.value||'weekly_7_1';
+  const row=allocData[i]; if(!q||!t||!row){alert('Select user and quantity.');return;}
+  try{const res=await API.post('/numbers/smart-divide',{range_ids:[row.id],target_ids:[+t],qty:q,payterm});alert(`✅ ${res.total||0} numbers allocated.`);await loadNumberSummary();await renderNumbers();}catch(e){alert('❌ '+e.message)}
 }
 
 /* =============== FAST SERVER-SIDE ADMIN STATS OVERRIDES =============== */

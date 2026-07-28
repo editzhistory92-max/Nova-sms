@@ -193,8 +193,8 @@ function payoutRateFromRow(r){
     const v = normalizeDecimalString(r.payout_rate);
     if (v !== '') return v;
   }
-  const assignedType = normalizePaymentType(r.payterm || r.payment_type || 'weekly');
-  const typed = payoutRateForPaymentType(r, assignedType);
+  const assignedType = normalizePaymentCycle(r.payterm || r.payment_type || 'weekly_7_1');
+  const typed = payoutRateForPaymentCycle(r, assignedType);
   if(isPositiveDecimal(typed)) return typed;
   const candidates=[r.sms_payout_rate,r.number_payout,r.number_rate,r.rate_30_45,r.rate_7_1,r.rate_7_7,r.rate_1_1];
   for(const c of candidates){ const v=normalizeDecimalString(c); if(isPositiveDecimal(v)) return v; }
@@ -312,7 +312,7 @@ app.post('/api/users', authRequired, (req, res) => {
     `INSERT INTO users (username,password,role,name,email,whatsapp,contact,skype,parent_id,active,payment_type)
      VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
     [cleanUsername, bcrypt.hashSync(String(password), 10), role, name || '', email || '',
-     whatsapp || '', contact || '', skype || '', parentId, active === false ? 0 : 1, role==='agent'?normalizePaymentType(payment_type||'weekly'):'weekly']
+     whatsapp || '', contact || '', skype || '', parentId, active === false ? 0 : 1, role==='agent'?normalizePaymentCycle(payment_type||'weekly_7_1'):'weekly_7_1']
   );
   logAction(req,'create_user','users',{username,role});
   res.json({ ok: true });
@@ -326,7 +326,7 @@ app.put('/api/users/:id', authRequired, (req, res) => {
   const { name, email, whatsapp, contact, skype, active, password, payment_type } = req.body || {};
   db.run(
     `UPDATE users SET name=?,email=?,whatsapp=?,contact=?,skype=?,active=?,payment_type=CASE WHEN role='agent' THEN ? ELSE payment_type END WHERE id=?`,
-    [name || '', email || '', whatsapp || '', contact || '', skype || '', active ? 1 : 0, normalizePaymentType(payment_type||'weekly'), id]
+    [name || '', email || '', whatsapp || '', contact || '', skype || '', active ? 1 : 0, normalizePaymentCycle(payment_type||'weekly_7_1'), id]
   );
   if (password) db.run('UPDATE users SET password=? WHERE id=?', [bcrypt.hashSync(password, 10), id]);
   logAction(req,'update_user','users',{id});
@@ -349,19 +349,27 @@ app.delete('/api/users/:id', authRequired, (req, res) => {
 const PAYMENT_TYPES = ['daily','weekly','monthly_30x45'];
 function normalizePaymentType(v){
   const s=String(v||'').trim().toLowerCase().replace(/[\s-]+/g,'_');
-  if(['daily','day'].includes(s)) return 'daily';
-  if(['weekly','week'].includes(s)) return 'weekly';
+  if(['daily','day','1_1'].includes(s)) return 'daily';
   if(['monthly','month','30x45','monthly_30x45','30_45'].includes(s)) return 'monthly_30x45';
   return 'weekly';
 }
-function paymentTypeLabel(t){ return ({daily:'Daily',weekly:'Weekly',monthly_30x45:'Monthly (30x45)'})[normalizePaymentType(t)] || 'Weekly'; }
-function assignedPaymentTypeForNumber(n, rangeRow={}){ const u=n?.agent_id?db.get('SELECT payment_type FROM users WHERE id=?',[n.agent_id]):null; return normalizePaymentType(u?.payment_type || n?.payterm || rangeRow?.payment_type || 'weekly'); }
-function payoutRateForPaymentType(row, type){
-  type=normalizePaymentType(type);
-  const candidates = type==='daily' ? [row.rate_1_1,row.number_rate,row.rate_7_1,row.rate_30_45] : (type==='monthly_30x45' ? [row.rate_30_45,row.number_rate,row.rate_7_1,row.rate_1_1] : [row.rate_7_1,row.rate_7_7,row.number_rate,row.rate_30_45,row.rate_1_1]);
+function normalizePaymentCycle(v){
+  const s=String(v||'').trim().toLowerCase().replace(/[\s-]+/g,'_');
+  if(['daily','day','1_1'].includes(s)) return 'daily';
+  if(['weekly_7_7','week_7_7','7_7','weekly7'].includes(s)) return 'weekly_7_7';
+  if(['monthly','month','30x45','monthly_30x45','30_45'].includes(s)) return 'monthly_30x45';
+  return 'weekly_7_1';
+}
+function paymentTypeLabel(t){ return ({daily:'Daily',weekly:'Weekly',weekly_7_1:'Weekly (7/1)',weekly_7_7:'Weekly (7/7)',monthly_30x45:'Monthly (30x45)'})[t] || ({daily:'Daily',weekly:'Weekly',monthly_30x45:'Monthly (30x45)'})[normalizePaymentType(t)] || 'Weekly'; }
+function assignedPaymentCycleForNumber(n, rangeRow={}){ const u=n?.agent_id?db.get('SELECT payment_type FROM users WHERE id=?',[n.agent_id]):null; return normalizePaymentCycle(u?.payment_type || n?.payterm || rangeRow?.payment_type || 'weekly_7_1'); }
+function assignedPaymentTypeForNumber(n, rangeRow={}){ return normalizePaymentType(assignedPaymentCycleForNumber(n, rangeRow)); }
+function payoutRateForPaymentCycle(row, cycle){
+  cycle=normalizePaymentCycle(cycle);
+  const candidates = cycle==='daily' ? [row.rate_1_1,row.number_rate,row.rate_7_1,row.rate_30_45] : (cycle==='weekly_7_7' ? [row.rate_7_7,row.rate_7_1,row.number_rate,row.rate_30_45,row.rate_1_1] : (cycle==='monthly_30x45' ? [row.rate_30_45,row.number_rate,row.rate_7_1,row.rate_1_1] : [row.rate_7_1,row.rate_7_7,row.number_rate,row.rate_30_45,row.rate_1_1]));
   for(const c of candidates){ const v=normalizeDecimalString(c); if(isPositiveDecimal(v)) return v; }
   return '0';
 }
+function payoutRateForPaymentType(row, type){ return payoutRateForPaymentCycle(row, type); }
 function cents(v){ return Math.round((parseFloat(normalizeDecimalString(v)||'0')||0)*100); }
 function moneyFromCents(c){ return (Math.max(0, Math.round(c||0))/100).toFixed(2).replace(/\.00$/,'').replace(/(\.\d)0$/,'$1'); }
 function ukParts(date=new Date()){
@@ -963,15 +971,18 @@ app.get('/api/numbers/summary', authRequired, (req, res) => cachedJson(req, res,
   const ownerExpr = req.user.role === 'admin'
     ? '(n.manager_id IS NOT NULL OR n.agent_id IS NOT NULL OR n.client_id IS NOT NULL)'
     : `n.${numberOwnerColumnForRole(req.user.role)} IS NOT NULL`;
+  const having = req.user.role === 'admin' ? '' : 'HAVING total > 0';
   const rows = db.all(`SELECT r.id AS range_id, r.name AS range_name,
+      r.rate_1_1, r.rate_7_1, r.rate_7_7, r.rate_30_45, r.payment_type,
       COUNT(n.id) AS total,
       SUM(CASE WHEN n.id IS NOT NULL AND NOT (${ownerExpr}) THEN 1 ELSE 0 END) AS available,
       SUM(CASE WHEN n.id IS NOT NULL AND ${ownerExpr} THEN 1 ELSE 0 END) AS allocated,
-      COALESCE(NULLIF(r.rate_30_45,''), NULLIF(r.rate_7_1,''), '0') AS rate
+      COALESCE(NULLIF(r.rate_7_1,''), NULLIF(r.rate_7_7,''), NULLIF(r.rate_30_45,''), NULLIF(r.rate_1_1,''), '0') AS rate
     FROM ranges r
     LEFT JOIN numbers n ON n.range_id=r.id AND ${scope.where}
     WHERE COALESCE(r.deleted_at,'')=''
     GROUP BY r.id, r.name
+    ${having}
     ORDER BY r.name COLLATE NOCASE ASC`, scope.params);
   return rows.map(r => ({...r, total:+(r.total||0), available:+(r.available||0), allocated:+(r.allocated||0)}));
 }));
@@ -1049,7 +1060,7 @@ app.post('/api/numbers/allocate', authRequired, (req, res) => {
     sets = 'client_id=?, agent_id=?, manager_id=?';
     vals = [target.id, agentId, mgrId];
   }
-  if (target.role === 'agent' && payterm) { const pt=normalizePaymentType(payterm); sets += ', payterm=?'; vals.push(pt); try{ db.run('UPDATE users SET payment_type=? WHERE id=? AND role=\'agent\'',[pt,target.id]); }catch(e){} }
+  if (target.role === 'agent' && payterm) { const pt=normalizePaymentCycle(payterm); sets += ', payterm=?'; vals.push(pt); try{ db.run('UPDATE users SET payment_type=? WHERE id=? AND role=\'agent\'',[pt,target.id]); }catch(e){} }
   // Rate lock rule: Admin->Manager and Manager->Agent must keep the existing/Admin rate.
   // Only Agent->Client can set/change client payout.
   if (req.user.role === 'agent' && payout !== undefined && payout !== '') { sets += ', payout=?'; vals.push(String(payout)); }
@@ -1251,7 +1262,7 @@ function auditJobAction(user, action, module, details={}){
 }
 async function performSmartDivideJob(job){
   const { user, range_ids, target_ids, qty, payterm } = job;
-  const wantRole = { admin: 'manager', manager: 'agent', agent: 'client' }[user.role];
+  const wantRole = job.wantRole || { admin: 'manager', manager: 'agent', agent: 'client' }[user.role];
   const col = { manager: 'manager_id', agent: 'agent_id', client: 'client_id' }[wantRole];
   let ownerCond = '1=1', ownerParams = [];
   if (user.role === 'manager') { ownerCond = 'manager_id=?'; ownerParams = [user.id]; }
@@ -1284,7 +1295,8 @@ async function performSmartDivideJob(job){
             db.runNoSave(`UPDATE numbers SET client_id=?, agent_id=?, manager_id=? WHERE id IN (${ph})`, [sp.t, agt?agt.parent_id:null, mgr?mgr.parent_id:null, ...part]);
           } else if(wantRole==='agent'){
             const mgr=db.get('SELECT parent_id FROM users WHERE id=?',[sp.t]);
-            db.runNoSave(`UPDATE numbers SET agent_id=?, manager_id=?, client_id=NULL, payout='0', rate='', payterm=? WHERE id IN (${ph})`, [sp.t, mgr?mgr.parent_id:null, smartType, ...part]);
+            const mgrId = user.role === 'admin' ? null : (mgr?mgr.parent_id:null);
+            db.runNoSave(`UPDATE numbers SET agent_id=?, manager_id=?, client_id=NULL, payout='0', rate='', payterm=? WHERE id IN (${ph})`, [sp.t, mgrId, smartType, ...part]);
           } else {
             db.runNoSave(`UPDATE numbers SET manager_id=?, agent_id=NULL, client_id=NULL, payout='0', rate='' WHERE id IN (${ph})`, [sp.t, ...part]);
           }
@@ -1328,12 +1340,17 @@ app.post('/api/numbers/smart-divide', authRequired, async (req, res) => {
   const cleanRangeIds=range_ids.map(x=>parseInt(x,10)).filter(x=>x>0);
   const cleanTargetIds=target_ids.map(x=>parseInt(x,10)).filter(x=>x>0);
   const cleanQty=Math.max(1, Math.min(parseInt(qty,10)||0, NUMBER_PAGE_MAX));
-  const wantRole = { admin: 'manager', manager: 'agent', agent: 'client' }[req.user.role];
+  let wantRole = { manager: 'agent', agent: 'client' }[req.user.role];
+  if (req.user.role === 'admin') {
+    const roles=[...new Set(cleanTargetIds.map(id=>db.get('SELECT role FROM users WHERE id=?',[id])?.role).filter(Boolean))];
+    if(roles.length!==1 || !['manager','agent'].includes(roles[0])) return res.status(403).json({ error: 'Admin target must be all Managers or all Agents' });
+    wantRole=roles[0];
+  }
   if(!wantRole) return res.status(403).json({error:'Not allowed'});
   if(!validateSmartDivideTargets(req.user,wantRole,cleanTargetIds)) return res.status(403).json({ error: 'Invalid target(s)' });
   const estimated=cleanRangeIds.length*cleanQty;
   const shouldBackground = background !== false && estimated >= 1000;
-  const job={job_id:makeNumberJobId(),type:'smart_divide',status:'queued',progress:0,processed:0,total:estimated,user:{id:req.user.id,username:req.user.username,role:req.user.role},range_ids:cleanRangeIds,target_ids:cleanTargetIds,qty:cleanQty,payterm:normalizePaymentType(payterm||'weekly'),created_at:new Date().toISOString(),updated_at:new Date().toISOString()};
+  const job={job_id:makeNumberJobId(),type:'smart_divide',status:'queued',progress:0,processed:0,total:estimated,user:{id:req.user.id,username:req.user.username,role:req.user.role},wantRole,range_ids:cleanRangeIds,target_ids:cleanTargetIds,qty:cleanQty,payterm:normalizePaymentCycle(payterm||'weekly_7_1'),created_at:new Date().toISOString(),updated_at:new Date().toISOString()};
   numberJobs.set(job.job_id, job);
   setImmediate(()=>performSmartDivideJob(job));
   if(shouldBackground){
@@ -1576,7 +1593,20 @@ app.get('/api/dashboard', authRequired, (req, res) => cachedJson(req, res, 2500,
     WHERE ${smsScopeWhere(u,'s').where} AND COALESCE(s.is_test,0)=0
     ORDER BY s.received_at DESC, s.id DESC LIMIT 5`, smsScopeWhere(u,'s').params);
   const recent = attachSmsPayoutFields(recentRows).map(r=>({received_at:r.received_at,number:r.number,cli:r.cli,message:r.message,range_name:r.range_name,payout_rate:r.payout_rate}));
-  return { sms_today: today, sms_yesterday: yesterday, sms_7d: d7, sms_month: month, payout_7d: payout7, payout_month: payoutMonth, managers, agents, clients, numbers, daily7, recent };
+  const totalSms = db.get(`SELECT COUNT(*) c FROM sms_records WHERE ${smsScope.where} AND ${normalSms}`, smsScope.params)?.c || 0;
+  const successToday = today;
+  let failedToday = 0, failedTotal = 0;
+  try {
+    if (u.role === 'admin') {
+      failedToday = db.get(`SELECT COUNT(*) c FROM failed_sms_queue WHERE ${ukDateExpr('created_at')}=${ukDateNowSql()}`)?.c || 0;
+      failedTotal = db.get('SELECT COUNT(*) c FROM failed_sms_queue')?.c || 0;
+    } else {
+      const nScope = numberScopeWhere(u, 'n');
+      failedToday = db.get(`SELECT COUNT(*) c FROM failed_sms_queue f WHERE ${ukDateExpr('f.created_at')}=${ukDateNowSql()} AND EXISTS (SELECT 1 FROM numbers n WHERE ${nScope.where} AND REPLACE(REPLACE(REPLACE(REPLACE(n.number,'+',''),' ',''),'-',''),'_','')=REPLACE(REPLACE(REPLACE(REPLACE(f.number,'+',''),' ',''),'-',''),'_',''))`, nScope.params)?.c || 0;
+      failedTotal = db.get(`SELECT COUNT(*) c FROM failed_sms_queue f WHERE EXISTS (SELECT 1 FROM numbers n WHERE ${nScope.where} AND REPLACE(REPLACE(REPLACE(REPLACE(n.number,'+',''),' ',''),'-',''),'_','')=REPLACE(REPLACE(REPLACE(REPLACE(f.number,'+',''),' ',''),'-',''),'_',''))`, nScope.params)?.c || 0;
+    }
+  } catch(e) {}
+  return { sms_today: today, otp_today: today, successful_otp_today: successToday, failed_otp_today: failedToday, failed_sms_today: failedToday, total_sms: totalSms, failed_total: failedTotal, sms_yesterday: yesterday, sms_7d: d7, sms_month: month, payout_7d: payout7, payout_month: payoutMonth, managers, agents, clients, numbers, daily7, recent };
 }));
 
 
@@ -2045,8 +2075,9 @@ app.post('/api/failed-sms/:id/retry', authRequired, requireRole('admin'), (req,r
   const n=findNumber(f.number);
   if(!n){ db.run(`UPDATE failed_sms_queue SET retry_count=retry_count+1, updated_at=datetime('now') WHERE id=?`,[id]); return res.status(404).json({ error:'Number still not found' }); }
   const rangeForRetry=db.get('SELECT * FROM ranges WHERE id=?',[n.range_id])||{};
-  const retryPaymentType=assignedPaymentTypeForNumber(n, rangeForRetry);
-  const retryRate=payoutRateForPaymentType({...rangeForRetry, number_rate:n.rate, number_payout:n.payout}, retryPaymentType);
+  const retryPaymentCycle=assignedPaymentCycleForNumber(n, rangeForRetry);
+  const retryPaymentType=normalizePaymentType(retryPaymentCycle);
+  const retryRate=payoutRateForPaymentCycle({...rangeForRetry, number_rate:n.rate, number_payout:n.payout}, retryPaymentCycle);
   const retrySenderType=classifySender(f.cli||'');
   const retryOtpCode=extractOtpCode(f.message||'');
   db.run(`INSERT INTO sms_records (number_id,number,range_id,cli,sender_type,message,otp_code,client_id,agent_id,manager_id,payout_rate,payout_amount,payment_type) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
@@ -2206,8 +2237,9 @@ function processIncomingSmsPayload(req, payload, sourceIp='', opts={}) {
   }
 
   const rangeForSms=db.get('SELECT * FROM ranges WHERE id=?',[n.range_id])||{};
-  const assignedPaymentType = assignedPaymentTypeForNumber(n, rangeForSms);
-  let smsPayoutRate=payoutRateForPaymentType({...rangeForSms, number_rate:n.rate, number_payout:n.payout}, assignedPaymentType);
+  const assignedPaymentCycle = assignedPaymentCycleForNumber(n, rangeForSms);
+  const assignedPaymentType = normalizePaymentType(assignedPaymentCycle);
+  let smsPayoutRate=payoutRateForPaymentCycle({...rangeForSms, number_rate:n.rate, number_payout:n.payout}, assignedPaymentCycle);
   let limitReason = '';
   if (incomingHasZeroPayout(b)) {
     smsPayoutRate = '0';

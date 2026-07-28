@@ -442,6 +442,8 @@ function createTables() {
   db.run(`CREATE INDEX IF NOT EXISTS idx_api_seen_key ON api_integration_seen(duplicate_key)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_api_logs_integration ON api_integration_logs(integration_id, created_at)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_api_logs_status ON api_integration_logs(status)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_failed_sms_created ON failed_sms_queue(created_at)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_failed_sms_number_clean ON failed_sms_queue(REPLACE(REPLACE(REPLACE(REPLACE(number,'+',''),' ',''),'-',''),'_',''))`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_payment_ledger_agent_type_status ON payment_ledger(agent_id, payment_type, status)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_payment_ledger_eligible ON payment_ledger(payment_type, eligible_at, status)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_payment_requests_agent_type_status ON payment_requests_v2(agent_id, payment_type, status)`);

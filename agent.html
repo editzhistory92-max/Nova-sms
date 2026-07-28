@@ -488,10 +488,10 @@
       <section class="page active" id="page-dashboard">
       <div class="page-head"><div><h2>SMS Dashboard</h2><div class="breadcrumb"><b>Agent</b> › Dashboard</div></div></div>
       <div class="stats-grid dash-metrics">
-        <div class="stat-card dash-metric d-blue"><div class="stat-info"><p>Today SMS</p><h3>0</h3><span>SMS received today</span></div><div class="dash-go">⌁</div></div>
-        <div class="stat-card dash-metric d-pink"><div class="stat-info"><p>Yesterday SMS</p><h3>0</h3><span>Received yesterday</span></div><div class="dash-go">⌁</div></div>
-        <div class="stat-card dash-metric d-green"><div class="stat-info"><p>Last 7 Days</p><h3>0</h3><span>Received in last 7 days</span></div><div class="dash-go">⌁</div></div>
-        <div class="stat-card dash-metric d-orange"><div class="stat-info"><p>Money This Month</p><h3>$0.00</h3><span>Payout in this month</span></div><div class="dash-go">⌁</div></div>
+        <div class="stat-card dash-metric d-blue"><div class="stat-info"><p>Today OTP</p><h3>0</h3><span>OTP received today</span></div><div class="dash-go">⌁</div></div>
+        <div class="stat-card dash-metric d-pink"><div class="stat-info"><p>Successful OTP</p><h3>0</h3><span>Saved OTP today</span></div><div class="dash-go">⌁</div></div>
+        <div class="stat-card dash-metric d-green"><div class="stat-info"><p>Failed OTP</p><h3>0</h3><span>Failed today</span></div><div class="dash-go">⌁</div></div>
+        <div class="stat-card dash-metric d-orange"><div class="stat-info"><p>Total SMS</p><h3>0</h3><span>All saved SMS</span></div><div class="dash-go">⌁</div></div>
       </div>
       <div class="grid2 dash-row">
         <div class="card dash-note-card"><div class="card-head"><div><h3>Last 7 Days SMS & Payouts</h3><div class="sub">My clients stats & reports</div></div><span class="chip">Live</span></div><div class="chart" id="wk"></div></div>
@@ -553,6 +553,7 @@
           <div class="filter-row">
             <select class="sel-lg" id="baRange"><option value="">Select Range</option></select>
             <select class="sel-lg" id="baClient"><option value="">Select Client</option></select>
+            <select class="sel-lg" id="baPayterm" onchange="renderBulk()"><option value="daily">Daily (1/1)</option><option value="weekly_7_1">Weekly (7/1)</option><option value="weekly_7_7">Weekly (7/7)</option><option value="monthly_30x45">Monthly (30/45)</option></select>
             <input type="number" style="width:130px" placeholder="Qty" id="baQty"/>
             <button class="btn btn-blue" onclick="doBulk()">Allocate to Client</button>
           </div>
@@ -619,7 +620,7 @@
   <div class="modal-head"><h3>Allocate Selected Numbers</h3><button class="modal-close" onclick="closeModal('allocAllModal')">×</button></div>
   <div class="modal-body">
     <div class="form-group"><label>Select Client <span class="req">*</span></label><select id="aaClient"><option value="">Please Select</option></select></div>
-    <div class="form-group"><label>Payterm</label><select id="aaPayterm"><option value="">Please Select</option><option>Weekly</option><option>Weekly7</option><option>Monthly</option></select></div>
+    <div class="form-group"><label>Payterm</label><select id="aaPayterm"><option value="daily">Daily (1/1)</option><option value="weekly_7_1">Weekly (7/1)</option><option value="weekly_7_7">Weekly (7/7)</option><option value="monthly_30x45">Monthly (30/45)</option></select></div>
     <div class="form-group"><label>Payout ($)</label><input type="number" id="aaPayout" step="0.001" value="0" placeholder="0"/></div>
     <div class="hint" id="aaCount"></div>
   </div>
@@ -635,7 +636,7 @@
     <div class="form-group"><label>Select Clients <span class="req">*</span></label><div id="smClients" style="max-height:130px;overflow-y:auto;background:var(--row);border:1px solid var(--border2);border-radius:9px;padding:10px"></div></div>
     <div class="form-grid">
       <div class="form-group"><label>Numbers per Range <span class="req">*</span></label><input type="number" id="smQty" placeholder="e.g. 20"/></div>
-      <div class="form-group"><label>Payterm</label><select id="smPayterm"><option>Weekly</option><option>Weekly7</option><option>Monthly</option></select></div>
+      <div class="form-group"><label>Payterm</label><select id="smPayterm"><option value="daily">Daily (1/1)</option><option value="weekly_7_1">Weekly (7/1)</option><option value="weekly_7_7">Weekly (7/7)</option><option value="monthly_30x45">Monthly (30/45)</option></select></div>
     </div>
   </div>
   <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal('smartModal')">Cancel</button><button class="btn btn-blue" onclick="runSmartDivide()">Distribute</button></div>
@@ -658,7 +659,7 @@
 
 
 <div class="modal-overlay" id="walletHelpModal"><div class="modal" style="max-width:720px"><div class="modal-head"><h3>How to copy Binance USDT (TRC20) wallet</h3><button class="modal-close" onclick="closeModal('walletHelpModal')">×</button></div><div class="modal-body"><div class="hint" style="margin-bottom:12px"><b>Warning:</b> Using the wrong network or wallet address is the user's responsibility.</div><div class="card"><b>Step 1</b><div class="hint">Open Binance → Wallet → Spot/Funding → Deposit.</div><div style="border:1px solid #ddd6fe;border-radius:12px;padding:12px;margin-top:8px;background:#faf5ff">Example Screenshot: Deposit → Select USDT</div></div><div class="card"><b>Step 2</b><div class="hint">Choose coin: USDT. Choose network: TRC20 / Tron.</div><div style="border:1px solid #ddd6fe;border-radius:12px;padding:12px;margin-top:8px;background:#faf5ff">Example Screenshot: Network TRC20 selected</div></div><div class="card"><b>Step 3</b><div class="hint">Copy the address starting with T and paste it here.</div><div style="border:1px solid #ddd6fe;border-radius:12px;padding:12px;margin-top:8px;background:#faf5ff">Example: Txxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</div></div></div></div></div>
-<script src="/api.js?v=20260727-final-payload-optimization"></script>
+<script src="/api.js?v=20260728-dashboard-allocation-fix"></script>
 <script>
 if(window.API){ API.guard('agent'); }
 /* NAV */
@@ -702,7 +703,7 @@ function maskCLI(cli){if(!cli)return '';if(cli.length<=2)return cli;return cli.s
 /* fill selects */
 function fillSel(id,arr,keep=true){const s=document.getElementById(id);if(!s)return;const f=keep?s.children[0].outerHTML:'';s.innerHTML=f+arr.map(x=>`<option>${x}</option>`).join('');}
 function refreshClientSelects(){fillSel('numClient',myClients);fillSel('bulkClient',myClients);fillSel('baClient',myClients);}
-fillSel('numRange',rangeNames);fillSel('baRange',rangeNames);fillSel('testRange',rangeNames);refreshClientSelects();
+fillSel('numRange',rangeNames);fillSel('testRange',rangeNames);refreshClientSelects();
 
 /* RATE CARD (API) */
 function fr(v){return v==='NA'||!v?'<span class="muted">NA</span>':'<span class="cell-money">$ '+v+'</span>';}
@@ -740,7 +741,7 @@ async function unallocSel(){const ids=selIds();if(!ids.length){alert('Select num
 async function openAllocAll(){const ids=selIds();if(!ids.length){alert('Please select numbers first (checkbox).');return;}
   if(!clientsData.length)clientsData=await API.get('/users/client');
   document.getElementById('aaClient').innerHTML='<option value="">Please Select</option>'+clientsData.map(c=>`<option value="${c.id}">${c.username}</option>`).join('');
-  document.getElementById('aaPayterm').value='';document.getElementById('aaPayout').value='0';
+  document.getElementById('aaPayterm').value='weekly_7_1';document.getElementById('aaPayout').value='0';
   document.getElementById('aaCount').innerHTML=`<b>${ids.length}</b> numbers selected — Client ko allocate honge.`;
   document.getElementById('allocAllModal').classList.add('show');}
 async function confirmAllocAll(){const ids=selIds();const c=document.getElementById('aaClient').value,pt=document.getElementById('aaPayterm').value,po=document.getElementById('aaPayout').value;if(!c){alert('Select a client.');return;}
@@ -755,9 +756,10 @@ async function runSmartDivide(){const range_ids=[...document.querySelectorAll('.
   try{const r=await API.post('/numbers/smart-divide',{range_ids,target_ids,qty});closeModal('smartModal');alert(`✅ Smart divide complete!\nTotal: ${r.total}`);loadNumbers();}catch(e){alert('❌ '+e.message);}}
 
 /* BULK ALLOC */
+function cycleRate(r,cycle){cycle=cycle||document.getElementById('baPayterm')?.value||'weekly_7_1';if(cycle==='daily')return r.r1||r.rate_1_1||r.rate||'0';if(cycle==='weekly_7_7')return r.r3||r.rate_7_7||r.r2||r.rate_7_1||r.rate||'0';if(cycle==='monthly_30x45')return r.r4||r.rate_30_45||r.rate||'0';return r.r2||r.rate_7_1||r.r3||r.rate_7_7||r.rate||'0';}
 function renderBulk(){document.getElementById('baBody').innerHTML=baData.map((r,i)=>`<tr>
   <td><b>${r.range}</b></td><td><span class="tag tag-green">${r.avail}</span> <span class="muted">/ ${r.total}</span></td>
-  <td><span class="tag tag-amber">${r.alloc}</span></td><td class="cell-money">${r.rate}</td>
+  <td><span class="tag tag-amber">${r.alloc}</span></td><td class="cell-money">${cycleRate(r)}</td>
   <td><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><select id="bc${i}" style="width:auto;padding:7px 9px">${myClients.map(c=>`<option>${c}</option>`).join('')}</select><input type="number" class="allocate-num" placeholder="Qty" id="bq${i}"/><button class="btn btn-green btn-sm" onclick="baRow(${i})">Allocate</button></div></td>
   <td><div style="display:flex;gap:6px;align-items:center"><input type="number" class="allocate-num" placeholder="Qty" id="bu${i}"/><button class="btn btn-red btn-sm" onclick="baUn(${i})">Unallocate</button></div></td></tr>`).join('');
   document.getElementById('baInfo').textContent=`${baData.length} ranges`;}
@@ -918,15 +920,15 @@ function money(v){return '$ '+cleanDec(v);}
 function todayStr(){return (window.API&&API.ukToday)?API.ukToday():new Date().toISOString().slice(0,10);}function ukDateOf(v){return (window.API&&API.ukDate)?API.ukDate(v):String(v||'').slice(0,10);}
 function uniqueVals(arr){return [...new Set((arr||[]).filter(Boolean))];}
 async function loadProfile(){try{const me=await API.get('/me');AGT=me.name||me.username||AGT;document.querySelectorAll('.nm').forEach(e=>e.textContent=AGT);document.querySelectorAll('.av').forEach(e=>e.textContent=(AGT[0]||'A').toUpperCase());}catch(e){}}
-async function loadDashboard(){try{const d=await API.get('/dashboard');const cards=document.querySelectorAll('#page-dashboard .stat-card .stat-info h3');[d.sms_today,d.sms_yesterday,d.sms_7d,money(d.payout_month)].forEach((v,i)=>{if(cards[i])cards[i].textContent=String(v)});const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];drawWeek((d.daily7||[]).map(x=>({l:days[new Date(x.date).getDay()]||'',v:x.count||0})));const recentCard=document.querySelector('#page-dashboard .dashboard-recent');if(recentCard){const head=recentCard.querySelector('.card-head')?.outerHTML||'';recentCard.innerHTML=head+((d.recent||[]).map(r=>`<div class="li"><div class="l"><div><div class="t1">SMS received — ${r.number||'—'}</div><div class="t2">${(r.received_at||'').slice(0,19)} · ${r.cli||'—'}</div></div></div></div>`).join('')||'<div class="muted" style="padding:18px">No recent activity yet</div>');}}catch(e){console.warn(e)}}
+async function loadDashboard(){try{const d=await API.get('/dashboard');const cards=document.querySelectorAll('#page-dashboard .stat-card .stat-info h3');[(d.otp_today||d.sms_today||0),(d.successful_otp_today||0),(d.failed_otp_today||0),(d.total_sms||0)].forEach((v,i)=>{if(cards[i])cards[i].textContent=String(v)});const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];drawWeek((d.daily7||[]).map(x=>({l:days[new Date(x.date).getDay()]||'',v:x.count||0})));const recentCard=document.querySelector('#page-dashboard .dashboard-recent');if(recentCard){const head=recentCard.querySelector('.card-head')?.outerHTML||'';recentCard.innerHTML=head+((d.recent||[]).map(r=>`<div class="li"><div class="l"><div><div class="t1">SMS received — ${r.number||'—'}</div><div class="t2">${(r.received_at||'').slice(0,19)} · ${r.cli||'—'}</div></div></div></div>`).join('')||'<div class="muted" style="padding:18px">No recent activity yet</div>');}}catch(e){console.warn(e)}}
 function rebuildBa(){baData=(rateCard||[]).map(r=>{const nums=(numData||[]).filter(n=>n.range===r.range);const alloc=nums.filter(n=>n.client).length;return{id:r.id,range:r.range,total:nums.length,alloc,avail:nums.length-alloc,rate:r.r4||r.r2||'NA'};});}
-async function loadRateCard(){ try{const ranges=await API.get('/ranges'); rateCard=ranges.map(r=>({id:r.id,range:r.name,cur:r.currency,r1:r.rate_1_1,r2:r.rate_7_1,r3:r.rate_7_7,r4:r.rate_30_45,test_number:r.test_number})); rangeNames=rateCard.map(r=>r.range) }catch(e){ rateCard=[]; rangeNames=[]; testNumbers=[]; } renderRateCard(); fillSel('numRange',rangeNames);fillSel('baRange',rangeNames);fillSel('testRange',rangeNames);rebuildBa();renderBulk(); }
+async function loadRateCard(){ try{const ranges=await API.get('/ranges'); rateCard=ranges.map(r=>({id:r.id,range:r.name,cur:r.currency,r1:r.rate_1_1,r2:r.rate_7_1,r3:r.rate_7_7,r4:r.rate_30_45,test_number:r.test_number})); rangeNames=rateCard.map(r=>r.range) }catch(e){ rateCard=[]; rangeNames=[]; testNumbers=[]; } renderRateCard(); fillSel('numRange',rangeNames);fillSel('testRange',rangeNames);rebuildBa();renderBulk(); }
 async function loadNumbers(){ try{ numData=(await API.get('/numbers')).map(r=>({id:r.id,range_id:r.range_id,range:r.range_name||'',number:r.number,rate:r.effective_rate||r.rate||'',client:r.client_name||'',client_id:r.client_id,sd:r.sd_limit||0,sw:r.sw_limit||0})); }catch(e){ numData=[]; } rebuildBa(); renderNumbers(); renderBulk(); }
 async function loadClients(){ try{ clientsData=await API.get('/users/client'); }catch(e){ clientsData=[]; } refreshClients(); refreshClientSelects(); renderClients(); }
 async function loadSms(){ try{ smsRecords=await API.get('/sms'); }catch(e){ smsRecords=[]; } cdr=(smsRecords||[]).map(smsToCdr); recentTests=(smsRecords||[]).slice(0,50).map(r=>({date:(r.received_at||'').slice(0,19),range:r.range_name||'—',num:r.number||'',cli:r.cli||'',msg:r.message||''})); refreshClients(); const byCli={};smsRecords.forEach(r=>{const c=r.client_name||'—';byCli[c]=(byCli[c]||0)+1;});const b=document.getElementById('clSumBody');if(b)b.innerHTML=Object.keys(byCli).map(c=>`<tr><td><span class="tag tag-cli">${c}</span></td><td class="cell-money">${byCli[c]}</td><td class="cell-money" style="color:#86efac">$ ${sumPay((smsRecords||[]).filter(r=>r.client_name===c))}</td></tr>`).join('')||`<tr><td colspan="3" class="muted" style="text-align:center;padding:16px">No records found</td></tr>`; if(document.getElementById('srBody'))renderSmsReport();if(document.getElementById('sdBody'))renderSmsDetail();if(document.getElementById('csBody'))renderClientStats();['range','number'].forEach(k=>{if(document.getElementById(k+'Body')){buildDrillTot(k);renderDrill(k);}});}
-function baRow(i){const q=parseInt(document.getElementById('bq'+i).value),c=document.getElementById('bc'+i).value;if(!q||!c){alert('Select client and quantity.');return;}const row=baData[i],cl=(clientsData||[]).find(x=>x.username===c);if(!row||!cl)return;API.post('/numbers/smart-divide',{range_ids:[row.id],target_ids:[cl.id],qty:q}).then(res=>{alert(`✅ ${res.total||0} numbers allocated.`);loadNumbers();}).catch(e=>alert('❌ '+e.message));}
+function baRow(i){const q=parseInt(document.getElementById('bq'+i).value),c=document.getElementById('bc'+i).value;if(!q||!c){alert('Select client and quantity.');return;}const row=baData[i],cl=(clientsData||[]).find(x=>x.username===c);if(!row||!cl)return;API.post('/numbers/smart-divide',{range_ids:[row.id],target_ids:[cl.id],qty:q,payterm:(document.getElementById('baPayterm')?.value||'weekly_7_1')}).then(res=>{alert(`✅ ${res.total||0} numbers allocated.`);loadNumbers();}).catch(e=>alert('❌ '+e.message));}
 function baUn(i){const q=parseInt(document.getElementById('bu'+i).value),row=baData[i];if(!q||!row){alert('Enter quantity.');return;}const ids=(numData||[]).filter(n=>n.range===row.range&&n.client).slice(0,q).map(n=>n.id);if(!ids.length){alert('Allocated numbers were not found.');return;}API.post('/numbers/unallocate',{ids}).then(()=>{alert(`✅ ${ids.length} numbers unallocated.`);loadNumbers();}).catch(e=>alert('❌ '+e.message));}
-function doBulk(){const r=document.getElementById('baRange').value,c=document.getElementById('baClient').value,q=parseInt(document.getElementById('baQty').value);if(!r||!c||!q){alert('Range, Select client and quantity.');return;}const row=(rateCard||[]).find(x=>x.range===r),cl=(clientsData||[]).find(x=>x.username===c);if(!row||!cl)return;API.post('/numbers/smart-divide',{range_ids:[row.id],target_ids:[cl.id],qty:q}).then(res=>{alert(`✅ ${res.total||0} numbers allocated.`);document.getElementById('baQty').value='';loadNumbers();}).catch(e=>alert('❌ '+e.message));}
+function doBulk(){const r=document.getElementById('baRange').value,c=document.getElementById('baClient').value,q=parseInt(document.getElementById('baQty').value);if(!r||!c||!q){alert('Range, Select client and quantity.');return;}const row=(baData||[]).find(x=>x.range===r)|| (rateCard||[]).find(x=>x.range===r),cl=(clientsData||[]).find(x=>x.username===c);if(!row||!cl)return;API.post('/numbers/smart-divide',{range_ids:[row.id],target_ids:[cl.id],qty:q,payterm:(document.getElementById('baPayterm')?.value||'weekly_7_1')}).then(res=>{alert(`✅ ${res.total||0} numbers allocated.`);document.getElementById('baQty').value='';loadNumbers();}).catch(e=>alert('❌ '+e.message));}
 
 /* PAYMENT V2 */
 function openWalletHelp(){document.getElementById('walletHelpModal').classList.add('show')}
@@ -993,24 +995,15 @@ async function renderNumbers(){
   const pag=numInfo.closest('.table-foot')?.querySelector('.pagination');if(pag&&window.drawServerPagination)drawServerPagination(pag,state,renderNumbers);updSel();
 }
 async function loadNumbers(){return renderNumbers();}
-async function loadNumberSummaryForBulk(){try{const rows=await API.get('/numbers/summary');baData=(rows||[]).map(r=>({id:r.range_id,range:r.range_name,total:r.total||0,alloc:r.allocated||0,avail:r.available||0,rate:r.rate||'0'}));}catch(e){baData=[];}renderBulk();}
-async function baUn(i){const q=parseInt(document.getElementById('bu'+i).value),row=baData[i];if(!q||!row){alert('Enter quantity.');return;}try{const r=await API.post('/numbers/unallocate-by-range',{range_id:row.id,qty:q});alert(`✅ ${r.count||0} numbers unallocated.`);await loadNumberSummaryForBulk();await renderNumbers();}catch(e){alert('❌ '+e.message)}}
-async function loadSms(){return renderSmsReport();}
-async function loadAgentPageData(page){
+async function loadNumberSummaryForBulk(){
   try{
-    if(page==='dashboard') return loadDashboard();
-    if(page==='rateCard') return loadRateCard();
-    if(page==='numbers') return loadNumbers();
-    if(page==='bulkAlloc'){ await Promise.allSettled([loadRateCard(),loadClients(),loadNumberSummaryForBulk()]); return; }
-    if(page==='clients'){ buildClients(); return loadClients(); }
-    if(page==='smsReport'){ if(!document.getElementById('srBody')) buildSmsReport(); return renderSmsReport(); }
-    if(page==='smsDetail'){ if(!document.getElementById('sdBody')) buildSmsDetail(); return renderSmsDetail(); }
-    if(page==='clientStats'){ if(!document.getElementById('csBody')) buildClientStats(); return renderClientStats(); }
-    if(['rangeStats','numberStats'].includes(page)){ const k=page.replace('Stats',''); if(!document.getElementById(k+'Body')) buildDrill(k); return renderDrill(k); }
-    if(page==='test'){ await loadRateCard(); await loadTestNumbers(); return renderTest(); }
-    if(page==='payment') return loadAgentPayment();
-  }catch(e){console.warn('loadAgentPageData failed',page,e);}
+    const rows=await API.get('/numbers/summary');
+    baData=(rows||[]).map(r=>({id:r.range_id,range:r.range_name,total:r.total||0,alloc:r.allocated||0,avail:r.available||0,rate:r.rate||'0',r1:r.rate_1_1,r2:r.rate_7_1,r3:r.rate_7_7,r4:r.rate_30_45,payment_type:r.payment_type}));
+  }catch(e){baData=[];}
+  fillSel('baRange',baData.map(r=>r.range));
+  renderBulk();
 }
+
 
 /* FAST SERVER-SIDE SUMMARY STATS OVERRIDES */
 async function renderClientStats(){
