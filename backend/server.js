@@ -1,5 +1,5 @@
 /**
- * Mufasa SMS — Backend API
+ * Nova SMS — Backend API
  * Node.js + Express + SQLite (sql.js). MySQL-ready SQL.
  */
 const express = require('express');
@@ -73,9 +73,13 @@ function ukLocalDateToUtcSql(dateStr, plusDays=0){
 // Clean URL routes (must be before static so /admin.html can redirect to /admin)
 const FRONTEND_ROOT = path.join(__dirname, '..');
 function sendFrontendPage(res, file) { res.sendFile(path.join(FRONTEND_ROOT, file)); }
-app.get('/', (req, res) => sendFrontendPage(res, 'login.html'));
-app.get('/login', (req, res) => sendFrontendPage(res, 'login.html'));
-app.get('/login.html', (req, res) => res.redirect(301, '/login'));
+// Main panel login (Admin / Manager / Agent / Client) is served at /panel-login.
+// Legacy /login and /login.html are permanently redirected so old bookmarks keep working.
+app.get('/', (req, res) => res.redirect(302, '/panel-login'));
+app.get('/panel-login', (req, res) => sendFrontendPage(res, 'login.html'));
+app.get('/panel-login.html', (req, res) => res.redirect(301, '/panel-login'));
+app.get('/login', (req, res) => res.redirect(301, '/panel-login'));
+app.get('/login.html', (req, res) => res.redirect(301, '/panel-login'));
 app.get('/admin', (req, res) => sendFrontendPage(res, 'admin.html'));
 app.get('/admin.html', (req, res) => res.redirect(301, '/admin'));
 app.get('/admin/:page', (req, res) => sendFrontendPage(res, 'admin.html'));
@@ -112,8 +116,8 @@ app.get('/test/:page', (req, res) => sendFrontendPage(res, 'test.html'));
 // serve frontend assets and static files from project root
 app.use(express.static(FRONTEND_ROOT));
 
-app.get('/health', (req, res) => res.json({ ok: true, service: 'Mufasa SMS', time: new Date().toISOString() }));
-app.get('/api/health', (req, res) => res.json({ ok: true, service: 'Mufasa SMS', time: new Date().toISOString() }));
+app.get('/health', (req, res) => res.json({ ok: true, service: 'Nova SMS', time: new Date().toISOString() }));
+app.get('/api/health', (req, res) => res.json({ ok: true, service: 'Nova SMS', time: new Date().toISOString() }));
 
 /* ============ helpers ============ */
 function ukOffsetMinutes(date = new Date()) {
@@ -2296,7 +2300,7 @@ app.get('/api/incoming-sms', (req, res) => {
   const hasPayload = Object.keys(req.query || {}).some(k => ['number','to','To','recipient','destination','msisdn','receiver','called','message','text','body','Body','sms','content','msg'].includes(k));
   if (!hasPayload) {
     const settings = getCarrierSettings();
-    return res.json({ ok: true, service: 'Mufasa SMS incoming SMS endpoint', method: 'POST preferred', path: '/api/incoming-sms', integration_status: settings.integration_status, accepted_content_types: ['application/json','application/x-www-form-urlencoded','multipart/form-data'] });
+    return res.json({ ok: true, service: 'Nova SMS incoming SMS endpoint', method: 'POST preferred', path: '/api/incoming-sms', integration_status: settings.integration_status, accepted_content_types: ['application/json','application/x-www-form-urlencoded','multipart/form-data'] });
   }
   return handleCarrierIncoming(req, res, normalizeIncomingPayload(req));
 });
@@ -2659,5 +2663,5 @@ const PORT = process.env.PORT || 4000;
     console.log('• Payment ledger startup backfill disabled (new OTPs are recorded normally)');
   }
   console.log('• API Integration poller disabled (HTTP incoming only)');
-  app.listen(PORT, () => console.log(`\n✅ Mufasa SMS backend running: http://localhost:${PORT}\n`));
+  app.listen(PORT, () => console.log(`\n✅ Nova SMS backend running: http://localhost:${PORT}\n`));
 })();

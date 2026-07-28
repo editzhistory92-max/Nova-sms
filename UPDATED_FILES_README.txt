@@ -1,4 +1,36 @@
-MUFASA SMS — Agent/Manager Dashboard + Range Allocation Final Fix
+NOVA SMS — Rebrand & Aurora Dark theme
+Date: 2026-07-28
+
+Rebranding release. Business logic, APIs, database schema, authentication,
+SMS processing, number allocation, reports and permissions are UNCHANGED.
+
+1) Brand
+- Mufasa SMS -> Nova SMS across titles, sidebars, login screens and footers.
+- New assets: assets/nova-logo.png, nova-logo-192.png, nova-favicon.png.
+- Old assets/mufasa-*.png removed.
+
+2) Theme — "Aurora Dark"
+- New stylesheets: assets/nova-theme.css, assets/nova-login.css.
+- Legacy purple theme block removed from all panels.
+- Palette: midnight navy surfaces with aqua (#00E5C0) / sky (#2FB6FF) accents.
+
+3) Main login URL
+- /login  ->  /panel-login   (Admin, Manager, Agent, Client)
+- /login and /login.html now 301-redirect to /panel-login.
+- /api/login (auth API) unchanged.
+- Module logins unchanged: /management-login, /payment-login,
+  /panel-sharing-login, /test-login.
+
+4) Code cleanup
+- window.MUFASA_PANEL_MODE -> window.NOVA_PANEL_MODE
+- CSS vars --mufasa-* -> --nova-*, .mufasa-logo-img -> .nova-logo-img
+- Backups renamed to nova-sms-backup-<timestamp>.sqlite (existing files migrated).
+
+--------------------------------------------------------------------------
+PREVIOUS RELEASE NOTES
+--------------------------------------------------------------------------
+
+NOVA SMS — Agent/Manager Dashboard + Range Allocation Final Fix
 Date: 2026-07-28
 Cache marker: /api.js?v=20260728-agent-manager-allocation-final
 
@@ -48,10 +80,10 @@ Fixes implemented:
 - Removed hidden full-range/test data from Agent allocation workflows.
 
 VPS deploy:
-cd ~/Mufasa-sms
+cd ~/Nova-sms
 git pull --ff-only origin main
-npm install && pm2 flush mufasa-sms && pm2 restart mufasa-sms --update-env && pm2 list
-pm2 logs mufasa-sms --lines 80
+npm install && pm2 flush nova-sms && pm2 restart nova-sms --update-env && pm2 list
+pm2 logs nova-sms --lines 80
 
 Verify:
 grep -n "20260728-agent-manager-allocation-final" admin.html manager.html agent.html client.html management.html payment.html panel-sharing.html test.html

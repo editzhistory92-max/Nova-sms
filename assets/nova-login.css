@@ -1,0 +1,194 @@
+/* =====================================================================
+   NOVA SMS — Aurora Dark login styling
+   Applies to the main panel login (/panel-login) and dedicated module
+   logins. Presentation only — form ids, fields and submit flow untouched.
+   ===================================================================== */
+:root{
+  --nova-bg:#070B14;
+  --nova-surface:#0E1626;
+  --nova-surface-2:#131D31;
+  --nova-accent:#00E5C0;
+  --nova-accent-2:#2FB6FF;
+  --nova-accent-3:#7C8CFF;
+  --nova-text:#E9F0FA;
+  --nova-text-2:#BCCBE2;
+  --nova-muted:#8296B4;
+  --nova-dim:#5D6E8A;
+  --nova-border:rgba(140,175,225,.14);
+  --nova-border-2:rgba(140,175,225,.24);
+}
+
+/* ---------- Page canvas: deep space with aurora bloom ---------- */
+html{background:#070B14!important}
+body{
+  min-height:100vh!important;
+  background:
+    radial-gradient(1200px 700px at 78% -10%,rgba(47,182,255,.16),transparent 60%),
+    radial-gradient(900px 620px at 10% 108%,rgba(0,229,192,.14),transparent 58%),
+    radial-gradient(700px 500px at 50% 50%,rgba(124,140,255,.06),transparent 70%),
+    #070B14!important;
+  color:var(--nova-text)!important;
+  font-family:'Inter','Plus Jakarta Sans','Segoe UI',Roboto,system-ui,sans-serif!important;
+  align-items:center!important;
+}
+
+/* ---------- Split shell ---------- */
+.shell{
+  background:rgba(14,22,38,.74)!important;
+  border:1px solid var(--nova-border-2)!important;
+  border-radius:26px!important;
+  box-shadow:0 40px 110px rgba(2,6,16,.78),inset 0 1px 0 rgba(255,255,255,.05)!important;
+  backdrop-filter:blur(22px) saturate(140%)!important;
+  -webkit-backdrop-filter:blur(22px) saturate(140%)!important;
+  overflow:hidden!important;
+}
+
+/* ---------- Left brand stage ---------- */
+.brand-panel,.brand-panel.logo-only-panel{
+  background:
+    radial-gradient(circle at 50% 42%,rgba(0,229,192,.22),transparent 58%),
+    radial-gradient(circle at 76% 84%,rgba(47,182,255,.18),transparent 56%),
+    linear-gradient(168deg,#0A1120 0%,#060A12 58%,#04070E 100%)!important;
+  position:relative!important;overflow:hidden!important;
+  border-right:1px solid var(--nova-border)!important;
+}
+.brand-panel::before,.brand-panel.logo-only-panel::before{
+  content:""!important;display:block!important;position:absolute!important;
+  inset:0!important;width:auto!important;height:auto!important;border-radius:0!important;
+  background:
+    linear-gradient(rgba(140,175,225,.055) 1px,transparent 1px) 0 0/100% 46px,
+    linear-gradient(90deg,rgba(140,175,225,.055) 1px,transparent 1px) 0 0/46px 100%!important;
+  mask-image:radial-gradient(circle at 50% 45%,#000 32%,transparent 78%)!important;
+  -webkit-mask-image:radial-gradient(circle at 50% 45%,#000 32%,transparent 78%)!important;
+  pointer-events:none!important;
+}
+.brand-panel::after,.brand-panel.logo-only-panel::after{
+  content:""!important;display:block!important;position:absolute!important;
+  left:0!important;right:0!important;bottom:0!important;top:auto!important;
+  width:auto!important;height:1px!important;border-radius:0!important;
+  background:linear-gradient(90deg,transparent,rgba(0,229,192,.55),rgba(47,182,255,.45),transparent)!important;
+}
+.login-hero-logo{
+  background:transparent!important;
+  padding:54px!important;
+  object-fit:contain!important;
+  /* The mark ships on a near-black plate; `screen` drops that plate into the
+     panel gradient so only the luminous nova glyph reads. */
+  mix-blend-mode:screen!important;
+  filter:drop-shadow(0 22px 54px rgba(0,229,192,.30)) saturate(1.05)!important;
+  position:relative!important;z-index:1!important;
+}
+
+/* ---------- Right form panel ---------- */
+.login-panel{
+  background:linear-gradient(180deg,rgba(19,29,49,.62),rgba(10,16,28,.86))!important;
+  color:var(--nova-text)!important;
+}
+.login-head .eyebrow{
+  color:var(--nova-accent)!important;
+  font-weight:700!important;letter-spacing:.2em!important;font-size:11px!important;
+}
+.login-head h2{
+  color:#FFFFFF!important;font-weight:720!important;letter-spacing:-.038em!important;
+}
+.login-head p,.footer{color:var(--nova-muted)!important}
+
+/* Fields */
+.field label{color:var(--nova-text-2)!important;font-weight:600!important;font-size:13px!important}
+.input-wrap svg{stroke:var(--nova-dim)!important}
+input{
+  background:rgba(8,13,23,.85)!important;color:var(--nova-text)!important;
+  border:1px solid var(--nova-border-2)!important;border-radius:12px!important;
+  transition:border-color .16s ease,box-shadow .16s ease,background-color .16s ease!important;
+}
+input::placeholder{color:var(--nova-dim)!important}
+input:hover{border-color:rgba(140,175,225,.34)!important}
+input:focus{
+  border-color:var(--nova-accent)!important;
+  box-shadow:0 0 0 4px rgba(0,229,192,.15)!important;
+  background:rgba(10,17,30,.96)!important;
+}
+input:focus + svg,.input-wrap:focus-within svg{stroke:var(--nova-accent)!important}
+input[type="checkbox"]{accent-color:var(--nova-accent)!important}
+
+.toggle-pass{
+  background:rgba(0,229,192,.12)!important;color:var(--nova-accent)!important;
+  border:1px solid rgba(0,229,192,.28)!important;border-radius:9px!important;font-weight:650!important;
+}
+.toggle-pass:hover{background:rgba(0,229,192,.20)!important}
+
+/* Captcha */
+.captcha-box{
+  background:rgba(8,13,23,.85)!important;
+  border:1px dashed var(--nova-accent)!important;
+  color:var(--nova-accent)!important;border-radius:12px!important;
+  font-variant-numeric:tabular-nums!important;
+}
+.refresh-btn{color:var(--nova-accent-2)!important}
+.refresh-btn:hover{color:var(--nova-accent)!important}
+
+/* Row / links */
+.row-between{color:var(--nova-muted)!important}
+.checkbox{color:var(--nova-muted)!important}
+.row-between a{color:var(--nova-accent-2)!important;font-weight:650!important}
+.row-between a:hover{color:var(--nova-accent)!important}
+
+/* Submit */
+.btn,.login-panel .btn,button[type="submit"]{
+  background:linear-gradient(96deg,#00E5C0 0%,#2FB6FF 100%)!important;
+  color:#04121A!important;border:0!important;border-radius:13px!important;
+  font-weight:720!important;letter-spacing:.01em!important;
+  box-shadow:0 14px 34px rgba(0,190,200,.30)!important;
+  transition:transform .15s ease,box-shadow .18s ease,filter .18s ease!important;
+}
+.btn:hover,button[type="submit"]:hover{
+  transform:translateY(-1px)!important;filter:brightness(1.06)!important;
+  box-shadow:0 18px 44px rgba(0,190,200,.38)!important;
+}
+.btn:active,button[type="submit"]:active{transform:translateY(0)!important}
+.btn:focus-visible,button[type="submit"]:focus-visible{outline:2px solid var(--nova-accent)!important;outline-offset:3px!important}
+
+/* Messages */
+.msg.error,.msg .err,.err{background:rgba(255,92,122,.10)!important;border:1px solid rgba(255,92,122,.36)!important;color:#FFB0BF!important;border-radius:11px!important}
+.msg.success,.msg .ok,.ok{background:rgba(37,217,164,.10)!important;border:1px solid rgba(37,217,164,.36)!important;color:#84EFC9!important;border-radius:11px!important}
+
+/* ---------- Single-card module logins (management / payment / sharing / test) ---------- */
+.card{
+  background:linear-gradient(180deg,rgba(19,29,49,.80),rgba(10,16,28,.94))!important;
+  border:1px solid var(--nova-border-2)!important;
+  border-radius:24px!important;
+  box-shadow:0 40px 110px rgba(2,6,16,.78),inset 0 1px 0 rgba(255,255,255,.05)!important;
+  backdrop-filter:blur(20px) saturate(140%)!important;
+  -webkit-backdrop-filter:blur(20px) saturate(140%)!important;
+  color:var(--nova-text)!important;
+  position:relative!important;overflow:hidden!important;
+}
+.card::before{
+  content:""!important;position:absolute!important;left:0;right:0;top:0;height:2px;
+  background:linear-gradient(90deg,var(--nova-accent),var(--nova-accent-2),var(--nova-accent-3))!important;
+}
+.card .logo,.logo{
+  background:#04070E!important;overflow:hidden!important;
+  border:1px solid rgba(0,229,192,.30)!important;
+  box-shadow:0 14px 34px rgba(0,229,192,.18)!important;
+}
+.card .logo img,.logo img{width:100%!important;height:100%!important;object-fit:cover!important;mix-blend-mode:screen!important}
+.eyebrow{color:var(--nova-accent)!important;letter-spacing:.2em!important;font-weight:700!important}
+.title,.card h1{color:#FFFFFF!important;font-weight:720!important;letter-spacing:-.03em!important}
+.sub,.hint{color:var(--nova-muted)!important}
+label{color:var(--nova-text-2)!important;font-weight:600!important}
+
+@media(max-width:900px){
+  body{background:#070B14!important;align-items:flex-start!important}
+  .shell{background:rgba(14,22,38,.86)!important;border:1px solid var(--nova-border-2)!important;box-shadow:0 26px 70px rgba(2,6,16,.7)!important}
+  .login-panel{background:transparent!important;border-radius:26px!important}
+  .login-card:before{
+    background:url('/assets/nova-logo.png?v=nova-1') center/contain no-repeat!important;
+    border-radius:22px!important;
+    box-shadow:0 18px 40px rgba(0,229,192,.20)!important;
+  }
+  .login-head h2{color:#FFFFFF!important}
+  .login-head p{color:var(--nova-muted)!important}
+  .login-head .eyebrow{color:var(--nova-accent)!important}
+  .card .logo{display:block!important}
+}

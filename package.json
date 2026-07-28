@@ -1,7 +1,7 @@
 {
-  "name": "mufasa-sms-panel",
+  "name": "nova-sms-panel",
   "version": "1.0.0",
-  "description": "Mufasa SMS multi-level SMS/OTP panel for Admin, Manager, Agent and Client roles.",
+  "description": "Nova SMS multi-level SMS/OTP panel for Admin, Manager, Agent and Client roles.",
   "main": "backend/server.js",
   "scripts": {
     "start": "node backend/server.js",

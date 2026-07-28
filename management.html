@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<link rel="icon" type="image/png" href="/assets/mufasa-favicon.png?v=20260714-purple" />
-<title>MUFASA SMS — Management Panel</title>
+<link rel="icon" type="image/png" href="/assets/nova-favicon.png?v=nova-20260728-1" />
+<title>NOVA SMS — Management Panel</title>
 <style id="route-auth-hide">html{visibility:hidden}
 
   /* ===== Section separators for clearer layout ===== */
@@ -23,12 +23,12 @@
   try{
     var token=sessionStorage.getItem('ms_token')||localStorage.getItem('ms_token');
     var role=sessionStorage.getItem('ms_role')||localStorage.getItem('ms_role');
-    if(!token || role!==expected){ location.replace('/login'); return; }
+    if(!token || role!==expected){ location.replace('/panel-login'); return; }
     fetch('/api/me',{headers:{Authorization:'Bearer '+token}})
       .then(function(r){ if(!r.ok) throw new Error('auth'); return r.json(); })
       .then(function(u){ if(!u || u.role!==expected) throw new Error('role'); document.documentElement.style.visibility='visible'; })
-      .catch(function(){ sessionStorage.clear(); ['ms_token','ms_role','ms_user','ms_name'].forEach(k=>localStorage.removeItem(k)); location.replace('/login'); });
-  }catch(e){ sessionStorage.clear(); ['ms_token','ms_role','ms_user','ms_name'].forEach(k=>localStorage.removeItem(k)); location.replace('/login'); }
+      .catch(function(){ sessionStorage.clear(); ['ms_token','ms_role','ms_user','ms_name'].forEach(k=>localStorage.removeItem(k)); location.replace('/panel-login'); });
+  }catch(e){ sessionStorage.clear(); ['ms_token','ms_role','ms_user','ms_name'].forEach(k=>localStorage.removeItem(k)); location.replace('/panel-login'); }
 })();
 </script>
 <style>
@@ -330,7 +330,7 @@
 
 
 
-  /* ===== MUFASA SMS branding polish ===== */
+  /* ===== NOVA SMS branding polish ===== */
   .sb-logo,.brand .logo,.rail .logo,.sb-brand .logo,.brand-logo .logo{background:linear-gradient(135deg,#2563EB,#06B6D4)!important;color:#fff!important;box-shadow:0 12px 26px rgba(37,99,235,.24)!important}
   .sb-logo svg,.brand .logo svg,.rail .logo svg,.sb-brand .logo svg,.brand-logo .logo svg{stroke:#fff!important;color:#fff!important}
   .sb-brand h1,.brand h1,.brand-text h1,.brand-logo h1{color:#1E293B!important;font-weight:700!important;letter-spacing:-.01em!important}
@@ -339,8 +339,8 @@
 
 
 
-  /* ===== Uploaded MUFASA SMS logo ===== */
-  .mufasa-logo-img{width:100%!important;height:100%!important;object-fit:cover!important;display:block!important;border-radius:inherit!important}
+  /* ===== Uploaded NOVA SMS logo ===== */
+  .nova-logo-img{width:100%!important;height:100%!important;object-fit:cover!important;display:block!important;border-radius:inherit!important}
   .sb-logo,.brand .logo,.rail .logo,.sb-brand .logo,.brand-logo .logo{background:#050505!important;padding:0!important;overflow:hidden!important;border:1px solid rgba(245,158,11,.28)!important;box-shadow:0 12px 26px rgba(245,158,11,.18)!important}
   .brand-logo .logo{width:92px!important;height:92px!important;border-radius:22px!important;margin-bottom:16px!important}
   .sb-logo{width:44px!important;height:44px!important;border-radius:13px!important}.brand .logo,.sb-brand .logo{width:46px!important;height:46px!important;border-radius:13px!important}.rail .logo{width:50px!important;height:50px!important;border-radius:14px!important}
@@ -349,7 +349,7 @@
 
 
   /* ===== Hybrid Black/Gold Navigation Theme (dashboard cards unchanged) ===== */
-  :root{--mufasa-black:#050505;--mufasa-dark:#0B0B0B;--mufasa-hover:#1A1A1A;--mufasa-gold:#D4AF37;--mufasa-gold2:#F59E0B;--mufasa-gold-soft:#FEF3C7;--mufasa-slate:#CBD5E1;}
+  :root{--nova-black:#050505;--nova-dark:#0B0B0B;--nova-hover:#1A1A1A;--nova-gold:#D4AF37;--nova-gold2:#F59E0B;--nova-gold-soft:#FEF3C7;--nova-slate:#CBD5E1;}
   .sidebar,.rail{background:linear-gradient(180deg,#050505,#0B0B0B)!important;border-right:1px solid #1F2937!important;box-shadow:8px 0 28px rgba(15,23,42,.10)!important}
   .sb-brand,.rail-brand,.brand-text{background:transparent!important;border-bottom:1px solid rgba(212,175,55,.20)!important}
   .sb-brand h1,.brand-text h1{color:#F8FAFC!important}.sb-brand small,.brand-text small{color:#CBD5E1!important}.sb-section,.sb-sec{color:#94A3B8!important}
@@ -372,67 +372,16 @@
 
 </style>
 
-<style id="mufasa-purple-theme">
-  /* ===== MUFASA SMS Purple Theme — matched to new logo ===== */
-  :root{
-    --mufasa-purple:#7C3AED;
-    --mufasa-purple-2:#A855F7;
-    --mufasa-purple-3:#C084FC;
-    --mufasa-ink:#160826;
-    --mufasa-ink-2:#24103A;
-    --mufasa-soft:#F5F0FF;
-    --mufasa-border:#E9D5FF;
-    --mufasa-text:#1F1735;
-    --mufasa-muted:#6B5D7D;
-  }
-  body{background:linear-gradient(180deg,#FBF8FF 0%,#F7F3FF 44%,#F8FAFC 100%)!important;color:var(--mufasa-text)!important;}
-  .sidebar,.rail,.appbar{background:linear-gradient(180deg,#0F0618 0%,#1B0A2E 52%,#0B0612 100%)!important;border-right:1px solid rgba(168,85,247,.34)!important;box-shadow:10px 0 30px rgba(76,29,149,.16)!important;}
-  .sb-brand,.rail-brand,.brand-text,.appbar-top{background:transparent!important;border-bottom:1px solid rgba(192,132,252,.22)!important;}
-  .sb-brand h1,.brand h1,.brand-text h1,.brand-logo h1,.sidebar h1,.appbar h1{color:#FFFFFF!important;font-weight:800!important;letter-spacing:.035em!important;}
-  .sb-brand small,.brand small,.brand-text small,.sidebar small,.appbar small{color:#D8B4FE!important;}
-  .sb-section,.sb-sec,.sec{color:#A78BFA!important;font-weight:900!important;letter-spacing:.10em!important;}
-  .sb-logo,.brand .logo,.rail .logo,.sb-brand .logo,.brand-logo .logo,.logo{background:#14031F!important;border:1px solid rgba(216,180,254,.45)!important;box-shadow:0 14px 32px rgba(168,85,247,.22)!important;overflow:hidden!important;}
-  .mufasa-logo-img,.logo img,.login-hero-logo{filter:saturate(1.08) contrast(1.03)!important;}
-  .nav-item,.sub-item,.tab,.ritem,.rsubitem,.navtab,.dropitem,.item{color:#DDD6FE!important;background:transparent!important;}
-  .nav-item svg,.tab svg,.ritem svg,.navtab svg,.item svg{stroke:currentColor!important;color:inherit!important;}
-  .nav-item:hover,.sub-item:hover,.tab:hover,.ritem:hover,.rsubitem:hover,.navtab:hover,.dropitem:hover,.item:hover{background:rgba(168,85,247,.16)!important;color:#FFFFFF!important;}
-  .nav-item.active,.tab.active,.ritem.active,.navtab.active,.item.active{background:linear-gradient(135deg,#7C3AED 0%,#A855F7 58%,#C084FC 100%)!important;color:#FFFFFF!important;box-shadow:0 14px 30px rgba(124,58,237,.30)!important;}
-  .nav-item.active svg,.tab.active svg,.ritem.active svg,.navtab.active svg,.item.active svg{stroke:#FFFFFF!important;color:#FFFFFF!important;}
-  .sub-item.active,.rsubitem.active,.dropitem.active{background:rgba(168,85,247,.22)!important;color:#F5F3FF!important;box-shadow:inset 3px 0 0 #C084FC!important;}
-  .topbar,.tb1,.mgr-topbar{background:rgba(255,255,255,.88)!important;border-bottom:1px solid rgba(196,181,253,.50)!important;box-shadow:0 8px 26px rgba(88,28,135,.06)!important;backdrop-filter:blur(16px)!important;}
-  .content,.main{background:linear-gradient(180deg,#FBF8FF 0%,#F8FAFC 100%)!important;}
-  .page-head h2,.head h2{color:#23133B!important;font-weight:900!important;letter-spacing:-.025em!important;}
-  .breadcrumb,.sub,.muted,.clock,.tb-date,.t2,.ps{color:var(--mufasa-muted)!important;}
-  .card,.toolbar,.table-wrap{background:rgba(255,255,255,.86)!important;border-color:rgba(196,181,253,.52)!important;box-shadow:0 16px 42px rgba(88,28,135,.07)!important;}
-  .card-head h3,.card h3{color:#24103A!important;font-weight:850!important;}
-  thead th{background:#F4EDFF!important;color:#35204F!important;border-color:#E9D5FF!important;}
-  table td{border-color:#F0E7FF!important;}
-  tbody tr:hover td{background:#FAF5FF!important;}
-  input,select,textarea{border-color:#DDD6FE!important;background:#FFFFFF!important;color:#211437!important;}
-  input:focus,select:focus,textarea:focus{border-color:#A855F7!important;box-shadow:0 0 0 4px rgba(168,85,247,.14)!important;outline:none!important;}
-  .btn-blue,.btn-purple,.btn-teal,.btn-rose,.ms-btn.primary,button.btn-gold{background:linear-gradient(135deg,#7C3AED,#A855F7)!important;color:#fff!important;border:0!important;box-shadow:0 12px 26px rgba(124,58,237,.22)!important;}
-  .btn-blue:hover,.btn-purple:hover,.btn-teal:hover,.btn-rose:hover,.ms-btn.primary:hover{filter:brightness(1.04)!important;transform:translateY(-1px)!important;}
-  .tb-btn,.hamburger,.mgr-topbar-menu{color:#6D5D7E!important;}
-  .tb-btn:hover,.hamburger:hover,.mgr-topbar-menu:hover{background:#F3E8FF!important;color:#6D28D9!important;}
-  .avatar,.av{background:linear-gradient(135deg,#6D28D9,#A855F7)!important;color:#fff!important;border-color:#DDD6FE!important;}
-  .tag,.tag-blue,.tag-green,.tag-amber,.tag-red,.tag-gray,.tag-mgr,.tag-agt,.tag-cli{border-radius:9px!important;box-shadow:none!important;}
-  .tag-blue,.tag-mgr{background:#EDE9FE!important;color:#5B21B6!important;border-color:#DDD6FE!important;}
-  .cell-money,.payout-rate,.rate-cell,.otp{color:#6D28D9!important;font-weight:900!important;}
-  .login-panel,.shell,.card{border-color:rgba(196,181,253,.55)!important;}
-  .brand-panel.logo-only-panel{background:radial-gradient(circle at center,#3B0764 0%,#1B0A2E 54%,#08030D 100%)!important;}
-  .login-head .eyebrow{color:#7C3AED!important;}
-  .btn,.login-panel .btn{background:linear-gradient(135deg,#7C3AED,#A855F7)!important;color:#fff!important;}
-  @media(max-width:900px){.sidebar,.rail,.appbar{box-shadow:14px 0 40px rgba(35,10,61,.28)!important;}.content{background:#FBF8FF!important;}}
-</style>
 
+<link rel="stylesheet" href="/assets/nova-theme.css?v=nova-20260728-1" />
 </head>
 <body>
 <div class="layout">
   <!-- ================= SIDEBAR ================= -->
   <aside class="sidebar" id="sidebar">
     <div class="sb-brand">
-      <div class="sb-logo"><img class="mufasa-logo-img" src="/assets/mufasa-logo.png?v=20260714-purple" alt="MUFASA SMS" /></div>
-      <div><h1>MUFASA SMS</h1><small>Management Panel</small></div>
+      <div class="sb-logo"><img class="nova-logo-img" src="/assets/nova-logo.png?v=nova-20260728-1" alt="NOVA SMS" /></div>
+      <div><h1>NOVA SMS</h1><small>Management Panel</small></div>
     </div>
     <nav class="sb-nav">
       <div class="sb-section">Number Maintenance</div>
@@ -785,7 +734,7 @@ Pakistan Jazz
           <div class="stat-card dash-metric d-pink"><div class="stat-info"><p>Database File</p><h3 id="bkDbFile">—</h3><span>Active database path</span></div><div class="dash-go">●</div></div>
         </div>
         <div class="card" style="margin-bottom:16px">
-          <div class="card-head"><div><h3>VPS Backup Settings</h3><div class="sub">Current VPS setup stores automatic backups outside the app folder. Recommended: <b>BACKUP_DIR=/root/mufasa-sms-backups</b>.</div></div></div>
+          <div class="card-head"><div><h3>VPS Backup Settings</h3><div class="sub">Current VPS setup stores automatic backups outside the app folder. Recommended: <b>BACKUP_DIR=/root/nova-sms-backups</b>.</div></div></div>
           <div class="hint">Automatic backups run every <b>BACKUP_INTERVAL_HOURS</b> hours and old backups are removed after <b>BACKUP_RETENTION_DAYS</b> days.</div>
         </div>
         <div class="table-wrap"><div class="tscroll"><table>
@@ -920,7 +869,7 @@ Pakistan Jazz
 <script>
 /* auth guard — management uses admin credentials */
 if(window.API){ API.guard('admin'); }
-window.MUFASA_PANEL_MODE='management';
+window.NOVA_PANEL_MODE='management';
 const MANAGEMENT_ALLOWED_PAGES=new Set(['import','testImport','rates','cliLimit','limitManagement','carrierIntegration','systemLogs','backupManagement']);
 function normalizePanelPage(id){ id=String(id||'rates'); return MANAGEMENT_ALLOWED_PAGES.has(id)?id:'rates'; }
 function applyPanelSplitUi(){ /* Management Panel keeps maintenance/config modules only. */ }
@@ -950,7 +899,7 @@ function openSidebar(){ document.getElementById('sidebar').classList.add('show')
 function closeSidebar(){ document.getElementById('sidebar').classList.remove('show'); document.getElementById('overlay').classList.remove('show'); }
 function toggleFull(){ if(!document.fullscreenElement){document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen();}else{document.exitFullscreen&&document.exitFullscreen();} }
 function closeModal(id){const el=document.getElementById(id);if(el)el.classList.remove('show');}
-function logout(){ if(confirm('Do you want to logout?')){ if(window.API&&API.logout){API.logout();}else{try{sessionStorage.clear();['ms_token','ms_role','ms_user','ms_name'].forEach(k=>localStorage.removeItem(k));}catch(e){} window.location.href='/login';} } }
+function logout(){ if(confirm('Do you want to logout?')){ if(window.API&&API.logout){API.logout();}else{try{sessionStorage.clear();['ms_token','ms_role','ms_user','ms_name'].forEach(k=>localStorage.removeItem(k));}catch(e){} window.location.href='/panel-login';} } }
 function tick(){const d=new Date();const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];const p=n=>String(n).padStart(2,'0');
   document.getElementById('clock').textContent=days[d.getDay()]+', '+d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());}
 setInterval(tick,1000);tick();
@@ -1180,12 +1129,12 @@ function renderNumbers(){
   if(numSort.key){rows.sort((a,b)=>((a[numSort.key]||'')+'').localeCompare((b[numSort.key]||'')+'',undefined,{numeric:true})*numSort.dir);}
   const pag=API.paginateRows('adminNumbers',rows,len,'numbersInfo',renderNumbers);const total=pag.total;rows=pag.rows;
   document.getElementById('numbersBody').innerHTML=rows.map(r=>`<tr>
-    ${window.MUFASA_PANEL_MODE==='admin_light'?'':`<td><input type="checkbox" class="rowchk" data-id="${r._id}" onchange="updateSelInfo()"/></td>`}
+    ${window.NOVA_PANEL_MODE==='admin_light'?'':`<td><input type="checkbox" class="rowchk" data-id="${r._id}" onchange="updateSelInfo()"/></td>`}
     <td>${r.range}</td><td class="muted">${r.prefix||'—'}</td><td><b>${r.number}</b></td>
     <td>${r.myPay}<br><span class="cell-sub cell-money">${r.myVal}</span></td>
-    <td>${r.client?`<span class="tag ${r.ownerType==='agent'?'tag-agt':'tag-mgr'}">${r.ownerType==='agent'?'Agent':'Manager'}: ${r.client}${window.MUFASA_PANEL_MODE==='admin_light'?'':` <span class="x" onclick="unassignOne(${r._id})">✕</span>`}</span>`:`<span class="tag tag-gray">Unallocated</span>`}</td>
+    <td>${r.client?`<span class="tag ${r.ownerType==='agent'?'tag-agt':'tag-mgr'}">${r.ownerType==='agent'?'Agent':'Manager'}: ${r.client}${window.NOVA_PANEL_MODE==='admin_light'?'':` <span class="x" onclick="unassignOne(${r._id})">✕</span>`}</span>`:`<span class="tag tag-gray">Unallocated</span>`}</td>
     <td>${r.payType}<br><span class="cell-sub">${r.payVal}</span></td>
-    <td class="muted">SD : ${r.sd} | SW : ${r.sw}</td></tr>`).join('')||`<tr><td colspan="${window.MUFASA_PANEL_MODE==='admin_light'?7:8}" class="muted" style="text-align:center;padding:24px">No numbers found</td></tr>`;
+    <td class="muted">SD : ${r.sd} | SW : ${r.sw}</td></tr>`).join('')||`<tr><td colspan="${window.NOVA_PANEL_MODE==='admin_light'?7:8}" class="muted" style="text-align:center;padding:24px">No numbers found</td></tr>`;
   document.getElementById('numbersInfo').textContent=`Showing ${rows.length} of ${total} numbers`; updateSelInfo();
 }
 function toggleAll(cb){document.querySelectorAll('.rowchk').forEach(c=>c.checked=cb.checked);updateSelInfo();}
@@ -2005,7 +1954,7 @@ async function downloadLatestBackup(){
     const res=await fetch('/api/backups/latest/download',{headers:{Authorization:'Bearer '+token}});
     if(!res.ok) throw new Error((await res.json().catch(()=>({error:'Download failed'}))).error||'Download failed');
     const blob=await res.blob();
-    const name=(res.headers.get('content-disposition')||'').match(/filename="?([^";]+)"?/)?.[1]||'mufasa-sms-latest-backup.sqlite';
+    const name=(res.headers.get('content-disposition')||'').match(/filename="?([^";]+)"?/)?.[1]||'nova-sms-latest-backup.sqlite';
     const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();URL.revokeObjectURL(a.href);
   }catch(e){alert('❌ '+e.message)}
 }
@@ -2200,12 +2149,12 @@ async function renderNumbers(){
     payType:r.payterm||'Weekly', payVal:'$ '+(r.payout||'0'), sd:r.sd_limit||0, sw:r.sw_limit||0
   }));
   document.getElementById('numbersBody').innerHTML=rows.map(r=>`<tr>
-    ${window.MUFASA_PANEL_MODE==='admin_light'?'':`<td><input type="checkbox" class="rowchk" data-id="${r._id}" onchange="updateSelInfo()"/></td>`}
+    ${window.NOVA_PANEL_MODE==='admin_light'?'':`<td><input type="checkbox" class="rowchk" data-id="${r._id}" onchange="updateSelInfo()"/></td>`}
     <td>${r.range}</td><td class="muted">${r.prefix||'—'}</td><td><b>${r.number}</b></td>
     <td>${r.myPay}<br><span class="cell-sub cell-money">${r.myVal}</span></td>
-    <td>${r.client?`<span class="tag ${r.ownerType==='agent'?'tag-agt':'tag-mgr'}">${r.ownerType==='agent'?'Agent':'Manager'}: ${r.client}${window.MUFASA_PANEL_MODE==='admin_light'?'':` <span class="x" onclick="unassignOne(${r._id})">✕</span>`}</span>`:`<span class="tag tag-gray">Unallocated</span>`}</td>
+    <td>${r.client?`<span class="tag ${r.ownerType==='agent'?'tag-agt':'tag-mgr'}">${r.ownerType==='agent'?'Agent':'Manager'}: ${r.client}${window.NOVA_PANEL_MODE==='admin_light'?'':` <span class="x" onclick="unassignOne(${r._id})">✕</span>`}</span>`:`<span class="tag tag-gray">Unallocated</span>`}</td>
     <td>${r.payType}<br><span class="cell-sub">${r.payVal}</span></td>
-    <td class="muted">SD : ${r.sd} | SW : ${r.sw}</td></tr>`).join('')||`<tr><td colspan="${window.MUFASA_PANEL_MODE==='admin_light'?7:8}" class="muted" style="text-align:center;padding:24px">No numbers found</td></tr>`;
+    <td class="muted">SD : ${r.sd} | SW : ${r.sw}</td></tr>`).join('')||`<tr><td colspan="${window.NOVA_PANEL_MODE==='admin_light'?7:8}" class="muted" style="text-align:center;padding:24px">No numbers found</td></tr>`;
   const shown=total===0?0:Math.min(total,((state.page-1)*pageLimit)+rows.length);
   document.getElementById('numbersInfo').textContent=`Showing ${shown} of ${total} numbers`;
   const pag=document.getElementById('numbersInfo').closest('.table-foot').querySelector('.pagination');

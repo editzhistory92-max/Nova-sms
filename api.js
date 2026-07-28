@@ -12,8 +12,8 @@
   const ROLE = () => STORE('ms_role');
 
   function guard(expectedRole) {
-    if (!TOKEN()) { location.href = '/login'; return false; }
-    if (expectedRole && ROLE() !== expectedRole) { location.href = '/login'; return false; }
+    if (!TOKEN()) { location.href = '/panel-login'; return false; }
+    if (expectedRole && ROLE() !== expectedRole) { location.href = '/panel-login'; return false; }
     return true;
   }
 
@@ -23,7 +23,7 @@
     if (t) opt.headers['Authorization'] = 'Bearer ' + t;
     if (body !== undefined) opt.body = JSON.stringify(body);
     const r = await fetch('/api' + path, opt);
-    if (r.status === 401) { clearAuthStorage(); location.href = '/login'; throw new Error('Session expired'); }
+    if (r.status === 401) { clearAuthStorage(); location.href = '/panel-login'; throw new Error('Session expired'); }
     const data = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(data.error || ('HTTP ' + r.status));
     return data;
@@ -84,9 +84,9 @@
     if(document.getElementById('msSettingsPanel')) return;
     const panel=document.createElement('div');
     panel.id='msSettingsPanel'; panel.className='ms-notif-panel'; panel.style.top='68px';
-    panel.innerHTML=`<div class="ms-notif-head"><b>Panel Settings</b><div class="ms-notif-actions"><button id="msCloseSettings">×</button></div></div>
+    panel.innerHTML=`<div class="ms-notif-head"><b>Nova Settings</b><div class="ms-notif-actions"><button id="msCloseSettings">×</button></div></div>
       <div class="ms-notif-list" style="padding:14px 16px">
-        <label class="ms-switch" style="justify-content:space-between"><span>Dark mode</span><input type="checkbox" id="msSetDark"></label>
+        <label class="ms-switch" style="justify-content:space-between"><span>Contrast boost</span><input type="checkbox" id="msSetDark"></label>
       </div>`;
     document.body.appendChild(panel);
     document.getElementById('msCloseSettings').onclick=()=>panel.classList.remove('show');
@@ -101,25 +101,20 @@
     if(document.getElementById('msThemeCss')) return;
     const st=document.createElement('style');st.id='msThemeCss';
     st.textContent=`
-      /* Smooth global UI polish */
-      .page.active{animation:msPageFade .22s ease both}.card,.table-wrap,.toolbar,.stat-card{transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease,background-color .18s ease}.card:hover,.table-wrap:hover{box-shadow:0 16px 38px rgba(15,23,42,.07)}button,.btn,.tb-btn,.nav-item,.sub-item,.tab,.ritem,.rsubitem,.navtab,.dropitem{transition:transform .14s ease,box-shadow .14s ease,background-color .14s ease,color .14s ease,opacity .14s ease}button:active,.btn:active{transform:translateY(1px) scale(.99)}tbody tr{transition:background-color .14s ease,transform .14s ease}tbody tr:hover{transform:translateX(1px)}@keyframes msPageFade{from{opacity:.55;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-      .ms-progress{position:fixed;left:0;right:0;top:0;height:3px;background:linear-gradient(90deg,#D4AF37,#F59E0B,#38BDF8);z-index:20000;transform-origin:left;animation:msProgress .7s ease both}.ms-working{box-shadow:0 0 0 4px rgba(245,158,11,.18)!important;filter:brightness(1.03)}@keyframes msProgress{0%{transform:scaleX(0)}70%{transform:scaleX(.82)}100%{transform:scaleX(1);opacity:0}}
-      .ms-toast{position:fixed;right:22px;bottom:22px;background:#0F172A;color:#fff;border-radius:12px;padding:10px 13px;font-weight:800;font-size:13px;box-shadow:0 18px 45px rgba(15,23,42,.25);z-index:20001;opacity:0;transform:translateY(8px);animation:msToast .95s ease both}@keyframes msToast{15%,80%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(8px)}}
-      [data-page]{position:relative}.ms-page-link-overlay{position:absolute;inset:0;z-index:3;background:transparent!important;color:inherit!important;text-decoration:none!important}.ms-page-link-overlay:focus{outline:2px solid rgba(245,158,11,.45);outline-offset:2px;border-radius:inherit}
-      body.ms-dark-mode{background:#0B0B0B!important;color:#E5E7EB!important}
-      body.ms-dark-mode .main,body.ms-dark-mode .content{background:#0B0B0B!important;color:#E5E7EB!important}
-      body.ms-dark-mode .card,body.ms-dark-mode .toolbar,body.ms-dark-mode .table-wrap,body.ms-dark-mode .modal,body.ms-dark-mode .modal-box,body.ms-dark-mode .ms-modal,body.ms-dark-mode .ms-notif-panel,body.ms-dark-mode .ms-profile-menu{background:#111827!important;border-color:#334155!important;color:#E5E7EB!important;box-shadow:0 18px 50px rgba(0,0,0,.42)!important}
-      body.ms-dark-mode .topbar,body.ms-dark-mode .tb1,body.ms-dark-mode .appbar{background:#0F172A!important;border-color:#334155!important;color:#E5E7EB!important}
-      body.ms-dark-mode .sidebar,body.ms-dark-mode .rail{background:#050505!important;border-color:#262626!important;color:#E5E7EB!important}
-      body.ms-dark-mode .ms-notif-head,body.ms-dark-mode .ms-notif-foot,body.ms-dark-mode .ms-modal-head,body.ms-dark-mode .ms-modal-foot{background:#0F172A!important;border-color:#334155!important;color:#E5E7EB!important}
-      body.ms-dark-mode .page-head h2,body.ms-dark-mode .card-head h3,body.ms-dark-mode .stat-info h3,body.ms-dark-mode .nm,body.ms-dark-mode .t1,body.ms-dark-mode .pt,body.ms-dark-mode .ms-modal-head h3,body.ms-dark-mode .ms-profile-item{color:#F8FAFC!important}
-      body.ms-dark-mode .breadcrumb,body.ms-dark-mode .sub,body.ms-dark-mode .muted,body.ms-dark-mode .clock,body.ms-dark-mode .tb-date,body.ms-dark-mode .t2,body.ms-dark-mode .ps,body.ms-dark-mode .ms-notif-item .d{color:#CBD5E1!important}
-      body.ms-dark-mode table,body.ms-dark-mode tbody{background:#111827!important}body.ms-dark-mode table th{background:#1E293B!important;color:#E2E8F0!important;border-color:#334155!important}body.ms-dark-mode table td{background:#111827!important;color:#E5E7EB!important;border-color:#334155!important}body.ms-dark-mode tbody tr:nth-child(even) td{background:#0F172A!important}body.ms-dark-mode tbody tr:hover td{background:#1E293B!important}
-      body.ms-dark-mode input,body.ms-dark-mode select,body.ms-dark-mode textarea,body.ms-dark-mode .ms-field input{background:#0B1220!important;color:#F8FAFC!important;border-color:#475569!important}body.ms-dark-mode input::placeholder,body.ms-dark-mode textarea::placeholder{color:#94A3B8!important}
-      body.ms-dark-mode .tag,body.ms-dark-mode .tag-mgr,body.ms-dark-mode .tag-agt,body.ms-dark-mode .tag-cli,body.ms-dark-mode .tag-client,body.ms-dark-mode .tag-blue,body.ms-dark-mode .tag-green,body.ms-dark-mode .tag-amber,body.ms-dark-mode .tag-red,body.ms-dark-mode .tag-gray{background:#334155!important;color:#F8FAFC!important;border-color:#64748B!important}
-      body.ms-dark-mode .cell-money,body.ms-dark-mode .payout-rate,body.ms-dark-mode .rate-cell{color:#FDE68A!important}
-      body.ms-dark-mode .btn-ghost,body.ms-dark-mode .ms-btn.ghost{background:#111827!important;color:#E5E7EB!important;border-color:#475569!important}
-      body.ms-dark-mode .ms-profile-item:hover,body.ms-dark-mode .ms-notif-item.unread,body.ms-dark-mode .ms-notif-item:hover{background:#1E293B!important}
+      /* Nova SMS — runtime UI polish (motion + injected widgets).
+         Palette lives in /assets/nova-theme.css; this only adds behaviour-level styling. */
+      .page.active{animation:msPageFade .24s cubic-bezier(.22,.9,.3,1) both}.card,.table-wrap,.toolbar,.stat-card{transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease,background-color .18s ease}button,.btn,.tb-btn,.nav-item,.sub-item,.tab,.ritem,.rsubitem,.navtab,.dropitem{transition:transform .14s ease,box-shadow .14s ease,background-color .14s ease,color .14s ease,opacity .14s ease}button:active,.btn:active{transform:translateY(1px) scale(.99)}tbody tr{transition:background-color .14s ease}@keyframes msPageFade{from{opacity:.55;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+      .ms-progress{position:fixed;left:0;right:0;top:0;height:3px;background:linear-gradient(90deg,#00E5C0,#2FB6FF,#7C8CFF);z-index:20000;transform-origin:left;animation:msProgress .7s ease both}.ms-working{box-shadow:0 0 0 4px rgba(0,229,192,.20)!important;filter:brightness(1.04)}@keyframes msProgress{0%{transform:scaleX(0)}70%{transform:scaleX(.82)}100%{transform:scaleX(1);opacity:0}}
+      .ms-toast{position:fixed;right:22px;bottom:22px;background:linear-gradient(96deg,#0E1626,#152238);border:1px solid rgba(0,229,192,.34);color:#fff;border-radius:12px;padding:11px 14px;font-weight:700;font-size:13px;box-shadow:0 20px 50px rgba(0,157,180,.28);z-index:20001;opacity:0;transform:translateY(8px);animation:msToast .95s ease both}@keyframes msToast{15%,80%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(8px)}}
+      [data-page]{position:relative}.ms-page-link-overlay{position:absolute;inset:0;z-index:3;background:transparent!important;color:inherit!important;text-decoration:none!important}.ms-page-link-overlay:focus{outline:2px solid rgba(0,229,192,.55);outline-offset:2px;border-radius:inherit}
+      /* Contrast Boost: optional higher-contrast variant of the Nova dark theme. */
+      body.ms-dark-mode{background:#04070E!important}
+      body.ms-dark-mode .card,body.ms-dark-mode .toolbar,body.ms-dark-mode .table-wrap,body.ms-dark-mode .modal,body.ms-dark-mode .modal-box,body.ms-dark-mode .ms-modal,body.ms-dark-mode .ms-notif-panel,body.ms-dark-mode .ms-profile-menu{background:#0A101C!important;border-color:rgba(140,175,225,.20)!important}
+      body.ms-dark-mode .topbar,body.ms-dark-mode .tb1,body.ms-dark-mode .appbar{background:rgba(4,7,14,.92)!important}
+      body.ms-dark-mode .sidebar,body.ms-dark-mode .rail{background:#03060C!important}
+      body.ms-dark-mode table th{background:#04070E!important}
+      body.ms-dark-mode tbody tr:nth-child(even) td{background:rgba(140,175,225,.03)!important}
+      body.ms-dark-mode input,body.ms-dark-mode select,body.ms-dark-mode textarea,body.ms-dark-mode .ms-field input{background:#04070E!important}
     `
     document.head.appendChild(st);
   }
@@ -272,7 +267,7 @@
     if(location.pathname.startsWith('/management')) return '/management';
     if(location.pathname.startsWith('/payment')) return '/payment';
     if(location.pathname.startsWith('/panel-sharing')) return '/panel-sharing';
-    return {admin:'/admin',manager:'/manager',agent:'/agent',client:'/client',test:'/test'}[role] || '/login';
+    return {admin:'/admin',manager:'/manager',agent:'/agent',client:'/client',test:'/test'}[role] || '/panel-login';
   }
   function defaultPageForCurrentPanel(){ return location.pathname.startsWith('/management') ? 'rates' : 'dashboard'; }
   function pageUrl(page){ return basePathForRole() + '/' + encodeURIComponent(page || defaultPageForCurrentPanel()); }
@@ -356,7 +351,7 @@
   function exportTable(btn, mode){
     const table=findExportTable(btn); if(!table){ alert('No table found to export.'); return; }
     const data=tableToMatrix(table); if(!data.length){ alert('No rows to export.'); return; }
-    const title=(document.querySelector('.page.active h2')?.textContent||document.title||'mufasa-export').trim().replace(/[^a-z0-9_-]+/gi,'-').replace(/^-|-$/g,'') || 'mufasa-export';
+    const title=(document.querySelector('.page.active h2')?.textContent||document.title||'nova-export').trim().replace(/[^a-z0-9_-]+/gi,'-').replace(/^-|-$/g,'') || 'nova-export';
     const csv=data.map(r=>r.map(csvEscape).join(',')).join('\n');
     if(mode==='copy'){
       const copyText=data.map(r=>r.join('\t')).join('\n');
@@ -569,7 +564,7 @@
     settingsBtns.forEach(b=>{b.addEventListener('click',(e)=>{e.preventDefault();e.stopPropagation();openSettings();});});
     document.querySelectorAll('.avatar,.who').forEach(a=>a.addEventListener('click',(e)=>{e.preventDefault();e.stopPropagation();openProfileMenu();}));
     document.querySelectorAll('[title="Fullscreen"]').forEach(b=>{if(!b.dataset.msFull){b.dataset.msFull='1';b.addEventListener('click',(e)=>{if(!document.fullscreenElement){document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen();}else{document.exitFullscreen&&document.exitFullscreen();}});}});
-    document.querySelectorAll('[title="Logout"]').forEach(b=>{if(!b.dataset.msLogout){b.dataset.msLogout='1';b.addEventListener('click',()=>{window.API&&API.logout?API.logout():(clearAuthStorage(),location.href='/login');});}});
+    document.querySelectorAll('[title="Logout"]').forEach(b=>{if(!b.dataset.msLogout){b.dataset.msLogout='1';b.addEventListener('click',()=>{window.API&&API.logout?API.logout():(clearAuthStorage(),location.href='/panel-login');});}});
   }
   window.API = {
     guard,
@@ -583,7 +578,7 @@
     post: async (p, b) => { clearGetCache(); const data=await req('POST', p, b); if(data && data.background && data.job_id) return waitNumberJob(data.job_id, data); return data; },
     put: async (p, b) => { clearGetCache(); return req('PUT', p, b); },
     del: async (p) => { clearGetCache(); return req('DELETE', p); },
-    logout: async () => { try{ await req('POST','/logout',{}); }catch(e){} clearAuthStorage(); location.href = '/login'; },
+    logout: async () => { try{ await req('POST','/logout',{}); }catch(e){} clearAuthStorage(); location.href = '/panel-login'; },
     openSettings,
     openProfileMenu,
     paginateRows,

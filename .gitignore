@@ -8,3 +8,8 @@ data.sqlite
 .DS_Store
 npm-debug.log*
 backend/backups/
+# --- Nova SMS: runtime data (never commit; VPS owns these) ---
+backend/backups/
+*.sqlite
+*.sqlite-journal
+.env.local
