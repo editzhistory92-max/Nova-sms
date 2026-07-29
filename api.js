@@ -84,9 +84,9 @@
     if(document.getElementById('msSettingsPanel')) return;
     const panel=document.createElement('div');
     panel.id='msSettingsPanel'; panel.className='ms-notif-panel'; panel.style.top='68px';
-    panel.innerHTML=`<div class="ms-notif-head"><b>Nova Settings</b><div class="ms-notif-actions"><button id="msCloseSettings">×</button></div></div>
+    panel.innerHTML=`<div class="ms-notif-head"><b>Panel Settings</b><div class="ms-notif-actions"><button id="msCloseSettings">×</button></div></div>
       <div class="ms-notif-list" style="padding:14px 16px">
-        <label class="ms-switch" style="justify-content:space-between"><span>Contrast boost</span><input type="checkbox" id="msSetDark"></label>
+        <label class="ms-switch" style="justify-content:space-between"><span>Dark mode</span><input type="checkbox" id="msSetDark"></label>
       </div>`;
     document.body.appendChild(panel);
     document.getElementById('msCloseSettings').onclick=()=>panel.classList.remove('show');
