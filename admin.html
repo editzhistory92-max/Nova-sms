@@ -1155,7 +1155,7 @@ function buildSmsDetail(){
   <div class="toolbar">
     <div class="filter-row">
       <label><input type="checkbox" id="sdUseDate" checked style="width:auto" onchange="renderSmsDetail()"> Date</label>
-      <input type="date" id="sdDate" onchange="renderSmsDetail()" />
+      <input type="date" id="sdDateFrom" title="From date" onchange="renderSmsDetail()" /> <span class="muted" style="align-self:center">to</span> <input type="date" id="sdDateTo" title="To date" onchange="renderSmsDetail()" />
       <label><input type="checkbox" id="sdUseRange" style="width:auto" onchange="toggleDetailFilters()"> Range</label>
       <select id="sdRange" disabled onchange="renderSmsDetail()"><option value="">All Ranges</option></select>
       <label><input type="checkbox" id="sdUseNumber" style="width:auto" onchange="toggleDetailFilters()"> Number</label>
@@ -1173,7 +1173,7 @@ function buildSmsDetail(){
   <div class="table-wrap"><div class="tscroll"><table>
     <thead id="sdHead"></thead><tbody id="sdBody"></tbody></table></div>
     <div class="table-foot"><div class="info" id="sdInfo"></div><div class="info" id="sdPayoutInfo"></div></div></div>`;
-  document.getElementById('sdDate').value=todayStr();
+  var _f=document.getElementById('sdDateFrom'),_t=document.getElementById('sdDateTo');if(_f)_f.value='';if(_t)_t.value='';
   renderSmsDetail();
 }
 function toggleDetailFilters(){
@@ -1194,7 +1194,7 @@ function populateSmsDetailFilterLists(base){
   userSel.innerHTML='<option value="">All Managers</option>'+users.map(v=>`<option value="${v}">${v}</option>`).join('');
   if(ranges.includes(cr))rangeSel.value=cr;if(nums.includes(cn))numberSel.value=cn;if(users.includes(cu))userSel.value=cu;
 }
-function sdReset(){sdUseDate.checked=true;sdDate.value=todayStr();sdUseRange.checked=false;sdUseNumber.checked=false;sdUseUser.checked=false;sdSearch.value='';toggleDetailFilters();}
+function sdReset(){sdUseDate.checked=true;var _f2=document.getElementById('sdDateFrom'),_t2=document.getElementById('sdDateTo');if(_f2)_f2.value='';if(_t2)_t2.value='';sdUseRange.checked=false;sdUseNumber.checked=false;sdUseUser.checked=false;sdSearch.value='';toggleDetailFilters();}
 function buildSummaryRows(rows){
   const dims=[];
   if(sdUseDate.checked) dims.push({key:'_date',label:'Date',cls:'tag-gray'});
@@ -1207,9 +1207,27 @@ function buildSummaryRows(rows){
   const out=Object.values(map).map(x=>`<tr>${x.vals.map((v,i)=>`<td><span class="tag ${dims[i].cls}">${v}</span></td>`).join('')}<td class="cell-money">${x.sms}</td><td class="cell-money">${money(x.pay)}</td></tr>`);
   return {head,rows:out};
 }
+/* Date-range filter for SMS Detailed Report (From / To).
+   Both inputs are optional:
+     from only -> everything on/after from
+     to only   -> everything on/before to
+     neither   -> today (previous single-date behaviour) */
+function inSmsDateRange(receivedAt){
+  var d = ukDateOf(receivedAt || '');
+  if (!d) return false;
+  var fromEl = document.getElementById('sdDateFrom');
+  var toEl   = document.getElementById('sdDateTo');
+  var from = fromEl && fromEl.value ? fromEl.value : '';
+  var to   = toEl   && toEl.value   ? toEl.value   : '';
+  if (!from && !to) return d === todayStr();
+  if (from && to && from > to) { var t = from; from = to; to = t; }
+  if (from && d < from) return false;
+  if (to   && d > to)   return false;
+  return true;
+}
 function renderSmsDetail(){
   const q=(sdSearch.value||'').toLowerCase();
-  let base=(smsRecords||[]).filter(r=>!sdUseDate.checked||ukDateOf(r.received_at||'')===(sdDate.value||todayStr()));
+  let base=(smsRecords||[]).filter(r=>!sdUseDate.checked||inSmsDateRange(r.received_at));
   populateSmsDetailFilterLists(base);
   let filtered=base.filter(r=>(!sdUseRange.checked||!sdRange.value||r.range_name===sdRange.value)&&(!sdUseNumber.checked||!sdNumber.value||r.number===sdNumber.value)&&(!sdUseUser.checked||!sdUser.value||r.manager_name===sdUser.value)&&[r.manager_name,r.range_name,r.number,r.cli,r.message,r.payout_rate].join(' ').toLowerCase().includes(q));
   let head='',body=[];

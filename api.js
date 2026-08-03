@@ -280,7 +280,11 @@
     return '';
   }
   function initPageLinks(){
-    document.querySelectorAll('[data-page]').forEach(el=>{
+    // PERF: exclude the overlay itself. It carries data-page, so the old
+    // selector matched overlays too and every pass appended a new overlay
+    // inside the previous one - unbounded DOM growth driven by the observer
+    // below (measured: 495 overlays, 32 levels deep, for 15 real targets).
+    document.querySelectorAll('[data-page]:not(.ms-page-link-overlay)').forEach(el=>{
       const page=el.dataset.page;
       if(!page || el.querySelector(':scope > a.ms-page-link-overlay')) return;
       el.style.position = el.style.position || 'relative';
@@ -487,7 +491,22 @@
   function initPanelHistory(){
     if(!TOKEN() || location.pathname.includes('login')) return;
     initPageLinks(); initPageLinkClicks();
-    const linkMo=new MutationObserver(()=>{ clearTimeout(window.__msPageLinkTimer); window.__msPageLinkTimer=setTimeout(initPageLinks,120); });
+    // PERF: ignore mutations we caused ourselves, else the observer re-fires
+    // on every overlay we insert and never settles.
+    const linkMo=new MutationObserver((muts)=>{
+      let relevant=false;
+      for(const m of muts){
+        for(const n of m.addedNodes){
+          if(n.nodeType!==1) continue;
+          if(n.classList && n.classList.contains('ms-page-link-overlay')) continue;
+          relevant=true; break;
+        }
+        if(relevant) break;
+      }
+      if(!relevant) return;
+      clearTimeout(window.__msPageLinkTimer);
+      window.__msPageLinkTimer=setTimeout(initPageLinks,200);
+    });
     linkMo.observe(document.body,{childList:true,subtree:true});
     const initialPage=pageFromUrl() || localStorage.getItem('ms_last_page_'+panelKeyForStorage()) || currentPageName() || defaultPageForCurrentPanel();
     try{ history.replaceState({msPanel:true,page:initialPage},'',pageUrl(initialPage)); }catch(e){}
@@ -512,7 +531,14 @@
     const doLogout=()=>{ try{alert('Session expired due to inactivity. Please login again.');}catch(e){} API.logout(); };
     const check=()=>{ if(expired()) return doLogout(); clearTimeout(timer); timer=setTimeout(check, Math.min(maxIdleMs, 60000)); };
     const reset=()=>{ stamp(); clearTimeout(timer); timer=setTimeout(check, Math.min(maxIdleMs, 60000)); };
-    ['click','mousemove','keydown','scroll','touchstart','pointerdown'].forEach(ev=>document.addEventListener(ev, reset, {passive:true}));
+    // PERF: mousemove/scroll fire hundreds of times per second. Un-throttled this ran
+    // a sessionStorage write + clearTimeout + setTimeout on EVERY event, the main
+    // cause of "mouse interactions are not smooth". Throttle to 1s; idle detection
+    // only needs second-level accuracy (the timeout itself is 7 minutes).
+    let lastReset=0;
+    const resetThrottled=()=>{ const n=Date.now(); if(n-lastReset<1000) return; lastReset=n; reset(); };
+    ['click','keydown','touchstart','pointerdown'].forEach(ev=>document.addEventListener(ev, reset, {passive:true}));
+    ['mousemove','scroll'].forEach(ev=>document.addEventListener(ev, resetThrottled, {passive:true}));
     ['focus','pageshow','visibilitychange'].forEach(ev=>window.addEventListener(ev, check));
     reset();
   }
