@@ -26,6 +26,7 @@
  */
 
 const db = require('./db');
+const crypto = require('crypto');
 
 /* ------------------------------------------------------------------ *
  * Small helpers
@@ -174,15 +175,23 @@ const CONNECTORS = {
       for (const k of payoutKeys) {
         if (r && r[k] !== undefined && r[k] !== null && String(r[k]).trim() !== '') { payoutRaw = r[k]; break; }
       }
-      return {
-        ref:     String(pick(r, [m.ref     || 'id', 'id', 'message_id', 'sms_id', 'uuid', 'reference', 'msgid'])),
-        number:  String(pick(r, [m.number  || 'to', 'to', 'number', 'msisdn', 'recipient', 'destination', 'did'])),
-        cli:     String(pick(r, [m.cli     || 'from', 'from', 'cli', 'sender', 'originator', 'service'])),
-        message: String(pick(r, [m.message || 'text', 'text', 'message', 'body', 'content', 'sms'])),
-        date:    pick(r, [m.date || 'created_at', 'created_at', 'date', 'timestamp', 'received_at', 'time', 'datetime']),
-        payoutRaw,
-        raw: r,
-      };
+      const number  = String(pick(r, [m.number  || 'to', 'to', 'number', 'msisdn', 'recipient', 'destination', 'did', 'num']));
+      const cli     = String(pick(r, [m.cli     || 'from', 'from', 'cli', 'sender', 'originator', 'service']));
+      const message = String(pick(r, [m.message || 'text', 'text', 'message', 'body', 'content', 'sms']));
+      const date    = pick(r, [m.date || 'created_at', 'created_at', 'date', 'timestamp', 'received_at', 'time', 'datetime', 'dt']);
+
+      // Unique reference. Many providers (including lamix/viewstats) return NO
+      // id field at all, so fall back to a deterministic fingerprint of the
+      // fields that identify a message. Same SMS -> same hash on every poll,
+      // which is what makes the overlap window safe without a provider id.
+      let ref = String(pick(r, [m.ref || 'id', 'id', 'message_id', 'sms_id', 'uuid', 'reference', 'msgid']));
+      if (!ref) {
+        ref = 'fp:' + crypto.createHash('sha1')
+          .update([toUtcSql(date), number, cli, message].join('|'))
+          .digest('hex').slice(0, 24);
+      }
+
+      return { ref, number, cli, message, date, payoutRaw, raw: r };
     });
   },
 };
