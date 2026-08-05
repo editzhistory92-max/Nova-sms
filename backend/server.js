@@ -15,6 +15,7 @@ const { createTables } = require('./schema');
 const { seed } = require('./seed');
 const { sign, authRequired, requireRole, descendantIds } = require('./auth');
 const backup = require('./backup');
+const providerSync = require('./providerSync');
 
 const app = express();
 app.set('trust proxy', true);
@@ -115,6 +116,116 @@ app.get('/test/:page', (req, res) => sendFrontendPage(res, 'test.html'));
 
 // serve frontend assets and static files from project root
 app.use(express.static(FRONTEND_ROOT));
+
+
+/* ============ PROVIDER SYNC ADMIN API ============
+   Panels never call a provider. These endpoints only manage the sync
+   service; all SMS data continues to be read from the local database
+   through the existing /api/sms* endpoints. */
+
+app.get('/api/sync/providers', authRequired, requireRole('admin'), (req, res) => {
+  const rows = providerSync.listProviders().map(p => {
+    const cfg = providerSync.parseConfig(p);
+    // never leak the token back to the browser
+    if (cfg.token) cfg.token = '********';
+    return { ...p, config_json: JSON.stringify(cfg) };
+  });
+  res.json(rows);
+});
+
+app.post('/api/sync/providers', authRequired, requireRole('admin'), (req, res) => {
+  const b = req.body || {};
+  if (!b.name) return res.status(400).json({ error: 'name required' });
+  try { JSON.parse(b.config_json || '{}'); }
+  catch (e) { return res.status(400).json({ error: 'config_json must be valid JSON' }); }
+  try {
+    db.run(`INSERT INTO sync_providers (name,connector,config_json,active,interval_seconds,overlap_seconds)
+            VALUES (?,?,?,?,?,?)`,
+      [String(b.name), String(b.connector || 'generic_json'), String(b.config_json || '{}'),
+       b.active ? 1 : 0, Math.max(5, parseInt(b.interval_seconds || 12, 10)),
+       Math.max(0, parseInt(b.overlap_seconds || 30, 10))]);
+    logAction(req, 'create_sync_provider', 'sync', { name: b.name });
+    res.json({ ok: true });
+  } catch (e) { res.status(409).json({ error: e.message }); }
+});
+
+app.put('/api/sync/providers/:id', authRequired, requireRole('admin'), (req, res) => {
+  const p = providerSync.getProvider(req.params.id);
+  if (!p) return res.status(404).json({ error: 'Provider not found' });
+  const b = req.body || {};
+  // keep the stored token if the UI sent back the masked placeholder
+  let cfgJson = b.config_json !== undefined ? String(b.config_json) : p.config_json;
+  try {
+    const incoming = JSON.parse(cfgJson || '{}');
+    if (incoming.token === '********') {
+      incoming.token = providerSync.parseConfig(p).token || '';
+      cfgJson = JSON.stringify(incoming);
+    }
+  } catch (e) { return res.status(400).json({ error: 'config_json must be valid JSON' }); }
+
+  db.run(`UPDATE sync_providers SET name=?,connector=?,config_json=?,active=?,interval_seconds=?,overlap_seconds=?,updated_at=datetime('now') WHERE id=?`,
+    [b.name || p.name, b.connector || p.connector, cfgJson,
+     b.active !== undefined ? (b.active ? 1 : 0) : p.active,
+     Math.max(5, parseInt(b.interval_seconds || p.interval_seconds, 10)),
+     Math.max(0, parseInt(b.overlap_seconds !== undefined ? b.overlap_seconds : p.overlap_seconds, 10)),
+     p.id]);
+  logAction(req, 'update_sync_provider', 'sync', { id: p.id, name: b.name || p.name });
+  res.json({ ok: true });
+});
+
+app.delete('/api/sync/providers/:id', authRequired, requireRole('admin'), (req, res) => {
+  const p = providerSync.getProvider(req.params.id);
+  if (!p) return res.status(404).json({ error: 'Provider not found' });
+  db.run('DELETE FROM sync_providers WHERE id=?', [p.id]);
+  db.run('DELETE FROM sync_seen WHERE provider_id=?', [p.id]);
+  logAction(req, 'delete_sync_provider', 'sync', { id: p.id, name: p.name });
+  res.json({ ok: true });
+});
+
+// Run one cycle immediately. ?full=1 ignores the cursor (manual resync).
+app.post('/api/sync/providers/:id/run', authRequired, requireRole('admin'), async (req, res) => {
+  const p = providerSync.getProvider(req.params.id);
+  if (!p) return res.status(404).json({ error: 'Provider not found' });
+  const full = String(req.query.full || req.body?.full || '') === '1';
+  const result = await providerSync.syncProvider(p, {
+    log: console, processIncomingSmsPayload, clearApiReadCache,
+  }, { full });
+  logAction(req, full ? 'manual_full_resync' : 'manual_sync', 'sync', { id: p.id, name: p.name });
+  res.json(result);
+});
+
+// Reset the dedup ledger + cursor for a provider (forces a clean re-pull).
+app.post('/api/sync/providers/:id/reset', authRequired, requireRole('admin'), (req, res) => {
+  const p = providerSync.getProvider(req.params.id);
+  if (!p) return res.status(404).json({ error: 'Provider not found' });
+  db.run('DELETE FROM sync_seen WHERE provider_id=?', [p.id]);
+  db.run(`UPDATE sync_providers SET last_sync_at='',last_status='',last_error='',consecutive_failures=0,updated_at=datetime('now') WHERE id=?`, [p.id]);
+  logAction(req, 'reset_sync_provider', 'sync', { id: p.id, name: p.name });
+  res.json({ ok: true });
+});
+
+app.get('/api/sync/logs', authRequired, requireRole('admin'), (req, res) => {
+  const pid = req.query.provider_id;
+  const rows = pid
+    ? db.all('SELECT * FROM sync_logs WHERE provider_id=? ORDER BY id DESC LIMIT 200', [pid])
+    : db.all('SELECT * FROM sync_logs ORDER BY id DESC LIMIT 200');
+  res.json(rows);
+});
+
+app.get('/api/sync/status', authRequired, requireRole('admin'), (req, res) => {
+  const providers = providerSync.listProviders();
+  res.json({
+    enabled: String(process.env.SYNC_ENABLED || 'true').toLowerCase() !== 'false',
+    scheduler_seconds: Math.max(5, parseInt(process.env.SYNC_INTERVAL_SECONDS || '12', 10)),
+    providers: providers.map(p => ({
+      id: p.id, name: p.name, connector: p.connector, active: !!p.active,
+      interval_seconds: p.interval_seconds, overlap_seconds: p.overlap_seconds,
+      last_sync_at: p.last_sync_at, last_status: p.last_status,
+      last_error: p.last_error, consecutive_failures: p.consecutive_failures,
+      seen_count: (db.get('SELECT COUNT(*) c FROM sync_seen WHERE provider_id=?', [p.id]) || {}).c || 0,
+    })),
+  });
+});
 
 app.get('/health', (req, res) => res.json({ ok: true, service: 'Nova SMS', time: new Date().toISOString() }));
 app.get('/api/health', (req, res) => res.json({ ok: true, service: 'Nova SMS', time: new Date().toISOString() }));
@@ -965,7 +1076,24 @@ function numberSelectSql(where, options = {}) {
   const lastSms = options.lastSms ? `,
             (SELECT MAX(s.received_at) FROM sms_records s WHERE s.number=n.number AND COALESCE(s.is_test,0)=0) AS last_sms_at` : '';
   return `SELECT n.*, r.name AS range_name,
-            COALESCE(NULLIF(n.rate,''), NULLIF(r.rate_30_45,''), NULLIF(r.rate_7_1,''), NULLIF(r.rate_7_7,''), NULLIF(r.rate_1_1,''), '0') AS effective_rate,
+            COALESCE(
+      NULLIF(NULLIF(UPPER(TRIM(COALESCE(n.rate,''))),'NA'),''),
+      CASE
+        WHEN UPPER(TRIM(COALESCE(n.payterm, r.payment_type,'')))  LIKE '%30%'
+          OR UPPER(TRIM(COALESCE(n.payterm, r.payment_type,'')))  LIKE '%MONTH%'
+          THEN NULLIF(NULLIF(UPPER(TRIM(COALESCE(r.rate_30_45,''))),'NA'),'')
+        WHEN UPPER(TRIM(COALESCE(n.payterm, r.payment_type,'')))  LIKE '%7_7%'
+          THEN NULLIF(NULLIF(UPPER(TRIM(COALESCE(r.rate_7_7,''))),'NA'),'')
+        WHEN UPPER(TRIM(COALESCE(n.payterm, r.payment_type,'')))  LIKE '%1_1%'
+          OR UPPER(TRIM(COALESCE(n.payterm, r.payment_type,'')))  LIKE '%DAIL%'
+          THEN NULLIF(NULLIF(UPPER(TRIM(COALESCE(r.rate_1_1,''))),'NA'),'')
+        ELSE NULLIF(NULLIF(UPPER(TRIM(COALESCE(r.rate_7_1,''))),'NA'),'')
+      END,
+      NULLIF(NULLIF(UPPER(TRIM(COALESCE(r.rate_7_1,''))),'NA'),''),
+      NULLIF(NULLIF(UPPER(TRIM(COALESCE(r.rate_7_7,''))),'NA'),''),
+      NULLIF(NULLIF(UPPER(TRIM(COALESCE(r.rate_1_1,''))),'NA'),''),
+      NULLIF(NULLIF(UPPER(TRIM(COALESCE(r.rate_30_45,''))),'NA'),''),
+      '0') AS effective_rate,
             CASE WHEN n.manager_id IS NOT NULL THEN 'manager' WHEN n.agent_id IS NOT NULL THEN 'agent' WHEN n.client_id IS NOT NULL THEN 'client' ELSE 'unallocated' END AS owner_type,
             cu.username AS client_name, COALESCE(su.panel_name, au.username) AS agent_name, au.username AS agent_username, su.panel_name AS sharing_panel_name, su.id AS sharing_user_id, mu.username AS manager_name${lastSms}
      ${numberFromSql(where)}`;
@@ -2252,9 +2380,14 @@ function processIncomingSmsPayload(req, payload, sourceIp='', opts={}) {
     const limitStatus = evaluateDailyPayoutLimits(n, cli || '');
     if (limitStatus.exceeded) { smsPayoutRate = '0'; limitReason = limitStatus.reason; }
   }
-  db.run(`INSERT INTO sms_records (number_id,number,range_id,cli,sender_type,message,otp_code,client_id,agent_id,manager_id,is_test,test_batch_id,source,payout_rate,payout_amount,limit_reason,payment_type)
-          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-    [n.id, n.number, n.range_id, cli || '', senderType, message || '', otpCode, n.client_id, n.agent_id, n.manager_id, opts.isTest?1:0, opts.testBatchId||'', opts.source||'carrier', smsPayoutRate, smsPayoutRate, limitReason, assignedPaymentType]);
+    /* Provider rule: if the provider explicitly reports payout 0, the SMS is
+     non-payable and Nova must show 0 regardless of the configured rate card.
+     Any other provider payout (or none at all) is IGNORED for display - the
+     panel always calculates payout from its own rate cards. */
+  if (opts.forceZeroPayout) { smsPayoutRate = '0'; if (!limitReason) limitReason = 'provider_payout_zero'; }
+  db.run(`INSERT INTO sms_records (number_id,number,range_id,cli,sender_type,message,otp_code,client_id,agent_id,manager_id,is_test,test_batch_id,source,payout_rate,payout_amount,limit_reason,payment_type,received_at)
+          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,COALESCE(NULLIF(?,''),datetime('now')))`,
+    [n.id, n.number, n.range_id, cli || '', senderType, message || '', otpCode, n.client_id, n.agent_id, n.manager_id, opts.isTest?1:0, opts.testBatchId||'', opts.source||'carrier', smsPayoutRate, smsPayoutRate, limitReason, assignedPaymentType, opts.received_at || '']);
   const saved = db.get('SELECT id, received_at FROM sms_records ORDER BY id DESC LIMIT 1');
   if(saved && !opts.isTest) { try { recordPaymentLedgerForSms(saved.id, false); } catch(e) { console.warn('[PAYMENT_V2] ledger insert failed:', e.message); } }
   const smsRow = { number_id:n.id, number:n.number, range_id:n.range_id, cli:cli||'', sender_type:senderType, message:message||'', otp_code:otpCode, client_id:n.client_id, agent_id:n.agent_id, manager_id:n.manager_id, is_test: opts.isTest?1:0 };
@@ -2657,6 +2790,14 @@ const PORT = process.env.PORT || 4000;
   createTables();
   seed();
   if (backup && backup.startAutomaticBackups) backup.startAutomaticBackups(db, console);
+  // Background provider sync: the ONLY component that talks to external APIs.
+  try {
+    providerSync.start({
+      log: console,
+      processIncomingSmsPayload,
+      clearApiReadCache,
+    });
+  } catch (e) { console.warn('[SYNC] start failed:', e.message); }
   if (String(process.env.PAYMENT_LEDGER_BACKFILL_ON_STARTUP || 'false').toLowerCase() === 'true') {
     try { backfillPaymentLedger(); } catch(e) { console.warn('[PAYMENT_V2] backfill failed:', e.message); }
   } else {

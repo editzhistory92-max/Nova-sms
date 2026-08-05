@@ -1971,7 +1971,7 @@ async function loadAdminPageData(page){
     if(page==='allocation'){ await ensureAdminRates(); await ensureAdminManagers(); return loadNumberSummary(); }
     if(page==='rates') return loadRates();
     if(page==='smsReport'){ if(!document.getElementById('srBody')) buildSmsReport(); return renderSmsReport(); }
-    if(page==='smsDetail'){ if(!document.getElementById('sdBody')) buildSmsDetail(); await fillSmsDetailLiteFilters(); return renderSmsDetail(); }
+    if(page==='smsDetail'){ if(!document.getElementById('sdBody')) buildSmsDetail(); /* BUGFIX: smsRecords was never loaded here, so renderSmsDetail() always filtered an empty array and every filter (including Date) appeared to do nothing. */ await ensureAdminSms(); await fillSmsDetailLiteFilters(); return renderSmsDetail(); }
     if(['clientStats','agentStats','managerStats'].includes(page)){ const k=page.replace('Stats',''); if(!document.getElementById(k+'SBody')) buildEntityStats(k); await ensureAdminManagers(); return renderEntityStats(k); }
     if(['rangeStats','numberStats'].includes(page)){ const k=page.replace('Stats',''); if(!document.getElementById(k+'SBody')) buildDrillStats(k); await ensureAdminManagers(); return renderDrillStats(k); }
     if(page==='test'){ await ensureAdminRates(); await loadTestNumbers(); return renderTest(); }
@@ -2014,7 +2014,17 @@ async function renderSmsReport(){
 }
 async function renderSmsDetail(){
   if(!document.getElementById('sdBody')) return;
-  const dateVal=(document.getElementById('sdDate')?.value)||todayStr();
+  /* BUGFIX: read the From/To range inputs. The old single #sdDate element was
+     replaced by #sdDateFrom / #sdDateTo, so this always fell back to today()
+     and the Date filter silently did nothing. */
+  const _sdF=(document.getElementById('sdDateFrom')?.value)||'';
+  const _sdT=(document.getElementById('sdDateTo')?.value)||'';
+  let dateFrom=_sdF, dateTo=_sdT;
+  if(!dateFrom && !dateTo){ dateFrom=todayStr(); dateTo=todayStr(); }
+  else if(dateFrom && !dateTo){ dateTo='2099-12-31'; }
+  else if(!dateFrom && dateTo){ dateFrom='1970-01-01'; }
+  if(dateFrom>dateTo){ const _s=dateFrom; dateFrom=dateTo; dateTo=_s; }
+  const dateVal=dateFrom;
   const rangeVal=document.getElementById('sdRange')?.value||'';
   const numberVal=document.getElementById('sdNumber')?.value||'';
   const userVal=document.getElementById('sdUser')?.value||'';
@@ -2023,7 +2033,7 @@ async function renderSmsDetail(){
   const summaryMode=sdUseRange?.checked||sdUseNumber?.checked||sdUseUser?.checked;
   if(summaryMode){
     const by=sdUseNumber?.checked?'number':(sdUseRange?.checked?'range':'manager');
-    const params=new URLSearchParams({from:dateVal,to:dateVal}); if(rangeVal)params.set('range',rangeVal); if(numberVal)params.set('number',numberVal); if(userVal)params.set('manager',userVal); if(search)params.set('search',search);
+    const params=new URLSearchParams({from:dateFrom,to:dateTo}); if(rangeVal)params.set('range',rangeVal); if(numberVal)params.set('number',numberVal); if(userVal)params.set('manager',userVal); if(search)params.set('search',search);
     let data={rows:[]}; try{data=await API.get('/stats-summary/'+by+'?'+params.toString());}catch(e){console.warn(e)}
     sdHead.innerHTML=`<tr><th>${by}</th><th>Total OTPs</th><th>Total Payout</th></tr>`;
     const body=(data.rows||[]).map(x=>`<tr><td><span class="tag tag-blue">${x.key||'—'}</span></td><td class="cell-money">${x.sms||0}</td><td class="cell-money">${money(x.payment||'0')}</td></tr>`);
@@ -2032,7 +2042,7 @@ async function renderSmsDetail(){
   }
   const state=pagerState('adminSmsDetailServer');
   const sig=smsReportSignature({dateVal,rangeVal,numberVal,userVal,search,len}); if(state.signature!==sig){state.page=1;state.signature=sig;}
-  const params=new URLSearchParams({page:String(state.page||1),limit:len,from:dateVal,to:dateVal,sort:'date',dir:'desc'}); if(rangeVal)params.set('range',rangeVal); if(numberVal)params.set('number',numberVal); if(userVal)params.set('manager',userVal); if(search)params.set('search',search);
+  const params=new URLSearchParams({page:String(state.page||1),limit:len,from:dateFrom,to:dateTo,sort:'date',dir:'desc'}); if(rangeVal)params.set('range',rangeVal); if(numberVal)params.set('number',numberVal); if(userVal)params.set('manager',userVal); if(search)params.set('search',search);
   let data={rows:[],total:0,page:1,limit:25,totalPages:1,totalPayment:'0'}; try{data=await API.get('/sms/paged?'+params.toString());}catch(e){console.warn(e)}
   state.page=data.page||1; state.totalPages=data.totalPages||1;
   sdHead.innerHTML='<tr><th>Date</th><th>Manager</th><th>Range</th><th>Number</th><th>CLI</th><th>Payout Rate</th><th>SMS (Message Body)</th></tr>';

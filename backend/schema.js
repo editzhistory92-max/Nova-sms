@@ -453,6 +453,54 @@ function createTables() {
   db.run(`CREATE INDEX IF NOT EXISTS idx_sharing_users_active ON sharing_users(active)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_sharing_forward_logs_sms ON sharing_forward_logs(sms_record_id)`);
 
+  /* ===== Background Provider Sync (external API -> local DB) ===== */
+
+  // One row per external provider. Each keeps its OWN cursor and config,
+  // so new providers can be added without touching the panels.
+  db.run(`CREATE TABLE IF NOT EXISTS sync_providers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    connector TEXT NOT NULL DEFAULT 'generic_json',
+    config_json TEXT NOT NULL DEFAULT '{}',
+    active INTEGER NOT NULL DEFAULT 0,
+    interval_seconds INTEGER NOT NULL DEFAULT 12,
+    overlap_seconds INTEGER NOT NULL DEFAULT 30,
+    last_sync_at TEXT DEFAULT '',
+    last_status TEXT DEFAULT '',
+    last_error TEXT DEFAULT '',
+    consecutive_failures INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+  )`);
+
+  // Deduplication ledger. The UNIQUE index is what makes the overlap window
+  // safe: a record seen in the overlap can never be inserted twice.
+  db.run(`CREATE TABLE IF NOT EXISTS sync_seen (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    provider_id INTEGER NOT NULL,
+    provider_ref TEXT NOT NULL,
+    received_at TEXT DEFAULT '',
+    created_at TEXT DEFAULT (datetime('now'))
+  )`);
+  db.run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_sync_seen_unique ON sync_seen(provider_id, provider_ref)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_sync_seen_received ON sync_seen(received_at)`);
+
+  // Per-cycle audit trail (kept small by the service).
+  db.run(`CREATE TABLE IF NOT EXISTS sync_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    provider_id INTEGER,
+    status TEXT DEFAULT '',
+    fetched INTEGER DEFAULT 0,
+    inserted INTEGER DEFAULT 0,
+    duplicates INTEGER DEFAULT 0,
+    failed INTEGER DEFAULT 0,
+    duration_ms INTEGER DEFAULT 0,
+    error TEXT DEFAULT '',
+    created_at TEXT DEFAULT (datetime('now'))
+  )`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_sync_logs_provider ON sync_logs(provider_id, id)`);
+
+
 }
 
 module.exports = { createTables };
