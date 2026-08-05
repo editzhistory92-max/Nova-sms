@@ -157,6 +157,19 @@ const CONNECTORS = {
     const json = await res.json().catch(() => null);
     if (json === null) throw new Error('provider returned non-JSON');
 
+    // Many providers (lamix/viewstats included) answer HTTP 200 with an error
+    // body when the API key is wrong: {"status":"error","msg":"Not Authorized"}.
+    // Without this check a bad key looks like "0 new messages" forever, which
+    // is the worst possible failure mode - silent. Surface it as a real error
+    // so it lands in sync_logs / last_error and stops the cursor advancing.
+    if (json && !Array.isArray(json)) {
+      const st = String(json.status ?? json.result ?? '').toLowerCase();
+      if (st === 'error' || st === 'fail' || st === 'failed' || json.error) {
+        const msg = json.msg || json.message || json.error || json.error_message || 'provider returned an error';
+        throw new Error(`provider error: ${String(msg).slice(0, 200)}`);
+      }
+    }
+
     let rows = dig(json, cfg.records_path || '');
     if (!Array.isArray(rows)) {
       // tolerate common shapes without explicit records_path

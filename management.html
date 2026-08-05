@@ -397,6 +397,7 @@
         <div class="sub-item" data-page="cliLimit"><span class="dot"></span> SMS CLI Limit</div>
         <div class="sub-item" data-page="limitManagement"><span class="dot"></span> Limit Management</div>
         <div class="sub-item" data-page="carrierIntegration"><span class="dot"></span> Carrier Integration</div>
+        <div class="sub-item" data-page="apiProviders"><span class="dot"></span> API Providers</div>
         <div class="sub-item" data-page="systemLogs"><span class="dot"></span> System Logs</div>
         <div class="sub-item" data-page="backupManagement"><span class="dot"></span> Backups</div>
       </div>
@@ -743,6 +744,34 @@ Pakistan Jazz
         </table></div><div class="table-foot"><div class="info" id="backupInfo"></div></div></div>
       </section>
 
+      <!-- ========== SYSTEM MASTER: API PROVIDERS ========== -->
+      <section class="page" id="page-apiProviders">
+        <div class="page-head"><div><h2>API Providers</h2><div class="breadcrumb"><b>System Master</b> › API Provider Sync</div></div>
+          <div class="head-actions"><button class="btn btn-blue" onclick="loadApiProviders()">Refresh</button><button class="btn btn-purple" onclick="openApiProviderModal(-1)">+ Add Provider</button></div>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-card dash-metric d-blue"><div class="stat-info"><p>Sync Service</p><h3 id="apSvc">—</h3><span>Background scheduler</span></div><div class="dash-go">↺</div></div>
+          <div class="stat-card dash-metric d-green"><div class="stat-info"><p>Active Providers</p><h3 id="apActive">0</h3><span>Currently syncing</span></div><div class="dash-go">✓</div></div>
+          <div class="stat-card dash-metric d-orange"><div class="stat-info"><p>Total Providers</p><h3 id="apTotal">0</h3><span>Configured</span></div><div class="dash-go">#</div></div>
+          <div class="stat-card dash-metric d-pink"><div class="stat-info"><p>Errors</p><h3 id="apErrors">0</h3><span id="apErrText">Providers in error state</span></div><div class="dash-go">!</div></div>
+        </div>
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-head"><div><h3>How this works</h3><div class="sub">The panel never calls a provider directly. This screen only stores settings in the database; the background sync service reads them automatically and writes SMS into the local database.</div></div></div>
+          <div class="hint">Sync interval is per provider (recommended <b>10–15 seconds</b>). Records per sync defaults to <b>50</b>. Changes apply on the next cycle — no restart and no file editing required.</div>
+        </div>
+        <div class="table-wrap"><div class="tscroll"><table>
+          <thead><tr><th>Name</th><th>Base URL</th><th>Auth</th><th>Interval</th><th>Records</th><th>Status</th><th>Last Sync</th><th>Actions</th></tr></thead>
+          <tbody id="apBody"></tbody>
+        </table></div><div class="table-foot"><div class="info" id="apInfo"></div></div></div>
+        <div class="card" style="margin-top:16px">
+          <div class="card-head"><div><h3>Recent Sync Activity</h3><div class="sub">Last 20 sync cycles across all providers.</div></div><div class="head-actions"><button class="btn btn-blue" onclick="loadApiSyncLogs()">Refresh Logs</button></div></div>
+          <div class="table-wrap"><div class="tscroll"><table>
+            <thead><tr><th>Time</th><th>Provider</th><th>Status</th><th>Fetched</th><th>New</th><th>Duplicates</th><th>Failed</th><th>Duration</th><th>Error</th></tr></thead>
+            <tbody id="apLogBody"></tbody>
+          </table></div></div>
+        </div>
+      </section>
+
       <!-- ========== SYSTEM MASTER: SMS CLI LIMIT ========== -->
       <section class="page" id="page-cliLimit">
         <div class="page-head"><div><h2>SMS CLI Limit</h2><div class="breadcrumb"><b>System Master</b> › CLI Limit</div></div></div>
@@ -836,6 +865,69 @@ Pakistan Jazz
   <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal('rateModal')">Cancel</button><button class="btn btn-purple" onclick="saveRate()">Save Rate</button></div>
 </div></div>
 
+<!-- ============ API PROVIDER MODAL ============ -->
+<div class="modal-overlay" id="apiProviderModal"><div class="modal" style="max-width:720px">
+  <div class="modal-head"><h3 id="apModalTitle">Add API Provider</h3><button class="modal-close" onclick="closeModal('apiProviderModal')">×</button></div>
+  <div class="modal-body">
+    <div class="form-grid">
+      <div class="form-group"><label>Provider Name <span class="req">*</span></label><input type="text" id="apName" placeholder="e.g. Lamix" /></div>
+      <div class="form-group"><label>Status</label><select id="apActiveSel"><option value="1">Enabled</option><option value="0">Disabled</option></select></div>
+    </div>
+    <div class="form-group"><label>Base URL <span class="req">*</span></label><input type="text" id="apUrl" placeholder="http://51.77.216.195/crapi/lamix/viewstats" /><div class="hint">Full endpoint URL without query parameters.</div></div>
+    <div class="form-grid">
+      <div class="form-group"><label>Authentication Method</label>
+        <select id="apAuth" onchange="apAuthChange()">
+          <option value="query">API Key in URL (query parameter)</option>
+          <option value="bearer">Bearer Token (Authorization header)</option>
+          <option value="header">Custom Header</option>
+          <option value="none">No Authentication</option>
+        </select></div>
+      <div class="form-group" id="apAuthFieldGrp"><label id="apAuthFieldLabel">Query Parameter Name</label><input type="text" id="apAuthField" placeholder="token" /></div>
+    </div>
+    <div class="form-group" id="apTokenGrp"><label>API Token / Key</label><input type="text" id="apToken" placeholder="Paste the provider API key" /><div class="hint" id="apTokenHint">Stored in the database. Leave the masked value unchanged to keep the existing key.</div></div>
+    <div class="form-group"><label>HTTP Method</label><select id="apMethod"><option value="GET">GET</option><option value="POST">POST</option></select></div>
+    <div class="section-title" style="margin:14px 0 8px">Request Parameters</div>
+    <div class="form-grid">
+      <div class="form-group"><label>From / Start Parameter</label><input type="text" id="apFromParam" placeholder="dt1" /></div>
+      <div class="form-group"><label>To / End Parameter</label><input type="text" id="apToParam" placeholder="dt2" /></div>
+    </div>
+    <div class="form-grid">
+      <div class="form-group"><label>Date Format</label><select id="apDateFmt">
+        <option value="sql">YYYY-MM-DD HH:MM:SS</option>
+        <option value="iso">ISO 8601</option>
+        <option value="epoch">Unix seconds</option>
+        <option value="epoch_ms">Unix milliseconds</option>
+        <option value="date">YYYY-MM-DD</option>
+        <option value="compact">YYYYMMDDHHMMSS</option>
+      </select></div>
+      <div class="form-group"><label>Records Parameter</label><input type="text" id="apRecParam" placeholder="records" /></div>
+    </div>
+    <div class="form-grid">
+      <div class="form-group"><label>Records Per Sync</label><input type="number" id="apRecords" value="50" min="1" max="5000" /><div class="hint">Default 50.</div></div>
+      <div class="form-group"><label>Sync Interval (seconds)</label><input type="number" id="apInterval" value="12" min="5" max="3600" /><div class="hint">Recommended 10–15 seconds. Minimum 5.</div></div>
+    </div>
+    <div class="form-grid">
+      <div class="form-group"><label>Overlap Window (seconds)</label><input type="number" id="apOverlap" value="30" min="0" max="3600" /><div class="hint">Re-checks this many seconds back so no SMS is missed. Duplicates are blocked automatically.</div></div>
+      <div class="form-group"><label>Response Array Path</label><input type="text" id="apRecPath" placeholder="data" /><div class="hint">Where the records array is, e.g. <b>data</b>.</div></div>
+    </div>
+    <div class="section-title" style="margin:14px 0 8px">Field Mapping <span class="muted" style="font-weight:500">(provider field → Nova field)</span></div>
+    <div class="form-grid">
+      <div class="form-group"><label>Number</label><input type="text" id="apMapNumber" placeholder="num" /></div>
+      <div class="form-group"><label>CLI / Sender</label><input type="text" id="apMapCli" placeholder="cli" /></div>
+    </div>
+    <div class="form-grid">
+      <div class="form-group"><label>Message</label><input type="text" id="apMapMessage" placeholder="message" /></div>
+      <div class="form-group"><label>Date / Time</label><input type="text" id="apMapDate" placeholder="dt" /></div>
+    </div>
+    <div class="form-grid">
+      <div class="form-group"><label>Payout (optional)</label><input type="text" id="apMapPayout" placeholder="payout" /><div class="hint">Used only as an indicator. Payout is always calculated from panel rate cards; a provider payout of 0 marks the SMS non-payable.</div></div>
+      <div class="form-group"><label>Unique ID (optional)</label><input type="text" id="apMapRef" placeholder="Leave empty if not provided" /><div class="hint">If the provider sends no id, Nova generates a fingerprint to prevent duplicates.</div></div>
+    </div>
+    <div class="hint" id="apTestResult" style="margin-top:12px"></div>
+  </div>
+  <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal('apiProviderModal')">Cancel</button><button class="btn btn-green" onclick="testApiProvider()">Test Connection</button><button class="btn btn-purple" onclick="saveApiProvider()">Save Provider</button></div>
+</div></div>
+
 <!-- ============ SMART DIVIDE MODAL ============ -->
 <div class="modal-overlay" id="smartModal"><div class="modal" style="max-width:560px">
   <div class="modal-head"><h3>Smart Bulk Allocation (Auto-Divide)</h3><button class="modal-close" onclick="closeModal('smartModal')">×</button></div>
@@ -870,7 +962,7 @@ Pakistan Jazz
 /* auth guard — management uses admin credentials */
 if(window.API){ API.guard('admin'); }
 window.NOVA_PANEL_MODE='management';
-const MANAGEMENT_ALLOWED_PAGES=new Set(['import','testImport','rates','cliLimit','limitManagement','carrierIntegration','systemLogs','backupManagement']);
+const MANAGEMENT_ALLOWED_PAGES=new Set(['import','testImport','rates','cliLimit','limitManagement','carrierIntegration','apiProviders','systemLogs','backupManagement']);
 function normalizePanelPage(id){ id=String(id||'rates'); return MANAGEMENT_ALLOWED_PAGES.has(id)?id:'rates'; }
 function applyPanelSplitUi(){ /* Management Panel keeps maintenance/config modules only. */ }
 /* =============== NAV =============== */
@@ -2196,6 +2288,7 @@ async function loadAdminPageData(page){
     if(page==='cliLimit'){ await ensureAdminSms(); fillSelect('climCli',cliPool,false); await ensureAdminManagers(); fillSelect('climMgr',(usersData.manager||[]).map(m=>m.username),false); return loadCliLimits(); }
     if(page==='limitManagement'){ await ensureAdminRates(); return loadLimitManagement(); }
     if(page==='carrierIntegration') return loadCarrierSettings();
+    if(page==='apiProviders') return loadApiProviders();
     if(page==='systemLogs') return loadSystemLogs();
     if(page==='backupManagement') return loadBackups();
   }catch(e){console.warn('loadAdminPageData failed',page,e);}
@@ -2254,6 +2347,211 @@ async function renderSmsDetail(){
   sdBody.innerHTML=rows.map(r=>`<tr><td class="muted">${(r.received_at||'').slice(0,19)}</td><td><span class="tag tag-mgr">${r.manager_name||'—'}</span></td><td><span class="tag tag-blue">${r.range_name||'—'}</span></td><td><span class="tag tag-gray mono">${r.number||''}</span></td><td class="mono">${r.cli||''}</td><td class="cell-money payout-rate">${cleanDec(r.payout_rate||r.payout_amount||0)}</td><td class="msg-body">${r.message||''}</td></tr>`).join('')||`<tr><td colspan="7" class="muted" style="text-align:center;padding:24px">No records found</td></tr>`;
   sdInfo.textContent=`Showing ${smsShownCount(data.page, data.limit, rows.length, data.total)} of ${data.total||0} rows`; sdPayoutInfo.textContent=`Filtered total payout: ${money(data.totalPayment||'0')}`;
   setServerFoot(sdInfo,state,renderSmsDetail);
+}
+
+/* =============== SYSTEM MASTER: API PROVIDERS =============== */
+/* Settings are stored in the database (sync_providers). The background sync
+   service reads them on every cycle, so no source code or config file ever
+   needs to be edited to add or change a provider. */
+let apiProvidersData=[];
+const AP_MASK='********';
+
+function apCfgOf(p){ try{ return JSON.parse(p.config_json||'{}'); }catch(e){ return {}; } }
+
+function apAuthChange(){
+  const v=document.getElementById('apAuth')?.value||'query';
+  const grp=document.getElementById('apAuthFieldGrp');
+  const lbl=document.getElementById('apAuthFieldLabel');
+  const fld=document.getElementById('apAuthField');
+  const tok=document.getElementById('apTokenGrp');
+  if(!grp||!lbl||!fld||!tok) return;
+  if(v==='query'){ grp.style.display=''; lbl.textContent='Query Parameter Name'; fld.placeholder='token'; if(!fld.value)fld.value='token'; tok.style.display=''; }
+  else if(v==='header'){ grp.style.display=''; lbl.textContent='Header Name'; fld.placeholder='X-API-Key'; if(!fld.value||fld.value==='token')fld.value='X-API-Key'; tok.style.display=''; }
+  else if(v==='bearer'){ grp.style.display='none'; tok.style.display=''; }
+  else { grp.style.display='none'; tok.style.display='none'; }
+}
+
+function apStatusTag(p){
+  if(!p.active) return '<span class="tag tag-gray">Disabled</span>';
+  if(p.last_status==='error') return '<span class="tag tag-red">Error</span>';
+  if(p.last_status==='ok') return '<span class="tag tag-green">Running</span>';
+  return '<span class="tag tag-amber">Pending</span>';
+}
+
+async function loadApiProviders(){
+  const body=document.getElementById('apBody');
+  if(!body) return;
+  try{
+    const [rows,status]=await Promise.all([
+      API.get('/sync/providers'),
+      API.get('/sync/status').catch(()=>({enabled:true,scheduler_seconds:12,providers:[]}))
+    ]);
+    apiProvidersData=Array.isArray(rows)?rows:[];
+    const sMap={}; (status.providers||[]).forEach(s=>{sMap[s.id]=s;});
+    const active=apiProvidersData.filter(p=>p.active).length;
+    const errs=apiProvidersData.filter(p=>p.active&&p.last_status==='error').length;
+    document.getElementById('apSvc').textContent=status.enabled?('Every '+(status.scheduler_seconds||12)+'s'):'Disabled';
+    document.getElementById('apActive').textContent=active;
+    document.getElementById('apTotal').textContent=apiProvidersData.length;
+    document.getElementById('apErrors').textContent=errs;
+    document.getElementById('apErrText').textContent=errs?'Check the error column below':'Providers in error state';
+    body.innerHTML=apiProvidersData.map((p,i)=>{
+      const cfg=apCfgOf(p); const st=sMap[p.id]||{};
+      const authTxt={query:'API Key in URL',bearer:'Bearer Token',header:'Custom Header',none:'None'}[String(cfg.auth||'none')]||cfg.auth||'None';
+      const err=p.last_status==='error'&&p.last_error?`<div class="hint" style="color:var(--nova-danger,#FF5C7A);margin-top:3px">${apEsc(p.last_error)}</div>`:'';
+      return `<tr>
+        <td><b>${apEsc(p.name)}</b><div class="hint">${st.seen_count!==undefined?st.seen_count+' records tracked':''}</div></td>
+        <td class="mono"><span style="display:inline-block;max-width:260px;word-break:break-all;margin-right:20px;vertical-align:middle">${apEsc(cfg.url||'—')}</span></td>
+        <td>${apEsc(authTxt)}</td>
+        <td>${p.interval_seconds||12}s</td>
+        <td>${cfg.records||cfg.limit||50}</td>
+        <td>${apStatusTag(p)}${err}</td>
+        <td class="muted">${p.last_sync_at?String(p.last_sync_at).slice(0,19):'Never'}</td>
+        <td>
+          <button class="btn btn-blue btn-sm" onclick="openApiProviderModal(${i})">Edit</button>
+          <button class="btn ${p.active?'btn-amber':'btn-green'} btn-sm" onclick="toggleApiProvider(${p.id},${p.active?0:1})">${p.active?'Disable':'Enable'}</button>
+          <button class="btn btn-green btn-sm" onclick="runApiProviderNow(${p.id})">Sync Now</button>
+          <button class="btn btn-red btn-sm" onclick="deleteApiProvider(${p.id},'${apEsc(p.name).replace(/'/g,"\\'")}')">Delete</button>
+        </td></tr>`;
+    }).join('')||'<tr><td colspan="8" class="muted" style="text-align:center;padding:24px">No API providers configured. Click <b>+ Add Provider</b> to add one.</td></tr>';
+    document.getElementById('apInfo').textContent=`${apiProvidersData.length} provider(s) · ${active} active`;
+    await loadApiSyncLogs();
+  }catch(e){
+    body.innerHTML='<tr><td colspan="8" class="muted" style="text-align:center;padding:24px">Failed to load providers: '+apEsc(e.message||'')+'</td></tr>';
+  }
+}
+
+function apEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+async function loadApiSyncLogs(){
+  const el=document.getElementById('apLogBody');
+  if(!el) return;
+  try{
+    const logs=await API.get('/sync/logs');
+    const nameOf={}; apiProvidersData.forEach(p=>{nameOf[p.id]=p.name;});
+    el.innerHTML=(logs||[]).slice(0,20).map(l=>`<tr>
+      <td class="muted">${String(l.created_at||'').slice(0,19)}</td>
+      <td>${apEsc(nameOf[l.provider_id]||('#'+l.provider_id))}</td>
+      <td>${l.status==='ok'?'<span class="tag tag-green">OK</span>':'<span class="tag tag-red">Error</span>'}</td>
+      <td>${l.fetched||0}</td><td class="cell-money">${l.inserted||0}</td>
+      <td>${l.duplicates||0}</td><td>${l.failed||0}</td>
+      <td class="muted">${l.duration_ms||0}ms</td>
+      <td class="muted" style="max-width:240px;word-break:break-word">${apEsc(l.error||'')}</td></tr>`).join('')
+      ||'<tr><td colspan="9" class="muted" style="text-align:center;padding:18px">No sync activity yet</td></tr>';
+  }catch(e){ el.innerHTML='<tr><td colspan="9" class="muted" style="text-align:center;padding:18px">Failed to load logs</td></tr>'; }
+}
+
+let apEditIndex=-1;
+function openApiProviderModal(i){
+  apEditIndex=i;
+  const isNew=(i<0);
+  const p=isNew?null:apiProvidersData[i];
+  const cfg=p?apCfgOf(p):{};
+  const map=cfg.map||{};
+  const g=id=>document.getElementById(id);
+  g('apModalTitle').textContent=isNew?'Add API Provider':'Edit API Provider';
+  g('apName').value=p?p.name:'';
+  g('apActiveSel').value=p?(p.active?'1':'0'):'1';
+  g('apUrl').value=cfg.url||'';
+  g('apAuth').value=cfg.auth||'query';
+  g('apAuthField').value=cfg.auth==='header'?(cfg.auth_header||'X-API-Key'):(cfg.auth_query||'token');
+  g('apToken').value=cfg.token||'';
+  g('apMethod').value=cfg.method||'GET';
+  g('apFromParam').value=cfg.from_param||cfg.since_param||'dt1';
+  g('apToParam').value=cfg.to_param||'dt2';
+  g('apDateFmt').value=cfg.since_format||'sql';
+  g('apRecParam').value=cfg.records_param||cfg.limit_param||'records';
+  g('apRecords').value=cfg.records||cfg.limit||50;
+  g('apRecPath').value=cfg.records_path||'data';
+  g('apInterval').value=p?p.interval_seconds:12;
+  g('apOverlap').value=p?p.overlap_seconds:30;
+  g('apMapNumber').value=map.number||'num';
+  g('apMapCli').value=map.cli||'cli';
+  g('apMapMessage').value=map.message||'message';
+  g('apMapDate').value=map.date||'dt';
+  g('apMapPayout').value=map.payout||'payout';
+  g('apMapRef').value=map.ref||'';
+  g('apTestResult').textContent='';
+  g('apTokenHint').textContent=(p&&cfg.token===AP_MASK)?'Existing key is hidden. Leave unchanged to keep it, or type a new key to replace it.':'Stored in the database.';
+  apAuthChange();
+  document.getElementById('apiProviderModal').classList.add('show');
+}
+
+function apBuildPayload(){
+  const g=id=>(document.getElementById(id)?.value||'').trim();
+  const name=g('apName'); const url=g('apUrl');
+  if(!name){ alert('❌ Provider name is required.'); return null; }
+  if(!url){ alert('❌ Base URL is required.'); return null; }
+  const auth=g('apAuth')||'query';
+  const cfg={
+    url, method:g('apMethod')||'GET', auth,
+    token:document.getElementById('apToken').value.trim(),
+    since_format:g('apDateFmt')||'sql',
+    records_path:g('apRecPath')||'data',
+    records:Math.max(1,parseInt(g('apRecords')||'50',10)||50),
+    map:{ number:g('apMapNumber')||'num', cli:g('apMapCli')||'cli', message:g('apMapMessage')||'message', date:g('apMapDate')||'dt' }
+  };
+  if(auth==='query') cfg.auth_query=g('apAuthField')||'token';
+  if(auth==='header') cfg.auth_header=g('apAuthField')||'X-API-Key';
+  if(g('apFromParam')) cfg.from_param=g('apFromParam');
+  if(g('apToParam')) cfg.to_param=g('apToParam');
+  if(g('apRecParam')) cfg.records_param=g('apRecParam');
+  if(g('apMapPayout')) cfg.map.payout=g('apMapPayout');
+  if(g('apMapRef')) cfg.map.ref=g('apMapRef');
+  return {
+    name, connector:'generic_json',
+    active:g('apActiveSel')==='1'?1:0,
+    interval_seconds:Math.max(5,parseInt(g('apInterval')||'12',10)||12),
+    overlap_seconds:Math.max(0,parseInt(g('apOverlap')||'30',10)||30),
+    config_json:JSON.stringify(cfg)
+  };
+}
+
+async function saveApiProvider(){
+  const body=apBuildPayload(); if(!body) return;
+  try{
+    if(apEditIndex<0){ await API.post('/sync/providers',body); }
+    else { await API.put('/sync/providers/'+apiProvidersData[apEditIndex].id,body); }
+    closeModal('apiProviderModal');
+    alert('✅ Provider saved. The sync service will use the new settings on its next cycle.');
+    loadApiProviders();
+  }catch(e){ alert('❌ '+(e.message||'Save failed')); }
+}
+
+async function testApiProvider(){
+  const el=document.getElementById('apTestResult');
+  const body=apBuildPayload(); if(!body) return;
+  el.textContent='Testing connection...';
+  try{
+    const r=await API.post('/sync/test',body);
+    if(r&&r.ok){
+      el.innerHTML=`<span style="color:var(--nova-ok,#25D9A4)"><b>✓ Connection OK</b> — ${r.fetched} record(s) returned.</span>`
+        +(r.sample?`<div class="hint" style="margin-top:6px">Sample → number: <b>${apEsc(r.sample.number||'—')}</b> · CLI: <b>${apEsc(r.sample.cli||'—')}</b> · date: <b>${apEsc(r.sample.date||'—')}</b></div>`:'')
+        +(r.fetched===0?'<div class="hint" style="margin-top:6px">The API responded but returned no records for the current time window.</div>':'');
+    } else {
+      el.innerHTML=`<span style="color:var(--nova-danger,#FF5C7A)"><b>✗ Failed</b> — ${apEsc(r&&r.error?r.error:'unknown error')}</span>`;
+    }
+  }catch(e){ el.innerHTML=`<span style="color:var(--nova-danger,#FF5C7A)"><b>✗ Failed</b> — ${apEsc(e.message||'')}</span>`; }
+}
+
+async function toggleApiProvider(id,active){
+  try{ await API.put('/sync/providers/'+id,{active}); loadApiProviders(); }
+  catch(e){ alert('❌ '+(e.message||'Update failed')); }
+}
+
+async function deleteApiProvider(id,name){
+  if(!confirm('Delete API provider "'+name+'"?\n\nSMS already imported will NOT be deleted.')) return;
+  try{ await API.del('/sync/providers/'+id); loadApiProviders(); }
+  catch(e){ alert('❌ '+(e.message||'Delete failed')); }
+}
+
+async function runApiProviderNow(id){
+  try{
+    const r=await API.post('/sync/providers/'+id+'/run',{});
+    if(r&&r.ok) alert(`✅ Sync complete.\n\nFetched: ${r.fetched}\nNew: ${r.inserted}\nDuplicates: ${r.duplicates}\nFailed: ${r.failed}`+(r.failed?'\n\nFailed records usually mean those numbers are not imported/allocated. Check System Logs → Failed SMS Queue.':''));
+    else alert('❌ Sync failed: '+((r&&r.error)||'unknown error'));
+    loadApiProviders();
+  }catch(e){ alert('❌ '+(e.message||'Sync failed')); }
 }
 
 /* =============== MANAGEMENT INIT (maintenance/config only) =============== */

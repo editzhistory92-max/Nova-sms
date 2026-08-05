@@ -146,7 +146,12 @@ app.post('/api/sync/providers', authRequired, requireRole('admin'), (req, res) =
        Math.max(0, parseInt(b.overlap_seconds || 30, 10))]);
     logAction(req, 'create_sync_provider', 'sync', { name: b.name });
     res.json({ ok: true });
-  } catch (e) { res.status(409).json({ error: e.message }); }
+  } catch (e) {
+    const msg = /UNIQUE/i.test(String(e.message))
+      ? `A provider named "${b.name}" already exists. Use a different name, or edit the existing one.`
+      : e.message;
+    res.status(409).json({ error: msg });
+  }
 });
 
 app.put('/api/sync/providers/:id', authRequired, requireRole('admin'), (req, res) => {
@@ -202,6 +207,38 @@ app.post('/api/sync/providers/:id/reset', authRequired, requireRole('admin'), (r
   db.run(`UPDATE sync_providers SET last_sync_at='',last_status='',last_error='',consecutive_failures=0,updated_at=datetime('now') WHERE id=?`, [p.id]);
   logAction(req, 'reset_sync_provider', 'sync', { id: p.id, name: p.name });
   res.json({ ok: true });
+});
+
+// Test a provider configuration WITHOUT saving it and WITHOUT importing any
+// SMS. Used by the "Test Connection" button in Management -> API Providers.
+app.post('/api/sync/test', authRequired, requireRole('admin'), async (req, res) => {
+  const b = req.body || {};
+  let cfg;
+  try { cfg = JSON.parse(b.config_json || '{}'); }
+  catch (e) { return res.status(400).json({ ok: false, error: 'config_json must be valid JSON' }); }
+  if (!cfg.url) return res.status(400).json({ ok: false, error: 'Base URL is required' });
+
+  // If the browser sent the masked placeholder, use the stored key instead so
+  // the user can test an existing provider without re-typing its token.
+  if (cfg.token === '********') {
+    const existing = b.name ? db.get('SELECT * FROM sync_providers WHERE name=?', [String(b.name)]) : null;
+    cfg.token = existing ? (providerSync.parseConfig(existing).token || '') : '';
+  }
+
+  const connector = providerSync.CONNECTORS[b.connector || 'generic_json'] || providerSync.CONNECTORS.generic_json;
+  // Look back one hour so a correctly configured provider returns something.
+  const since = new Date(Date.now() - 3600000).toISOString().slice(0, 19).replace('T', ' ');
+  try {
+    const records = await connector(cfg, since, console);
+    const s = records[0];
+    res.json({
+      ok: true,
+      fetched: records.length,
+      sample: s ? { number: s.number, cli: s.cli, date: s.date, has_message: !!s.message } : null,
+    });
+  } catch (e) {
+    res.json({ ok: false, error: String(e.message || e) });
+  }
 });
 
 app.get('/api/sync/logs', authRequired, requireRole('admin'), (req, res) => {
