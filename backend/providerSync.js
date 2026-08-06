@@ -62,6 +62,85 @@ function pick(obj, keys) {
   return '';
 }
 
+/**
+ * Normalise a pasted URL.
+ * Handles: surrounding whitespace, markdown "[text](url)" pastes, HTML-escaped
+ * "&amp;" separators, angle brackets, and a trailing slash before the query
+ * (astrasms returns HTTP 500 for ".../viewstats/?token=...").
+ */
+function cleanUrl(value) {
+  let u = String(value == null ? '' : value).trim();
+  if (!u) return '';
+  u = u.replace(/^<+|>+$/g, '').trim();
+  // markdown link: [label](real-url)  ->  real-url
+  const md = u.match(/\]\(\s*(https?:\/\/[^)\s]+)\s*\)/i);
+  if (md) u = md[1];
+  else {
+    const bare = u.match(/https?:\/\/[^\s\]()<>]+/i);   // pull the URL out of any wrapper
+    if (bare) u = bare[0];
+  }
+  u = u.replace(/&amp;/gi, '&');       // HTML-escaped ampersands
+  u = u.replace(/\s+/g, '');           // stray spaces/newlines from copy-paste
+  const q = u.indexOf('?');
+  const path = q === -1 ? u : u.slice(0, q);
+  const rest = q === -1 ? '' : u.slice(q);
+  return path.replace(/\/+$/, '') + rest;   // drop trailing slash on the path only
+}
+
+/**
+ * Normalise an API token/key of ANY shape.
+ * Tokens differ per provider: plain hex with no padding, base64 ending in one
+ * "=", two "==", containing "+" or "/", or already percent-encoded. Users also
+ * paste "token=VALUE", the full URL, or a value with stray quotes/newlines.
+ * This reduces all of those to the exact literal the provider expects.
+ */
+function cleanToken(value, paramName) {
+  let t = String(value == null ? '' : value).trim();
+  if (!t) return '';
+  t = t.replace(/^['"<]+|['">]+$/g, '').trim();          // quotes / angle brackets
+  t = t.replace(/&amp;/gi, '&');
+  // a whole URL was pasted into the token box -> take the token param out of it
+  if (/^https?:\/\//i.test(t)) {
+    try {
+      const qp = new URL(t).searchParams;
+      t = qp.get(paramName || 'token') || qp.get('token') || qp.get('api_key') || qp.get('key') || '';
+    } catch (_) { /* fall through */ }
+  }
+  // "token=VALUE" or "?token=VALUE" pasted into the box
+  const kv = t.match(/^[?&]?\s*[A-Za-z_][A-Za-z0-9_-]*\s*=\s*(.+)$/);
+  if (kv && /^(token|api_key|apikey|key|auth|access_token)$/i.test(t.split('=')[0].replace(/^[?&]\s*/, '').trim())) {
+    t = kv[1].trim();
+  }
+  // anything glued on after the token ("...ea2&dt1=2026-08-06")
+  t = t.split('&')[0].trim();
+  // already percent-encoded? decode so we control the encoding ourselves.
+  // Only decode when it round-trips cleanly, so a literal "%" is never eaten.
+  if (/%[0-9A-Fa-f]{2}/.test(t)) {
+    try { const d = decodeURIComponent(t); if (encodeURIComponent(d) === encodeURIComponent(decodeURIComponent(t))) t = d; }
+    catch (_) { /* malformed encoding -> keep as typed */ }
+  }
+  return t.replace(/\s+/g, '');   // internal spaces/newlines are never part of a key
+}
+
+/**
+ * Serialise query parameters without over-encoding.
+ * URLSearchParams turns "=" into "%3D" and "+" into "%2B". Both are legal, but
+ * providers such as lamix compare the raw string and reject the encoded form.
+ * These characters are unreserved inside a query value per RFC 3986, so they
+ * are emitted literally; everything else is still encoded properly.
+ */
+function buildQuery(params) {
+  const safe = (s) => encodeURIComponent(String(s))
+    .replace(/%3D/g, '=')     // base64 padding
+    .replace(/%2B/g, '+')     // base64 "+"
+    .replace(/%2F/g, '/')     // base64 "/"
+    .replace(/%3A/g, ':')     // times in dt1/dt2
+    .replace(/%20/g, '%20');  // keep spaces encoded (a literal space breaks the URL)
+  const out = [];
+  for (const [k, v] of params) out.push(encodeURIComponent(k) + '=' + safe(v));
+  return out.join('&');
+}
+
 /** Read a value from a dotted path, e.g. "data.messages" */
 function dig(obj, path) {
   if (!path) return obj;
@@ -104,18 +183,42 @@ const CONNECTORS = {
    * }
    */
   generic_json: async function (cfg, sinceSql, log) {
-    const url = String(cfg.url || '').trim();
+    let url = cleanUrl(cfg.url);
     if (!url) throw new Error('provider config missing "url"');
 
     const method = String(cfg.method || 'GET').toUpperCase();
-    const headers = { 'Accept': 'application/json' };
+    // Some providers sit behind a WAF that rejects unknown/absent User-Agents
+    // (astrasms.com returns 403 to python-urllib, for example). Always send a
+    // normal one; it can be overridden per provider if a provider requires it.
+    const headers = {
+      'Accept': 'application/json',
+      'User-Agent': String(cfg.user_agent || 'Mozilla/5.0 (compatible; NovaSMS-Sync/1.0)'),
+    };
     const params = new URLSearchParams();
 
+    // If the whole request URL was pasted (token/dt1/dt2/records already in it),
+    // split it: keep the path as the base and treat its query as defaults. The
+    // values we compute below always win, so a stale pasted dt1/dt2 is ignored.
+    const pastedParams = new URLSearchParams();
+    const qIdx = url.indexOf('?');
+    if (qIdx !== -1) {
+      const rawQs = url.slice(qIdx + 1);
+      url = url.slice(0, qIdx);
+      for (const [k, v] of new URLSearchParams(rawQs)) pastedParams.set(k, v);
+    }
+
     // ---- authentication ----
-    const auth = String(cfg.auth || (cfg.token ? 'bearer' : 'none')).toLowerCase();
-    if (auth === 'bearer' && cfg.token) headers['Authorization'] = 'Bearer ' + cfg.token;
-    else if (auth === 'header' && cfg.token) headers[cfg.auth_header || 'X-API-Key'] = cfg.token;
-    else if (auth === 'query' && cfg.token) params.set(cfg.auth_query || 'api_key', cfg.token);
+    // Tokens come in every shape: plain hex, base64 with one "=", two "==",
+    // "+" and "/", or already percent-encoded. cleanToken() normalises all of
+    // them so the caller never has to know which kind they have.
+    const authQueryName = cfg.auth_query || 'api_key';
+    let token = cleanToken(cfg.token, authQueryName);
+    if (!token && pastedParams.has(authQueryName)) token = cleanToken(pastedParams.get(authQueryName), authQueryName);
+
+    const auth = String(cfg.auth || (token ? 'bearer' : 'none')).toLowerCase();
+    if (auth === 'bearer' && token) headers['Authorization'] = 'Bearer ' + token;
+    else if (auth === 'header' && token) headers[cfg.auth_header || 'X-API-Key'] = token;
+    else if (auth === 'query' && token) params.set(authQueryName, token);
 
     // ---- incremental cursor ----
     // Providers differ: some take one "since" param, many take a dt1/dt2 window
@@ -143,9 +246,17 @@ const CONNECTORS = {
     if (recParam) params.set(recParam, String(cfg.records || cfg.limit || 50));
     for (const [k, v] of Object.entries(cfg.extra_params || {})) params.set(k, String(v));
 
+    // Carry over any pasted params we did not generate ourselves (some
+    // providers need an extra flag), without ever overriding our own values.
+    for (const [k, v] of pastedParams) if (!params.has(k)) params.set(k, v);
+
     // ---- request ----
-    const qs = params.toString();
-    const full = method === 'GET' && qs ? url + (url.includes('?') ? '&' : '?') + qs : url;
+    // Build the query manually. URLSearchParams percent-encodes "=" to "%3D"
+    // and "+" to "%2B" inside values; several providers (lamix included) reject
+    // an encoded token even though it is technically correct. Token characters
+    // that are safe unencoded in a query string are therefore left as-is.
+    const qs = buildQuery(params);
+    const full = method === 'GET' && qs ? url + '?' + qs : url;
     const init = { method, headers, signal: AbortSignal.timeout(Number(cfg.timeout_ms || 20000)) };
     if (method !== 'GET') {
       headers['Content-Type'] = 'application/json';
@@ -165,8 +276,18 @@ const CONNECTORS = {
     if (json && !Array.isArray(json)) {
       const st = String(json.status ?? json.result ?? '').toLowerCase();
       if (st === 'error' || st === 'fail' || st === 'failed' || json.error) {
-        const msg = json.msg || json.message || json.error || json.error_message || 'provider returned an error';
-        throw new Error(`provider error: ${String(msg).slice(0, 200)}`);
+        const msg = String(json.msg || json.message || json.error || json.error_message
+                           || 'provider returned an error');
+        // "No Records Found" is NOT a failure. Both lamix and astrasms return
+        // status=error with this message whenever the requested window simply
+        // contains no SMS. Treating it as an error made every quiet poll fail,
+        // triggering exponential backoff and freezing the cursor - which is
+        // why a low-traffic provider appeared to "not work" while a busy one
+        // seemed fine. An empty window must be a normal, successful, empty run.
+        if (/no\s*record|no\s*data|not\s*found\s*record|empty/i.test(msg)) {
+          return [];
+        }
+        throw new Error(`provider error: ${msg.slice(0, 200)}`);
       }
     }
 
@@ -422,5 +543,5 @@ module.exports = {
   getProvider,
   parseConfig,
   CONNECTORS,
-  _internal: { toUtcSql, shiftSql, dig, pick },
+  _internal: { toUtcSql, shiftSql, dig, pick, cleanUrl, cleanToken, buildQuery },
 };
