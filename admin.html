@@ -611,12 +611,12 @@
             <div class="table-wrap" style="padding:14px 16px;margin-top:0"><div class="table-controls">
               <div class="tc-left"><label>Show Records:</label><select id="testNumLen" onchange="renderTest()"><option>10</option><option selected>25</option><option>50</option></select>
                 <div class="exp-btns"><button class="btn btn-blue">Copy</button><button class="btn btn-blue">CSV</button><button class="btn btn-green">Excel</button></div></div>
-              <div class="tc-right"><label>Search:</label><input type="text" id="testNumSearch" oninput="renderTest()" placeholder="Search..."/></div>
+              <div class="tc-right"><label>Range:</label><select id="testNumRange" onchange="renderTest()" style="min-width:150px"><option value="">All</option></select><label>Search:</label><input type="text" id="testNumSearch" oninput="renderTest()" placeholder="Search..."/></div>
             </div></div>
             <div class="table-wrap"><div class="tscroll"><table>
               <thead><tr><th>Range</th><th>Test Number</th></tr></thead>
               <tbody id="testNumBody"></tbody>
-            </table></div></div>
+            </table></div><div class="table-foot"><div class="info" id="testNumInfo"></div><div class="pagination"></div></div></div>
           </div>
           <div>
             <h3 style="margin-bottom:12px;font-size:16px">Recent SMS Test</h3>
@@ -628,7 +628,7 @@
             <div class="table-wrap"><div class="tscroll"><table>
               <thead><tr><th>Date</th><th>Range</th><th>Number</th><th>CLI</th><th>SMS (Message Body)</th></tr></thead>
               <tbody id="testRecBody"></tbody>
-            </table></div></div>
+            </table></div><div class="table-foot"><div class="info" id="testRecInfo"></div><div class="pagination"></div></div></div>
           </div>
         </div>
       </section>
@@ -824,7 +824,7 @@ function multiOptions(vals){return vals.map(v=>`<option value="${v}">${v}</optio
 
 /* fill selects */
 function fillSelect(id,arr,keepFirst=true){const s=document.getElementById(id);if(!s)return;const first=keepFirst?s.children[0].outerHTML:'';s.innerHTML=first+arr.map(x=>`<option>${x}</option>`).join('');}
-fillSelect('allocRange',rangeNames); fillSelect('numRange',rangeNames); fillSelect('importRange',rangeNames); fillSelect('testRange',rangeNames);
+fillSelect('allocRange',rangeNames); fillSelect('numRange',rangeNames); fillSelect('importRange',rangeNames); fillSelect('testRange',rangeNames); fillSelect('testNumRange',rangeNames);
 fillSelect('allocManager',managers.map(m=>m+' (Manager)'));
 /* numClient filter select — populated after users load in INIT */
 
@@ -1398,23 +1398,57 @@ async function clearAdminFakeTraffic(){
   if(!confirm('Clear all demo/fake messages? Real carrier/test SMS will not be removed.'))return;
   try{const r=await API.del('/test-panel/fake');alert(`✅ Cleared ${r.deleted||0} demo messages.`);await loadSmsRecords();await loadDashboard();renderTest();}catch(e){alert('❌ '+e.message)}
 }
+/* Both Test Panel tables are paged SERVER-SIDE. The tables can hold tens of
+   thousands of rows, so only the current page is ever fetched and rendered. */
 async function renderTest(){
-  const role=document.getElementById('cliRole').value; // admin=full, agent=masked
-  const rangeF=document.getElementById('testRange').value;
-  const tq=(document.getElementById('testNumSearch').value||'').toLowerCase();
-  let tRows=testNumbers.filter(r=>(!rangeF||r.range===rangeF)&&[r.range,r.num].join(' ').toLowerCase().includes(tq));
-  const tLen=document.getElementById('testNumLen').value; if(tLen!=='All')tRows=tRows.slice(0,parseInt(tLen));
-  document.getElementById('testNumBody').innerHTML=tRows.map(r=>`<tr><td>${r.range}</td><td class="mono">${r.num}</td></tr>`).join('')||`<tr><td colspan="2" class="muted" style="text-align:center;padding:24px">No test numbers found</td></tr>`;
-  const rq=(document.getElementById('testRecSearch').value||'').toLowerCase();
-  const cliF=(document.getElementById('testCliFilter').value||'').toLowerCase();
-  const apiRows=await API.get('/test-panel/sms').catch(()=>[]);
-  let rRows=(apiRows||[]).map(r=>({date:(r.received_at||'').slice(0,19),range:r.range_name||'',num:r.number||'',cli:r.cli||'',msg:r.message||''}))
-    .filter(r=>(!rangeF||r.range===rangeF)&&(!cliF||r.cli.toLowerCase().includes(cliF))&&[r.range,r.num,r.cli,r.msg].join(' ').toLowerCase().includes(rq));
-  const rLen=document.getElementById('testRecLen').value; if(rLen!=='All')rRows=rRows.slice(0,parseInt(rLen));
-  document.getElementById('testRecBody').innerHTML=rRows.map(r=>{
-    const cliShown = role==='admin' ? r.cli : maskCLI(r.cli);
-    return `<tr><td class="muted">${r.date}</td><td>${r.range}</td><td class="mono">${r.num}</td><td class="mono">${cliShown}</td><td class="msg-body">${r.msg}</td></tr>`;
+  await Promise.all([renderTestNumbersTable(), renderTestRecentTable()]);
+}
+
+async function renderTestNumbersTable(){
+  const body=document.getElementById('testNumBody'); if(!body) return;
+  const info=document.getElementById('testNumInfo');
+  const state=pagerState('adminTestNumbersServer');
+  const len=document.getElementById('testNumLen')?.value||'25';
+  const search=(document.getElementById('testNumSearch')?.value||'').trim();
+  // Own Range dropdown for this table only (the toolbar filter still applies too).
+  const rangeSel=(document.getElementById('testNumRange')?.value||'').trim();
+  const rangeTop=(document.getElementById('testRange')?.value||'').trim();
+  const rangeF=rangeSel||rangeTop;
+  const sig=smsReportSignature({len,search,rangeF}); if(state.signature!==sig){state.page=1;state.signature=sig;}
+  const params=new URLSearchParams({paged:'1',page:String(state.page||1),limit:len});
+  if(search)params.set('search',search);
+  if(rangeF)params.set('range',rangeF);
+  let data={rows:[],total:0,page:1,limit:25,totalPages:1};
+  try{ data=await API.get('/test-numbers?'+params.toString()); }catch(e){ console.warn('test numbers load failed',e); }
+  state.page=data.page||1; state.totalPages=data.totalPages||1;
+  const rows=data.rows||[];
+  body.innerHTML=rows.map(r=>`<tr><td>${r.range_name||''}</td><td class="mono">${r.number||''}</td></tr>`).join('')
+    ||`<tr><td colspan="2" class="muted" style="text-align:center;padding:24px">No test numbers found</td></tr>`;
+  if(info){ info.textContent=`Showing ${smsShownCount(data.page,data.limit,rows.length,data.total)} of ${(data.total||0).toLocaleString()} test numbers`; setServerFoot(info,state,renderTestNumbersTable); }
+}
+
+async function renderTestRecentTable(){
+  const body=document.getElementById('testRecBody'); if(!body) return;
+  const info=document.getElementById('testRecInfo');
+  const role=document.getElementById('cliRole')?.value||'admin'; // admin=full, agent=masked
+  const state=pagerState('adminTestRecentServer');
+  const len=document.getElementById('testRecLen')?.value||'25';
+  const search=(document.getElementById('testRecSearch')?.value||'').trim();
+  const cliF=(document.getElementById('testCliFilter')?.value||'').trim();
+  // NOTE: Recent SMS Test is deliberately NOT filtered by Range.
+  const sig=smsReportSignature({len,search,cliF}); if(state.signature!==sig){state.page=1;state.signature=sig;}
+  const params=new URLSearchParams({paged:'1',page:String(state.page||1),limit:len});
+  if(search)params.set('search',search);
+  if(cliF)params.set('cli',cliF);
+  let data={rows:[],total:0,page:1,limit:25,totalPages:1};
+  try{ data=await API.get('/test-panel/sms?'+params.toString()); }catch(e){ console.warn('test panel sms load failed',e); }
+  state.page=data.page||1; state.totalPages=data.totalPages||1;
+  const rows=data.rows||[];
+  body.innerHTML=rows.map(r=>{
+    const cliShown = role==='admin' ? (r.cli||'') : maskCLI(r.cli||'');
+    return `<tr><td class="muted">${(r.received_at||'').slice(0,19)}</td><td>${r.range_name||''}</td><td class="mono">${r.number||''}</td><td class="mono">${cliShown}</td><td class="msg-body">${r.message||''}</td></tr>`;
   }).join('')||`<tr><td colspan="5" class="muted" style="text-align:center;padding:24px">No test panel SMS found</td></tr>`;
+  if(info){ info.textContent=`Showing ${smsShownCount(data.page,data.limit,rows.length,data.total)} of ${(data.total||0).toLocaleString()} rows`; setServerFoot(info,state,renderTestRecentTable); }
 }
 
 /* =============== SYSTEM MASTER: SMS CLI LIMIT (API-backed) =============== */
@@ -1527,6 +1561,7 @@ async function loadRates(){ try{ ratesData=await API.get('/ranges'); }catch(e){ 
   fillSelect('importRange',liveRanges);
   fillSelect('testImportRange',liveRanges);
   fillSelect('testRange',liveRanges);
+  fillSelect('testNumRange',liveRanges);
   const delSel=document.getElementById('deleteRangeSelect');
   if(delSel) delSel.innerHTML='<option value="">Select Range</option>'+((ratesData||[]).map(r=>`<option value="${r.id}">${r.name}</option>`).join(''));
   if(document.getElementById('ratesBody')) renderRates();

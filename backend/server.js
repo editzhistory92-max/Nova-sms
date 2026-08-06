@@ -961,23 +961,44 @@ app.get('/api/test-panel/dashboard', authRequired, requireRole('admin','manager'
 
 app.get('/api/test-panel/sms', authRequired, requireRole('admin','manager','agent','client','test'), (req, res) => cachedJson(req, res, 1500, () => {
   const number = String(req.query.number || '').trim();
-  const limit = Math.max(1, Math.min(parseInt(req.query.limit || '50', 10) || 50, 500));
+  const search = String(req.query.search || '').trim();
+  const cli = String(req.query.cli || '').trim();
   const params = [];
   const where = ['COALESCE(s.is_test,0)=1'];
   if (number) { where.push("REPLACE(REPLACE(REPLACE(REPLACE(s.number,'+',''),' ',''),'-',''),'_','')=?"); params.push(cleanPhone(number)); }
-  const rows = db.all(`SELECT s.*, r.name AS range_name,
-      t.id AS test_number_id, COALESCE(t.test_number, s.number) AS test_number, t.created_at AS test_number_created_at,
-      cu.username AS client_name, COALESCE(su.panel_name, au.username) AS agent_name, au.username AS agent_username, su.panel_name AS sharing_panel_name, su.id AS sharing_user_id, mu.username AS manager_name
-    FROM sms_records s
+  if (cli) { where.push('s.cli LIKE ?'); params.push('%' + cli + '%'); }
+  if (search) {
+    where.push('(s.number LIKE ? OR s.cli LIKE ? OR s.message LIKE ? OR r.name LIKE ?)');
+    params.push('%' + search + '%', '%' + search + '%', '%' + search + '%', '%' + search + '%');
+  }
+  const base = `FROM sms_records s
     LEFT JOIN ranges r ON r.id=s.range_id
     LEFT JOIN range_test_numbers t ON t.range_id=s.range_id AND t.active=1 AND REPLACE(REPLACE(REPLACE(REPLACE(t.test_number,'+',''),' ',''),'-',''),'_','')=REPLACE(REPLACE(REPLACE(REPLACE(s.number,'+',''),' ',''),'-',''),'_','')
     LEFT JOIN users cu ON cu.id=s.client_id
     LEFT JOIN users au ON au.id=s.agent_id
     LEFT JOIN sharing_users su ON su.agent_user_id=s.agent_id
     LEFT JOIN users mu ON mu.id=s.manager_id
-    WHERE ${where.join(' AND ')}
-    ORDER BY s.id DESC LIMIT ?`, [...params, limit]);
-  return rows;
+    WHERE ${where.join(' AND ')}`;
+
+  // Paged mode is opt-in so existing callers keep receiving a plain array.
+  const paged = req.query.paged || req.query.page;
+  const total = paged
+    ? +(db.get(`SELECT COUNT(*) c ${base}`, params)?.c || 0)
+    : 0;
+  const limitRaw = String(req.query.limit || '50');
+  const limit = limitRaw.toLowerCase() === 'all'
+    ? Math.max(1, Math.min(total || 1, 10000))
+    : Math.max(1, Math.min(parseInt(limitRaw, 10) || 50, 5000));
+  const totalPages = Math.max(1, Math.ceil((total || 1) / limit));
+  const page = Math.min(Math.max(1, parseInt(req.query.page || '1', 10) || 1), totalPages);
+  const offset = paged ? (page - 1) * limit : 0;
+
+  const rows = db.all(`SELECT s.*, r.name AS range_name,
+      t.id AS test_number_id, COALESCE(t.test_number, s.number) AS test_number, t.created_at AS test_number_created_at,
+      cu.username AS client_name, COALESCE(su.panel_name, au.username) AS agent_name, au.username AS agent_username, su.panel_name AS sharing_panel_name, su.id AS sharing_user_id, mu.username AS manager_name
+    ${base}
+    ORDER BY s.id DESC LIMIT ? OFFSET ?`, [...params, limit, offset]);
+  return paged ? { rows, total, page, limit, totalPages } : rows;
 }));
 
 
