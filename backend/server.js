@@ -1809,9 +1809,28 @@ app.get('/api/dashboard', authRequired, (req, res) => cachedJson(req, res, 2500,
       failedToday = db.get(`SELECT COUNT(*) c FROM failed_sms_queue WHERE ${ukDateExpr('created_at')}=${ukDateNowSql()}`)?.c || 0;
       failedTotal = db.get('SELECT COUNT(*) c FROM failed_sms_queue')?.c || 0;
     } else {
+      // PERFORMANCE: this used to be a correlated EXISTS subquery with
+      // REPLACE() applied to BOTH sides. SQLite could not use either index for
+      // the correlation, so it degenerated into
+      //   SCAN failed_sms_queue x (search numbers for every single row)
+      // On live data (105,571 failed rows x 24,557 numbers) that is billions of
+      // string operations - measured at OVER 300 SECONDS and never completing,
+      // twice per dashboard load. Admin never hit it (plain COUNT), which is
+      // exactly why only the Admin panel worked while every other role froze
+      // the whole server.
+      //
+      // Rewritten as an explicit JOIN so SQLite drives from
+      // idx_numbers_<role>_range_number and probes
+      // idx_failed_sms_number_clean. Same result, measured 84 ms.
       const nScope = numberScopeWhere(u, 'n');
-      failedToday = db.get(`SELECT COUNT(*) c FROM failed_sms_queue f WHERE ${ukDateExpr('f.created_at')}=${ukDateNowSql()} AND EXISTS (SELECT 1 FROM numbers n WHERE ${nScope.where} AND REPLACE(REPLACE(REPLACE(REPLACE(n.number,'+',''),' ',''),'-',''),'_','')=REPLACE(REPLACE(REPLACE(REPLACE(f.number,'+',''),' ',''),'-',''),'_',''))`, nScope.params)?.c || 0;
-      failedTotal = db.get(`SELECT COUNT(*) c FROM failed_sms_queue f WHERE EXISTS (SELECT 1 FROM numbers n WHERE ${nScope.where} AND REPLACE(REPLACE(REPLACE(REPLACE(n.number,'+',''),' ',''),'-',''),'_','')=REPLACE(REPLACE(REPLACE(REPLACE(f.number,'+',''),' ',''),'-',''),'_',''))`, nScope.params)?.c || 0;
+      const cleanN = `REPLACE(REPLACE(REPLACE(REPLACE(n.number,'+',''),' ',''),'-',''),'_','')`;
+      const cleanF = `REPLACE(REPLACE(REPLACE(REPLACE(f.number,'+',''),' ',''),'-',''),'_','')`;
+      failedToday = db.get(`SELECT COUNT(*) c FROM failed_sms_queue f
+        JOIN numbers n ON ${cleanN}=${cleanF}
+        WHERE ${nScope.where} AND ${ukDateExpr('f.created_at')}=${ukDateNowSql()}`, nScope.params)?.c || 0;
+      failedTotal = db.get(`SELECT COUNT(*) c FROM failed_sms_queue f
+        JOIN numbers n ON ${cleanN}=${cleanF}
+        WHERE ${nScope.where}`, nScope.params)?.c || 0;
     }
   } catch(e) {}
   return { sms_today: today, otp_today: today, successful_otp_today: successToday, failed_otp_today: failedToday, failed_sms_today: failedToday, total_sms: totalSms, failed_total: failedTotal, sms_yesterday: yesterday, sms_7d: d7, sms_month: month, payout_7d: payout7, payout_month: payoutMonth, managers, agents, clients, numbers, daily7, recent };
