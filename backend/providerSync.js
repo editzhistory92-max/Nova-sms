@@ -347,10 +347,19 @@ function parseConfig(row) {
   try { return JSON.parse(row.config_json || '{}'); } catch (_) { return {}; }
 }
 
+/**
+ * Update a provider's bookkeeping row.
+ *
+ * PERFORMANCE: db.run() persists the ENTIRE database to disk (sql.js exports
+ * the whole file on every write). Provider bookkeeping happens on every poll -
+ * every 12s, forever, even when nothing was fetched - so using db.run() here
+ * cost a full 18 MB export per call and blocked the event loop for ~30 ms.
+ * runNoSave() keeps the write in memory; the caller decides when to persist.
+ */
 function markProvider(id, fields) {
   const keys = Object.keys(fields);
   if (!keys.length) return;
-  db.run(
+  db.runNoSave(
     `UPDATE sync_providers SET ${keys.map(k => `${k}=?`).join(',')}, updated_at=datetime('now') WHERE id=?`,
     [...keys.map(k => fields[k]), id]
   );
@@ -358,7 +367,9 @@ function markProvider(id, fields) {
 
 function logSync(providerId, status, fetched, inserted, duplicates, failed, ms, error) {
   try {
-    db.run(
+    // runNoSave for the same reason as markProvider: this runs on every poll.
+    // Persisting is handled once per cycle by the caller.
+    db.runNoSave(
       `INSERT INTO sync_logs (provider_id,status,fetched,inserted,duplicates,failed,duration_ms,error)
        VALUES (?,?,?,?,?,?,?,?)`,
       [providerId, status, fetched | 0, inserted | 0, duplicates | 0, failed | 0, ms | 0, String(error || '').slice(0, 500)]
@@ -385,6 +396,11 @@ async function syncProvider(provider, deps, opts = {}) {
 
   let fetched = 0, inserted = 0, duplicates = 0, failed = 0;
   let newest = provider.last_sync_at || '';
+
+  // Did this cycle change anything that must reach disk? Bookkeeping alone
+  // (cursor + log row) is NOT worth an 18 MB export on every 12s poll, so an
+  // idle cycle now persists nothing and costs zero disk I/O.
+  let dirty = false;
 
   try {
     const records = await connector(cfg, since, deps.log);
@@ -433,6 +449,10 @@ async function syncProvider(provider, deps, opts = {}) {
 
           if (ok) {
             inserted++;
+            dirty = true;
+            // db.run (not runNoSave): inside a batch this only flags the batch
+            // dirty, so the dedup ledger is guaranteed to be persisted by the
+            // single save at the end of the cycle.
             db.run(
               'INSERT OR IGNORE INTO sync_seen (provider_id,provider_ref,received_at) VALUES (?,?,?)',
               [provider.id, rec.ref, receivedAt]
@@ -440,19 +460,37 @@ async function syncProvider(provider, deps, opts = {}) {
           }
           if (receivedAt > newest) newest = receivedAt;
         }
-      } finally {
-        try { db.endBatch && db.endBatch(); } catch (e) { deps.log.warn('[SYNC] batch save failed:', e.message); }
-      }
-    }
 
-    // Advance the cursor only on a successful cycle.
-    markProvider(provider.id, {
-      last_sync_at: newest || nowUtcSql(),
-      last_status: 'ok',
-      last_error: '',
-      consecutive_failures: 0,
-    });
-    logSync(provider.id, 'ok', fetched, inserted, duplicates, failed, Date.now() - started, '');
+        // Advance the cursor and write the log row INSIDE the batch so they
+        // ride along with the single save below instead of forcing two more
+        // full-database exports.
+        markProvider(provider.id, {
+          last_sync_at: newest || nowUtcSql(),
+          last_status: 'ok',
+          last_error: '',
+          consecutive_failures: 0,
+        });
+        logSync(provider.id, 'ok', fetched, inserted, duplicates, failed, Date.now() - started, '');
+      } finally {
+        // Persist once per cycle, and only when real rows were ingested.
+        try {
+          if (dirty) { db.endBatch && db.endBatch(); }
+          else { db.endBatchNoSave ? db.endBatchNoSave() : (db.endBatch && db.endBatch()); }
+        } catch (e) { deps.log.warn('[SYNC] batch save failed:', e.message); }
+      }
+    } else {
+      // Idle poll: nothing fetched. Keep the cursor fresh in memory only - no
+      // disk write at all. This is the common case and used to cost two full
+      // 18 MB exports every 12 seconds.
+      markProvider(provider.id, {
+        last_sync_at: newest || nowUtcSql(),
+        last_status: 'ok',
+        last_error: '',
+        consecutive_failures: 0,
+      });
+      logSync(provider.id, 'ok', fetched, inserted, duplicates, failed, Date.now() - started, '');
+      markBookkeepingDirty();
+    }
 
     if (fetched) {
       deps.log.log(`[SYNC] ${provider.name}: fetched=${fetched} new=${inserted} dup=${duplicates} failed=${failed} (${Date.now() - started}ms)`);
@@ -470,6 +508,7 @@ async function syncProvider(provider, deps, opts = {}) {
       consecutive_failures: fails,
     });
     logSync(provider.id, 'error', fetched, inserted, duplicates, failed, Date.now() - started, e.message);
+    markBookkeepingDirty();
     deps.log.warn(`[SYNC] ${provider.name} failed (attempt ${fails}): ${e.message}`);
     return { ok: false, error: String(e.message || e) };
   }
@@ -517,6 +556,23 @@ async function runDueProviders(deps) {
 
 const lastRunMap = new Map();
 
+/**
+ * Bookkeeping (cursor, status, log rows) is written in memory only, so an idle
+ * provider costs zero disk I/O. Flush it to disk occasionally, and on shutdown,
+ * so a restart cannot lose the cursor and re-pull old records.
+ * One write every 5 minutes instead of 10 per minute.
+ */
+const BOOKKEEPING_FLUSH_MS = 5 * 60 * 1000;
+let bookkeepingDirty = false;
+let flushTimer = null;
+function markBookkeepingDirty() { bookkeepingDirty = true; }
+function flushBookkeeping(reason) {
+  if (!bookkeepingDirty) return false;
+  bookkeepingDirty = false;
+  try { db.save(); return true; }
+  catch (e) { bookkeepingDirty = true; console.warn('[SYNC] bookkeeping flush failed:', e.message); return false; }
+}
+
 function start(deps) {
   const enabled = String(process.env.SYNC_ENABLED || 'true').toLowerCase() !== 'false';
   if (!enabled) { deps.log.log('• Provider sync disabled (SYNC_ENABLED=false)'); return null; }
@@ -526,6 +582,17 @@ function start(deps) {
   timer = setInterval(() => { runDueProviders(deps).catch(() => {}); }, tick);
   if (timer.unref) timer.unref();   // never keeps the process alive on shutdown
 
+  // Periodically persist in-memory bookkeeping so a crash/restart cannot lose
+  // the cursor. Far cheaper than saving on every poll.
+  if (!flushTimer) {
+    flushTimer = setInterval(() => { flushBookkeeping('interval'); }, BOOKKEEPING_FLUSH_MS);
+    if (flushTimer.unref) flushTimer.unref();
+    const onExit = () => { try { flushBookkeeping('exit'); } catch (_) {} };
+    process.once('SIGINT', () => { onExit(); process.exit(0); });
+    process.once('SIGTERM', () => { onExit(); process.exit(0); });
+    process.once('beforeExit', onExit);
+  }
+
   const count = (() => { try { return listProviders(true).length; } catch (_) { return 0; } })();
   deps.log.log(`• Provider sync active: scheduler every ${tick / 1000}s, ${count} active provider(s)`);
   return timer;
@@ -533,12 +600,15 @@ function start(deps) {
 
 function stop() {
   if (timer) { clearInterval(timer); timer = null; }
+  if (flushTimer) { clearInterval(flushTimer); flushTimer = null; }
+  flushBookkeeping('stop');
 }
 
 module.exports = {
   start,
   stop,
   syncProvider,
+  flushBookkeeping,
   listProviders,
   getProvider,
   parseConfig,

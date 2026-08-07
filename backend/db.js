@@ -46,6 +46,18 @@ function endBatch() {
   if (batchDepth > 0) batchDepth--;
   if (batchDepth === 0 && batchDirty) save();
 }
+/**
+ * Close a batch WITHOUT flushing to disk.
+ *
+ * sql.js exports the whole database on every save(), so a recurring background
+ * task that only touches bookkeeping rows would otherwise rewrite the entire
+ * file (18 MB+) on every tick and block the event loop. Such a task can close
+ * its batch with this and let the next real write persist the data.
+ * The pending-write flag is preserved, so nothing is silently lost.
+ */
+function endBatchNoSave() {
+  if (batchDepth > 0) batchDepth--;
+}
 
 // run a statement (INSERT/UPDATE/DELETE/DDL) with params
 function run(sql, params = []) {
@@ -120,4 +132,4 @@ function vacuum() {
   catch (e) { console.warn('VACUUM failed:', e.message); return false; }
 }
 
-module.exports = { init, run, runNoSave, exec, execNoSave, get, all, save, beginBatch, endBatch, vacuum, exportBuffer, getDbFile, replaceWithFile };
+module.exports = { init, run, runNoSave, exec, execNoSave, get, all, save, beginBatch, endBatch, endBatchNoSave, vacuum, exportBuffer, getDbFile, replaceWithFile };
