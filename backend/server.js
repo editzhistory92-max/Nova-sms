@@ -356,12 +356,28 @@ function attachSmsPayoutFields(rows){
   return (rows||[]).map(r=>{ const rate=payoutRateFromRow(r); return {...r,payout_rate:rate,payout_amount:rate}; });
 }
 function sumPayout(rows){ return (rows||[]).reduce((s,r)=>decimalAdd(s,r.payout_amount ?? r.payout_rate ?? payoutRateFromRow(r)), '0'); }
-function smsRowsForScope(user, extraWhere='', extraParams=[]){
+/**
+ * Rows for the caller's scope.
+ *
+ * SAFETY CAP: this used to return EVERY matching SMS row with no LIMIT. On a
+ * production database (150k rows) that is a 6-way JOIN materialising 150,000
+ * objects into JS memory and serialising a ~96 MB JSON response - measured at
+ * 5.7 SECONDS of fully blocked event loop for a single request, plus ~400 MB of
+ * heap. One agent opening a report was enough to freeze the whole server for
+ * every other user, and repeated clicks pushed Node to an OOM/100% CPU stall.
+ *
+ * Every screen that needs real paging already uses /api/sms/paged (server-side
+ * LIMIT/OFFSET). This legacy endpoint only feeds summary widgets, so a bounded
+ * newest-first window gives identical visible results without the meltdown.
+ */
+const SMS_SCOPE_ROW_CAP = Math.max(1, parseInt(process.env.SMS_SCOPE_ROW_CAP || '5000', 10));
+function smsRowsForScope(user, extraWhere='', extraParams=[], opts={}){
   const scope=smsScopeWhere(user,'s');
   // Normal SMS/report/earning modules should not mix Test Panel OTPs.
   // Test Panel data is served separately by /api/test-panel/sms.
   const where=[scope.where, 'COALESCE(s.is_test,0)=0']; const params=[...scope.params];
   if(extraWhere){ where.push(extraWhere); params.push(...extraParams); }
+  const cap = Math.max(1, parseInt(opts.limit || SMS_SCOPE_ROW_CAP, 10));
   const rows=db.all(`SELECT s.*, r.name AS range_name, r.rate_1_1, r.rate_7_1, r.rate_7_7, r.rate_30_45,
       n.rate AS number_rate, n.payout AS number_payout, n.payterm AS payterm, r.payment_type AS payment_type,
       cu.username AS client_name, COALESCE(su.panel_name, au.username) AS agent_name, au.username AS agent_username, su.panel_name AS sharing_panel_name, su.id AS sharing_user_id, mu.username AS manager_name
@@ -372,7 +388,7 @@ function smsRowsForScope(user, extraWhere='', extraParams=[]){
     LEFT JOIN users au ON au.id=s.agent_id
     LEFT JOIN sharing_users su ON su.agent_user_id=s.agent_id
     LEFT JOIN users mu ON mu.id=s.manager_id
-    WHERE ${where.join(' AND ')} ORDER BY s.received_at DESC`, params);
+    WHERE ${where.join(' AND ')} ORDER BY s.received_at DESC LIMIT ?`, [...params, cap]);
   return attachSmsPayoutFields(rows);
 }
 function logAction(req, action, module, details=''){
@@ -1627,9 +1643,11 @@ app.get('/api/stats-summary/:by', authRequired, (req, res) => cachedJson(req, re
   const totalPayment = rows.reduce((a,r)=>decimalAdd(a,r.payment||'0'),'0');
   return { rows, totalSms, totalPayment, by };
 }));
-app.get('/api/sms', authRequired, (req, res) => {
-  res.json(smsRowsForScope(req.user));
-});
+// Legacy bulk endpoint kept for the summary widgets. Capped (see
+// smsRowsForScope) and cached, because panels re-call it on every page click.
+app.get('/api/sms', authRequired, (req, res) => cachedJson(req, res, 2500, () => {
+  return smsRowsForScope(req.user);
+}));
 
 // aggregated stats by dimension
 app.get('/api/stats/:by', authRequired, (req, res) => {
